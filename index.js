@@ -19,9 +19,10 @@ const supabase = require('./supabaseClient');
 app.post('/lead', async (req, res) => {
   const { full_name, phone, email, project, source } = req.body;
 
-  const { data, error } = await supabase
-    .from('leads')
-    .insert([{ full_name, phone, email, project, source }]);
+const { data, error } = await supabase
+  .from('leads')
+  .insert([{ full_name, phone, email, project, source }])
+  .select();
 
   if (error) {
     console.error('❌ Supabase insert failed:', error.message);
