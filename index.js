@@ -50,14 +50,17 @@ app.post('/meta-webhook', async (req, res) => {
     console.log('📥 Incoming Meta Lead:', { pageId, formId, leadgenId });
 
     // 🔍 Look up the correct consultant/client/project
-    const { data: pages, error } = await supabase
-      .from('pages')
-      .select('*')
-      .eq('fb_page_id', pageId)
-      .eq('form_id', formId)
-      .limit(1)
-      .maybeSingle();
+  console.log('🧾 Incoming values from Meta:', { pageId, formId, leadgenId });
 
+const { data: pages, error } = await supabase
+  .from('pages')
+  .select('*')
+  .eq('fb_page_id', pageId)
+  .eq('form_id', formId)
+  .limit(1)
+  .maybeSingle();
+
+console.log('🔍 Lookup result:', { pages, error });
     if (error) throw error;
 
     if (!pages) {
