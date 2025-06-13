@@ -107,7 +107,56 @@ res.status(200).json({ message: 'Lead stored (placeholder)' });
 }
 }); // 👈 closes the route handler
 
+// 🔁 Simulate a lead without Meta payload
+app.post('/simulate-lead', async (req, res) => {
+  const { page_id, form_id } = req.body;
+
+  if (!page_id || !form_id) {
+    return res.status(400).json({ error: 'Missing page_id or form_id' });
+  }
+
+  try {
+    const { data: page, error } = await supabase
+      .from('pages')
+      .select('*')
+      .eq('fb_page_id', page_id)
+      .eq('form_id', form_id)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!page) return res.status(404).json({ error: 'Page/form mapping not found' });
+
+    await supabase.from('leads').insert([{
+      full_name: null,
+      phone: null,
+      email: null,
+      project: page.page_name || 'Unknown Project',
+      source: `Simulated`,
+      status: 'new'
+    }]);
+
+    const template = await fetchTemplate('first_touch_new_launch', page_id, form_id);
+    if (!template) return res.status(200).json({ message: 'No template found, lead stored' });
+
+    const leadData = {
+      name: 'there',
+      project: page.page_name
+    };
+
+    const finalMessage = fillTemplate(template, leadData);
+    sendWhatsAppMessageMock(null, finalMessage);
+
+    res.status(200).json({ message: finalMessage });
+  } catch (err) {
+    console.error('🔥 Simulate error:', err.message);
+    res.status(500).json({ error: 'Simulate failed' });
+  }
+});
+
+
 // 🔂 MOCK WhatsApp sender
 function sendWhatsAppMessageMock(phone, message) {
   console.log(`📲 [MOCK SEND] Sending WhatsApp message to ${phone || '[no number yet]'}:\n${message}\n`);
 }
+
