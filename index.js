@@ -1,30 +1,31 @@
-const { fetchTemplate, fillTemplate } = require('./templates');
-
+// ---🧠 Imports & Config --------------------------------------
 require('dotenv').config();
 const express = require('express');
+const supabase = require('./supabaseClient');
+const { generateAiMessage } = require('./generateAiMessage');
 
-
+// ---🚀 App Init ----------------------------------------------
 const app = express();
 app.use(express.json());
-
-app.get('/health', (req, res) => {
-  res.send('✅ Bot backend is alive');
-});
 
 const PORT = process.env.PORT || 8880;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
 
-const supabase = require('./supabaseClient');
+// ---💓 Healthcheck -------------------------------------------
+app.get('/health', (req, res) => {
+  res.send('✅ Bot backend is alive');
+});
 
+// ---📥 Insert Lead (Manual) ----------------------------------
 app.post('/lead', async (req, res) => {
   const { full_name, phone, email, project, source } = req.body;
 
-const { data, error } = await supabase
-  .from('leads')
-  .insert([{ full_name, phone, email, project, source }])
-  .select(); 
+  const { data, error } = await supabase
+    .from('leads')
+    .insert([{ full_name, phone, email, project, source }])
+    .select();
 
   if (error) {
     console.error('❌ Supabase insert failed:', error.message);
@@ -35,10 +36,10 @@ const { data, error } = await supabase
   res.status(200).json({ message: 'Lead stored', data });
 });
 
+// ---🌐 Meta Webhook Handler ----------------------------------
 app.post('/meta-webhook', async (req, res) => {
   try {
     const body = req.body;
-
     const changes = body?.entry?.[0]?.changes?.[0];
     const pageId = changes?.value?.page_id;
     const formId = changes?.value?.form_id;
@@ -49,65 +50,55 @@ app.post('/meta-webhook', async (req, res) => {
       return res.status(400).json({ error: 'Missing page_id, form_id, or leadgen_id' });
     }
 
+    console.log('🧾 Incoming values from Meta:', { pageId, formId, leadgenId });
 
-    // 🔍 Look up the correct consultant/client/project
-  console.log('🧾 Incoming values from Meta:', { pageId, formId, leadgenId });
+    const { data: pages, error } = await supabase
+      .from('pages')
+      .select('*')
+      .eq('fb_page_id', pageId)
+      .eq('form_id', formId)
+      .limit(1)
+      .maybeSingle();
 
-const { data: pages, error } = await supabase
-  .from('pages')
-  .select('*')
-  .eq('fb_page_id', pageId)
-  .eq('form_id', formId)
-  .limit(1)
-  .maybeSingle();
-
-console.log('🔍 Lookup result:', { pages, error });
+    console.log('🔍 Lookup result:', { pages, error });
     if (error) throw error;
-
     if (!pages) {
       console.warn('⚠️ Unknown page_id/form_id:', { pageId, formId });
-      return res.status(200).json({ message: 'Unmapped lead received' }); // Respond to Meta to avoid retry spam
+      return res.status(200).json({ message: 'Unmapped lead received' }); // Prevent Meta retries
     }
 
     console.log('✅ Mapped lead to:', pages);
 
-// 📝 Save placeholder lead
-await supabase.from('leads').insert([{
-  full_name: null,
-  phone: null,
-  email: null,
-  project: pages.page_name || 'Unknown Project',
-  source: `Meta - ${formId}`,
-  status: 'new'
-}]);
+    // Save placeholder lead
+    await supabase.from('leads').insert([{
+      full_name: null,
+      phone: null,
+      email: null,
+      project: pages.page_name || 'Unknown Project',
+      source: `Meta - ${formId}`,
+      status: 'new'
+    }]);
 
-// 🧠 Auto-generate first message
-const situation = 'first_touch_new_launch';
-const template = await fetchTemplate(situation, pageId, formId);
+    // AI-generated WhatsApp message
+    const aiMessage = await generateAiMessage({
+      name: 'there',
+      project: pages.page_name,
+      form_id: formId,
+      entry_type: 'first_touch',
+      persona: 'general'
+    });
 
-if (!template) {
-  console.warn('⚠️ No template found, skipping message.');
-} else {
-  const leadData = {
-    name: 'there',
-    project: pages.page_name || 'this project'
-  };
+    console.log('💬 AI-generated message:', aiMessage);
+    sendWhatsAppMessageMock(null, aiMessage);
 
-  const finalMessage = fillTemplate(template, leadData);
-  console.log('💬 Message to send:', finalMessage);
+    res.status(200).json({ message: 'Lead stored (placeholder)' });
+  } catch (err) {
+    console.error('🔥 Webhook error:', err.message);
+    res.status(500).json({ error: 'Internal webhook error' });
+  }
+});
 
-  sendWhatsAppMessageMock(null, finalMessage); // this now calls the global version
-}
-
-res.status(200).json({ message: 'Lead stored (placeholder)' });
-
-} catch (err) {
-  console.error('🔥 Webhook error:', err.message);
-  res.status(500).json({ error: 'Internal webhook error' });
-}
-}); // 👈 closes the route handler
-
-// 🔁 Simulate a lead without Meta payload
+// ---🧪 Simulate Meta Lead -------------------------------------
 app.post('/simulate-lead', async (req, res) => {
   const { page_id, form_id } = req.body;
 
@@ -136,27 +127,25 @@ app.post('/simulate-lead', async (req, res) => {
       status: 'new'
     }]);
 
-    const template = await fetchTemplate('first_touch_new_launch', page_id, form_id);
-    if (!template) return res.status(200).json({ message: 'No template found, lead stored' });
-
-    const leadData = {
+    const aiMessage = await generateAiMessage({
       name: 'there',
-      project: page.page_name
-    };
+      project: page.page_name,
+      form_id,
+      entry_type: 'first_touch',
+      persona: 'general'
+    });
 
-    const finalMessage = fillTemplate(template, leadData);
-    sendWhatsAppMessageMock(null, finalMessage);
+    console.log('💬 AI-generated message:', aiMessage);
+    sendWhatsAppMessageMock(null, aiMessage);
 
-    res.status(200).json({ message: finalMessage });
+    res.status(200).json({ message: aiMessage });
   } catch (err) {
     console.error('🔥 Simulate error:', err.message);
     res.status(500).json({ error: 'Simulate failed' });
   }
 });
 
-
-// 🔂 MOCK WhatsApp sender
+// ---📲 WhatsApp Mock Sender -----------------------------------
 function sendWhatsAppMessageMock(phone, message) {
   console.log(`📲 [MOCK SEND] Sending WhatsApp message to ${phone || '[no number yet]'}:\n${message}\n`);
 }
-
