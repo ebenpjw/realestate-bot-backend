@@ -1,3 +1,5 @@
+const { fetchTemplate, fillTemplate } = require('./templates');
+
 require('dotenv').config();
 const express = require('express');
 
@@ -47,7 +49,6 @@ app.post('/meta-webhook', async (req, res) => {
       return res.status(400).json({ error: 'Missing page_id, form_id, or leadgen_id' });
     }
 
-    console.log('📥 Incoming Meta Lead:', { pageId, formId, leadgenId });
 
     // 🔍 Look up the correct consultant/client/project
   console.log('🧾 Incoming values from Meta:', { pageId, formId, leadgenId });
@@ -70,20 +71,35 @@ console.log('🔍 Lookup result:', { pages, error });
 
     console.log('✅ Mapped lead to:', pages);
 
-    // 📝 Save placeholder lead
-    await supabase.from('leads').insert([{
-      full_name: null, // you’ll fetch full details later
-      phone: null,
-      email: null,
-      project: pages.page_name || 'Unknown Project',
-      source: `Meta - ${formId}`,
-      status: 'new'
-    }]);
+// 📝 Save placeholder lead
+await supabase.from('leads').insert([{
+  full_name: null,
+  phone: null,
+  email: null,
+  project: pages.page_name || 'Unknown Project',
+  source: `Meta - ${formId}`,
+  status: 'new'
+}]);
 
-    res.status(200).json({ message: 'Lead stored (placeholder)' });
+// 🧠 Auto-generate first message
+const situation = 'first_touch_new_launch';
+const template = await fetchTemplate(situation, pageId, formId);
 
-  } catch (err) {
-    console.error('🔥 Webhook error:', err.message);
-    res.status(500).json({ error: 'Internal webhook error' });
-  }
-});
+if (!template) {
+  console.warn('⚠️ No template found, skipping message.');
+} else {
+  const leadData = {
+    name: 'there',
+    project: pages.page_name || 'this project'
+  };
+
+  const finalMessage = fillTemplate(template, leadData);
+  console.log('💬 Message to send:', finalMessage);
+
+  sendWhatsAppMessageMock(null, finalMessage); // this now calls the global version
+}
+
+res.status(200).json({ message: 'Lead stored (placeholder)' });
+function sendWhatsAppMessageMock(phone, message) {
+  console.log(`📲 [MOCK SEND] Sending WhatsApp message to ${phone || '[no number yet]'}:\n${message}\n`);
+}
