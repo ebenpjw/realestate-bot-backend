@@ -100,6 +100,14 @@ if (!template) {
 }
 
 res.status(200).json({ message: 'Lead stored (placeholder)' });
+
+} catch (err) {
+  console.error('🔥 Webhook error:', err.message);
+  res.status(500).json({ error: 'Internal webhook error' });
+}
+}); // 👈 closes the route handler
+
+// 🔂 MOCK WhatsApp sender
 function sendWhatsAppMessageMock(phone, message) {
   console.log(`📲 [MOCK SEND] Sending WhatsApp message to ${phone || '[no number yet]'}:\n${message}\n`);
 }
