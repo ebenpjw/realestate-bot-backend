@@ -3,6 +3,9 @@ require('dotenv').config();
 const express = require('express');
 const supabase = require('./supabaseClient');
 const { generateAiMessage } = require('./generateAiMessage');
+const axios = require('axios');
+const qs = require('qs');
+
 
 // ---🚀 App Init ----------------------------------------------
 const app = express();
@@ -41,8 +44,6 @@ app.get('/gupshup/webhook', (req, res) => {
   res.status(200).send('Webhook is live!');
 });
 
-const fetch = require('node-fetch');
-
 app.post('/gupshup/webhook', async (req, res) => {
   try {
     console.log('📩 Incoming message:', JSON.stringify(req.body, null, 2));
@@ -71,32 +72,33 @@ app.post('/gupshup/webhook', async (req, res) => {
 
     console.log('🤖 AI reply:', aiMessage);
 
-    // Format and send WhatsApp reply via Gupshup
-    const payload = new URLSearchParams({
-      channel: 'whatsapp',
-source: '6588365549',
-      destination: senderWaId,
-      message: JSON.stringify({
-        type: 'text',
-        text: aiMessage
-      })
-    });
+const payload = qs.stringify({
+  channel: 'whatsapp',
+  source: process.env.WABA_NUMBER,
+  destination: senderWaId,
+  'src.name': 'SmartHousing Guide', // or your approved display name
+  message: JSON.stringify({
+    type: 'text',
+    text: aiMessage
+  })
+});
 
-    const response = await fetch('https://api.gupshup.io/sm/api/v1/msg', {
-      method: 'POST',
+try {
+  const response = await axios.post(
+    'https://api.gupshup.io/wa/api/v1/msg',
+    payload,
+    {
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'apikey': process.env.GUPSHUP_API_KEY // Set this in Railway
-      },
-      body: payload
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Gupshup send error:', errorText);
-    } else {
-      console.log('✅ WhatsApp reply sent!');
+        'apikey': process.env.GUPSHUP_API_KEY,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
     }
+  );
+
+  console.log('✅ WhatsApp reply sent! Gupshup response:', response.data);
+} catch (err) {
+  console.error('❌ Gupshup send error:', err.response?.data || err.message);
+}
 
     res.sendStatus(200);
   } catch (err) {
