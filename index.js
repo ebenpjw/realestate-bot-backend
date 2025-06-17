@@ -74,7 +74,7 @@ app.post('/gupshup/webhook', async (req, res) => {
     // Format and send WhatsApp reply via Gupshup
     const payload = new URLSearchParams({
       channel: 'whatsapp',
-      source: process.env.WABA_NUMBER, // Set this in Railway
+source: '6588365549',
       destination: senderWaId,
       message: JSON.stringify({
         type: 'text',
