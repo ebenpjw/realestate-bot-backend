@@ -41,9 +41,68 @@ app.get('/gupshup/webhook', (req, res) => {
   res.status(200).send('Webhook is live!');
 });
 
-app.post('/gupshup/webhook', (req, res) => {
-  console.log('📩 Incoming message:', JSON.stringify(req.body, null, 2));
-  res.sendStatus(200);
+const fetch = require('node-fetch');
+
+app.post('/gupshup/webhook', async (req, res) => {
+  try {
+    console.log('📩 Incoming message:', JSON.stringify(req.body, null, 2));
+    
+    const entry = req.body.entry?.[0];
+    const change = entry?.changes?.[0];
+    const message = change?.value?.messages?.[0];
+    const contact = change?.value?.contacts?.[0];
+
+    if (!message || message.type !== 'text') return res.sendStatus(200);
+
+    const senderWaId = message.from;
+    const userText = message.text.body;
+    const senderName = contact?.profile?.name || 'there';
+
+    console.log(`👤 ${senderName} (${senderWaId}) said: "${userText}"`);
+
+    // Generate AI message
+    const aiMessage = await generateAiMessage({
+      name: senderName,
+      project: null,
+      entry_type: 'whatsapp_text',
+      persona: 'general',
+      user_input: userText
+    });
+
+    console.log('🤖 AI reply:', aiMessage);
+
+    // Format and send WhatsApp reply via Gupshup
+    const payload = new URLSearchParams({
+      channel: 'whatsapp',
+      source: process.env.WABA_NUMBER, // Set this in Railway
+      destination: senderWaId,
+      message: JSON.stringify({
+        type: 'text',
+        text: aiMessage
+      })
+    });
+
+    const response = await fetch('https://api.gupshup.io/sm/api/v1/msg', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'apikey': process.env.GUPSHUP_API_KEY // Set this in Railway
+      },
+      body: payload
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Gupshup send error:', errorText);
+    } else {
+      console.log('✅ WhatsApp reply sent!');
+    }
+
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('🔥 Webhook error:', err.message);
+    res.sendStatus(500);
+  }
 });
 
 // ---🌐 Meta Webhook Handler ----------------------------------
