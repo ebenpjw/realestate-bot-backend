@@ -70,14 +70,16 @@ app.post('/meta-webhook', async (req, res) => {
     console.log('✅ Mapped lead to:', pages);
 
     // Save placeholder lead
-    await supabase.from('leads').insert([{
-      full_name: null,
-      phone: null,
-      email: null,
-      project: pages.page_name || 'Unknown Project',
-      source: `Meta - ${formId}`,
-      status: 'new'
-    }]);
+await supabase.from('leads').insert([{
+  full_name: null,
+  phone: null,
+  email: null,
+  project: pages.page_name || 'Unknown Project',
+  source: `Meta - ${formId}`,
+  status: 'new',
+  page_id: pages.id  // 🔑 new field
+}]);
+
 
     // AI-generated WhatsApp message
     const aiMessage = await generateAiMessage({
@@ -118,14 +120,15 @@ app.post('/simulate-lead', async (req, res) => {
     if (error) throw error;
     if (!page) return res.status(404).json({ error: 'Page/form mapping not found' });
 
-    await supabase.from('leads').insert([{
-      full_name: null,
-      phone: null,
-      email: null,
-      project: page.page_name || 'Unknown Project',
-      source: `Simulated`,
-      status: 'new'
-    }]);
+await supabase.from('leads').insert([{
+  full_name: null,
+  phone: null,
+  email: null,
+  project: page.page_name || 'Unknown Project',
+  source: `Meta - ${form_id}`,  // use `form_id` from the route input
+  status: 'new',
+  page_id: page.id  // ✅ correct variable
+}]);
 
     const aiMessage = await generateAiMessage({
       name: 'there',
