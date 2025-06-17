@@ -36,6 +36,16 @@ app.post('/lead', async (req, res) => {
   res.status(200).json({ message: 'Lead stored', data });
 });
 
+// ---📨 Gupshup Webhook Handler -------------------------------
+app.get('/gupshup/webhook', (req, res) => {
+  res.status(200).send('Webhook is live!');
+});
+
+app.post('/gupshup/webhook', (req, res) => {
+  console.log('📩 Incoming message:', JSON.stringify(req.body, null, 2));
+  res.sendStatus(200);
+});
+
 // ---🌐 Meta Webhook Handler ----------------------------------
 app.post('/meta-webhook', async (req, res) => {
   try {
@@ -77,7 +87,12 @@ await supabase.from('leads').insert([{
   project: pages.page_name || 'Unknown Project',
   source: `Meta - ${formId}`,
   status: 'new',
-  page_id: pages.id  // 🔑 new field
+  page_id: pages.id,
+  form_data: {
+    budget: '1.5M',
+    move_in: '2025 Q1',
+    bedroom_pref: '2BR'
+  }
 }]);
 
 
