@@ -287,76 +287,94 @@ params: [(insertedLead && insertedLead.full_name) || 'there', pages.page_name]
   }
 });
 
-// ---🧪 Simulate Meta Lead -------------------------------------
-app.post('/simulate-lead', async (req, res) => {
-  const { page_id, form_id } = req.body;
+@@   // ---🧪 Simulate Meta Lead -------------------------------------
+ app.post('/simulate-lead', async (req, res) => {
+   const { page_id, form_id } = req.body;
 
-  if (!page_id || !form_id) {
-    return res.status(400).json({ error: 'Missing page_id or form_id' });
-  }
+   if (!page_id || !form_id) {
+     return res.status(400).json({ error: 'Missing page_id or form_id' });
+   }
 
-  try {
-    const { data: pages, error } = await supabase
-      .from('pages')
-      .select('*')
-      .eq('fb_page_id', page_id)
-      .eq('form_id', form_id)
-      .limit(1)
-      .maybeSingle();
+   try {
+     const { data: pages, error } = await supabase
+       .from('pages')
+       .select('*')
+       .eq('fb_page_id', page_id)
+       .eq('form_id', form_id)
+       .limit(1)
+       .maybeSingle();
 
-    if (error) throw error;
-    if (!pages) return res.status(404).json({ error: 'Page/form mapping not found' });
+     if (error) throw error;
+     if (!pages) return res.status(404).json({ error: 'Page/form mapping not found' });
 
-    const { data: insertedLead, error: insertError } = await supabase
-      .from('leads')
-      .insert([{
-        full_name: null,
-        phone: null,
-        email: null,
-        project: pages.page_name || 'Unknown Project',
-        source: `Meta - ${form_id}`,
-        status: 'new',
-        page_id: pages.id
-      }])
-      .select()
-      .maybeSingle();
+     const { data: insertedLead } = await supabase
+       .from('leads')
+       .insert([{
+         full_name: null,
+         phone: null,
+         email: null,
+         project: pages.page_name || 'Unknown Project',
+         source: `Meta - ${form_id}`,
+         status: 'new',
+         page_id: pages.id
+       }])
+       .select()
+       .maybeSingle();
 
-    console.log('🧾 insertedLead:', insertedLead);
-    console.log('❌ insertError:', insertError);
++    console.log('🧾 insertedLead:', insertedLead);
 
-    const aiMessage = await generateAiMessage({
-      name: 'there',
-      project: pages.page_name,
-      form_id,
-      entry_type: 'first_touch',
-      persona: 'general'
-    });
+-    const aiMessage = await generateAiMessage({
+-      name: 'there',
+-      project: pages.page_name,
+-      form_id,
+-      entry_type: 'first_touch',
+-      persona: 'general'
+-    });
+-
+-    console.log('💬 AI-generated message:', aiMessage);
++    // build a minimal lead object so generateAiMessage never sees undefined
++    let aiMessage;
++    try {
++      aiMessage = await generateAiMessage({
++        lead: {
++          full_name: insertedLead?.full_name || 'there',
++          phone_number: '',
++          message: ''
++        },
++        previousMessages: [],
++        leadStage: 'new',
++        leadType: 'general'
++      });
++      console.log('💬 AI-generated message:', aiMessage);
++    } catch(genErr) {
++      console.error('❌ generateAiMessage error in simulate-lead:', genErr);
++      aiMessage = { messages: [] };
++    }
 
-    console.log('💬 AI-generated message:', aiMessage);
+     if (!pages.phone_number) {
+       console.warn('⚠️ No phone number found for page:', pageId);
+       return res.status(200).json({ message: 'Missing phone number. No message sent.' });
+     }
 
-    if (!pages.phone_number) {
-      console.warn('⚠️ No phone number found for page:', pageId);
-      return res.status(200).json({ message: 'Missing phone number. No message sent.' });
-    }
+     const template = pages.template_name || 'lead_intro_1';
+     if (!pages.template_name) {
+       console.warn('⚠️ Using fallback template for page:', pageId);
+     }
 
-    const template = pages.template_name || 'lead_intro_1';
-    if (!pages.template_name) {
-      console.warn('⚠️ Using fallback template for page:', pageId);
-    }
+     await sendTemplateMessage({
+       to: pages.phone_number,
+       templateName: template,
+-      params: [(insertedLead && insertedLead.full_name) || 'there', pages.page_name]
++      params: [(insertedLead && insertedLead.full_name) || 'there', pages.page_name]
+     });
 
-    await sendTemplateMessage({
-      to: pages.phone_number,
-      templateName: template,
-      params: [(insertedLead && insertedLead.full_name) || 'there', pages.page_name]
-    });
-
-    res.status(200).json({ message: 'Lead stored (placeholder)' });
-  } catch (err) {
-    console.error('🔥 Simulate error:', err.message);
-    res.status(500).json({ error: 'Simulate failed' });
-  }
-});
-
+     res.status(200).json({ message: 'Lead stored (placeholder)' });
+   } catch (err) {
+     console.error('🔥 Simulate error:', err.message);
+     res.status(500).json({ error: 'Simulate failed' });
+   }
+ });
+ 
 // ---📲 WhatsApp Mock Sender -----------------------------------
 function sendWhatsAppMessageMock(phone, message) {
   console.log(`📲 [MOCK SEND] Sending WhatsApp message to ${phone || '[no number yet]'}:\n${message}\n`);
