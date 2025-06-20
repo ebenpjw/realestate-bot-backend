@@ -59,9 +59,9 @@ Write a casual, WhatsApp-style reply in 2 short parts with 2 line breaks between
     return completion.data.choices[0].message.content.trim();
   } catch (error) {
     console.error('❌ OpenAI error:', error.message);
-    return 'Hey there! Got your enquiry, thanks for reaching out.
+    return `Hey there! Got your enquiry, thanks for reaching out.
 
-If you’re open, can help schedule a quick Zoom to walk through your options.';
+If you’re open, can help schedule a quick Zoom to walk through your options.`;
   }
 }
 
