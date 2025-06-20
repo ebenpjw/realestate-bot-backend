@@ -14,6 +14,12 @@ async function sendWhatsAppMessage({ to, message }) {
   const messages = message.split('\n\n'); // Split into 2 parts if formatted that way
 
   for (const part of messages) {
+    const delay = getDelayDuration(part);
+    console.log('⏳ Preparing to send:', part);
+    console.log(`⏱ Waiting ${delay}ms before sending...`);
+
+    await new Promise(resolve => setTimeout(resolve, delay));
+
     const payload = qs.stringify({
       channel: 'whatsapp',
       source: process.env.WABA_NUMBER,
@@ -41,10 +47,6 @@ async function sendWhatsAppMessage({ to, message }) {
     } catch (err) {
       console.error('❌ Send error:', err.response?.data || err.message);
     }
-
-    const delay = getDelayDuration(part);
-    console.log(`⏱ Waiting ${delay}ms before next message...`);
-    await new Promise(resolve => setTimeout(resolve, delay));
   }
 }
 
