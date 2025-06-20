@@ -13,7 +13,7 @@ const { sendWhatsAppMessage } = require('./sendWhatsAppMessage');
 const app = express();
 app.use(express.json());
 
-const PORT = process.env.PORT || 8880;
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
@@ -60,6 +60,22 @@ app.post('/gupshup/webhook', async (req, res) => {
     const senderWaId = message.from;
     const userText = message.text.body;
     const senderName = contact?.profile?.name || 'there';
+
+    // Save incoming message into 'messages' table
+const { data: leadRecord } = await supabase
+  .from('leads')
+  .select('id')
+  .eq('phone', senderWaId)
+  .limit(1)
+  .maybeSingle();
+
+if (leadRecord) {
+  await supabase.from('messages').insert({
+    lead_id: leadRecord.id,
+    sender: 'lead',
+    message: userText
+  });
+}
 
     console.log(`👤 ${senderName} (${senderWaId}) said: "${userText}"`);
 
@@ -108,40 +124,100 @@ if (!existing) {
 
 
     // Generate AI message
-    const aiMessage = await generateAiMessage({
-      name: senderName,
-      project: null,
-      entry_type: 'whatsapp_text',
-      persona: 'general',
-      user_input: userText
-    });
+// Fetch previous messages for memory
+let previousMessages = [];
 
-    console.log('🤖 AI reply:', aiMessage);
+if (leadRecord) {
+  const { data: history, error: historyError } = await supabase
+    .from('messages')
+    .select('sender, message')
+    .eq('lead_id', leadRecord.id)
+    .order('created_at', { ascending: true })
+    .limit(10); // You can adjust this to 5–15 if you like
 
-const payload = qs.stringify({
+  if (history && !historyError) {
+    previousMessages = history.map(entry =>
+      `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: ${entry.message}`
+    );
+  }
+}
+
+// Now pass memory into AI
+const aiReply = await generateAiMessage({
+  lead: {
+    full_name: senderName,
+    phone_number: senderWaId,
+    message: userText
+  },
+  previousMessages,
+  leadStage: 'new',
+  leadType: 'general'
+});
+
+console.log('🤖 AI reply:', aiReply.messages);
+
+
+const payload1 = qs.stringify({
   channel: 'whatsapp',
   source: process.env.WABA_NUMBER,
   destination: senderWaId,
-  'src.name': 'SmartHousing Guide', // or your approved display name
+  'src.name': 'SmartGuide Doro',
   message: JSON.stringify({
     type: 'text',
-    text: aiMessage
+    text: aiReply.messages[0]
   })
 });
 
-try {
-  const response = await axios.post(
-    'https://api.gupshup.io/wa/api/v1/msg',
-    payload,
-    {
-      headers: {
-        'apikey': process.env.GUPSHUP_API_KEY,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
+await axios.post(
+  'https://api.gupshup.io/sm/api/v1/msg',
+  payload1,
+  {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'apikey': process.env.GUPSHUP_API_KEY
     }
-  );
+  }
+);
 
-  console.log('✅ WhatsApp reply sent! Gupshup response:', response.data);
+// Optional delay to simulate typing
+await delay(4000);
+
+// 2nd message
+const payload2 = qs.stringify({
+  channel: 'whatsapp',
+  source: process.env.WABA_NUMBER,
+  destination: senderWaId,
+  'src.name': 'SmartGuide Doro',
+  message: JSON.stringify({
+    type: 'text',
+    text: aiReply.messages[1]
+  })
+});
+
+await axios.post(
+  'https://api.gupshup.io/sm/api/v1/msg',
+  payload2,
+  {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'apikey': process.env.GUPSHUP_API_KEY
+    }
+  }
+);
+
+// Log both replies into Supabase
+if (leadRecord) {
+  await supabase.from('messages').insert([
+    { lead_id: leadRecord.id, sender: 'assistant', message: aiReply.messages[0] },
+    { lead_id: leadRecord.id, sender: 'assistant', message: aiReply.messages[1] }
+  ]);
+}
+  })
+
+});
+
+try {
+
 } catch (err) {
   console.error('❌ Gupshup send error:', err.response?.data || err.message);
 }
@@ -187,20 +263,24 @@ app.post('/meta-webhook', async (req, res) => {
     console.log('✅ Mapped lead to:', pages);
 
     // Save placeholder lead
-await supabase.from('leads').insert([{
-  full_name: null,
-  phone: null,
-  email: null,
-  project: pages.page_name || 'Unknown Project',
-  source: `Meta - ${formId}`,
-  status: 'new',
-  page_id: pages.id,
-  form_data: {
-    budget: '1.5M',
-    move_in: '2025 Q1',
-    bedroom_pref: '2BR'
-  }
-}]);
+const { data: insertedLead, error: insertError } = await supabase
+  .from('leads')
+  .insert([{
+    full_name: null,
+    phone: null,
+    email: null,
+    project: pages.page_name || 'Unknown Project',
+    source: `Meta - ${formId}`,
+    status: 'new',
+    page_id: pages.id,
+    form_data: {
+      budget: '1.5M',
+      move_in: '2025 Q1',
+      bedroom_pref: '2BR'
+    }
+  }])
+  .select()
+  .maybeSingle();
 
 
     // AI-generated WhatsApp message
@@ -226,7 +306,7 @@ if (!pages.template_name) {
 await sendTemplateMessage({
   to: pages.phone_number,
   templateName: template,
-  params: ['there', pages.page_name]
+params: [insertedLead?.full_name || 'there', pages.page_name]
 });
 
     res.status(200).json({ message: 'Lead stored (placeholder)' });
@@ -245,7 +325,7 @@ app.post('/simulate-lead', async (req, res) => {
   }
 
   try {
-    const { data: page, error } = await supabase
+    const { data: pages, error } = await supabase
       .from('pages')
       .select('*')
       .eq('fb_page_id', page_id)
@@ -254,21 +334,25 @@ app.post('/simulate-lead', async (req, res) => {
       .maybeSingle();
 
     if (error) throw error;
-    if (!page) return res.status(404).json({ error: 'Page/form mapping not found' });
+    if (!pages) return res.status(404).json({ error: 'Page/form mapping not found' });
 
-await supabase.from('leads').insert([{
-  full_name: null,
-  phone: null,
-  email: null,
-  project: page.page_name || 'Unknown Project',
-  source: `Meta - ${form_id}`,  // use `form_id` from the route input
-  status: 'new',
-  page_id: page.id  // ✅ correct variable
-}]);
+const { data: insertedLead } = await supabase
+  .from('leads')
+  .insert([{
+    full_name: null,
+    phone: null,
+    email: null,
+    project: pages.page_name || 'Unknown Project',
+    source: `Meta - ${form_id}`,
+    status: 'new',
+    page_id: pages.id
+  }])
+  .select()
+  .maybeSingle();
 
     const aiMessage = await generateAiMessage({
       name: 'there',
-      project: page.page_name,
+      project: pages.page_name,
       form_id,
       entry_type: 'first_touch',
       persona: 'general'
@@ -288,7 +372,7 @@ if (!pages.template_name) {
 await sendTemplateMessage({
   to: pages.phone_number,
   templateName: template,
-  params: ['there', pages.page_name]
+params: [insertedLead?.full_name || 'there', pages.page_name]
 });
 
     res.status(200).json({ message: aiMessage });
