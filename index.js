@@ -2,7 +2,7 @@
 require('dotenv').config();
 const express = require('express');
 const supabase = require('./supabaseClient');
-const { generateAiMessage } = require('./generateAiMessage');
+const generateAiMessage = require('./generateAiMessage');
 const axios = require('axios');
 const qs = require('qs');
 const { sendWhatsAppMessage } = require('./sendWhatsAppMessage');
