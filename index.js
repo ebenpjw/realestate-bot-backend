@@ -277,7 +277,7 @@ if (!pages.template_name) {
 await sendTemplateMessage({
   to: pages.phone_number,
   templateName: template,
-params: [insertedLead?.full_name || 'there', pages.page_name]
+params: [(insertedLead && insertedLead.full_name) || 'there', pages.page_name]
 });
 
     res.status(200).json({ message: 'Lead stored (placeholder)' });
@@ -343,7 +343,7 @@ if (!pages.template_name) {
 await sendTemplateMessage({
   to: pages.phone_number,
   templateName: template,
-params: [insertedLead?.full_name || 'there', pages.page_name]
+params: [(insertedLead && insertedLead.full_name) || 'there', pages.page_name]
 });
 
     res.status(200).json({ message: aiMessage });
