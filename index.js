@@ -307,19 +307,22 @@ app.post('/simulate-lead', async (req, res) => {
     if (error) throw error;
     if (!pages) return res.status(404).json({ error: 'Page/form mapping not found' });
 
-const { data: insertedLead } = await supabase
-  .from('leads')
-  .insert([{
-    full_name: null,
-    phone: null,
-    email: null,
-    project: pages.page_name || 'Unknown Project',
-    source: `Meta - ${form_id}`,
-    status: 'new',
-    page_id: pages.id
-  }])
-  .select()
-  .maybeSingle();
+    const { data: insertedLead, error: insertError } = await supabase
+      .from('leads')
+      .insert([{
+        full_name: null,
+        phone: null,
+        email: null,
+        project: pages.page_name || 'Unknown Project',
+        source: `Meta - ${form_id}`,
+        status: 'new',
+        page_id: pages.id
+      }])
+      .select()
+      .maybeSingle();
+
+    console.log('🧾 insertedLead:', insertedLead);
+    console.log('❌ insertError:', insertError);
 
     const aiMessage = await generateAiMessage({
       name: 'there',
@@ -330,23 +333,24 @@ const { data: insertedLead } = await supabase
     });
 
     console.log('💬 AI-generated message:', aiMessage);
-if (!pages.phone_number) {
-  console.warn('⚠️ No phone number found for page:', pageId);
-  return res.status(200).json({ message: 'Missing phone number. No message sent.' });
-}
 
-const template = pages.template_name || 'lead_intro_1';
-if (!pages.template_name) {
-  console.warn('⚠️ Using fallback template for page:', pageId);
-}
+    if (!pages.phone_number) {
+      console.warn('⚠️ No phone number found for page:', pageId);
+      return res.status(200).json({ message: 'Missing phone number. No message sent.' });
+    }
 
-await sendTemplateMessage({
-  to: pages.phone_number,
-  templateName: template,
-params: [(insertedLead && insertedLead.full_name) || 'there', pages.page_name]
-});
+    const template = pages.template_name || 'lead_intro_1';
+    if (!pages.template_name) {
+      console.warn('⚠️ Using fallback template for page:', pageId);
+    }
 
-    res.status(200).json({ message: aiMessage });
+    await sendTemplateMessage({
+      to: pages.phone_number,
+      templateName: template,
+      params: [(insertedLead && insertedLead.full_name) || 'there', pages.page_name]
+    });
+
+    res.status(200).json({ message: 'Lead stored (placeholder)' });
   } catch (err) {
     console.error('🔥 Simulate error:', err.message);
     res.status(500).json({ error: 'Simulate failed' });
