@@ -49,7 +49,7 @@ app.get('/gupshup/webhook', (req, res) => {
 app.post('/gupshup/webhook', async (req, res) => {
   try {
     console.log('📩 Incoming message:', JSON.stringify(req.body, null, 2));
-    
+
     const entry = req.body.entry?.[0];
     const change = entry?.changes?.[0];
     const message = change?.value?.messages?.[0];
@@ -61,26 +61,23 @@ app.post('/gupshup/webhook', async (req, res) => {
     const userText = message.text.body;
     const senderName = contact?.profile?.name || 'there';
 
-    // Save incoming message into 'messages' table
-const { data: leadRecord } = await supabase
-  .from('leads')
-  .select('id')
-  .eq('phone', senderWaId)
-  .limit(1)
-  .maybeSingle();
+    const { data: leadRecord } = await supabase
+      .from('leads')
+      .select('id')
+      .eq('phone', senderWaId)
+      .limit(1)
+      .maybeSingle();
 
-if (leadRecord) {
-  await supabase.from('messages').insert({
-    lead_id: leadRecord.id,
-    sender: 'lead',
-    message: userText
-  });
-}
+    if (leadRecord) {
+      await supabase.from('messages').insert({
+        lead_id: leadRecord.id,
+        sender: 'lead',
+        message: userText
+      });
+    }
 
     console.log(`👤 ${senderName} (${senderWaId}) said: "${userText}"`);
 
-
-    // 🧠 Check if sender already exists in Supabase
     const { data: existing, error: lookupError } = await supabase
       .from('leads')
       .select('*')
@@ -92,21 +89,20 @@ if (leadRecord) {
       console.error('❌ Supabase lookup error:', lookupError.message);
     }
 
-    
-if (existing) {
-  const { error: updateError } = await supabase
-    .from('leads')
-    .update({ status: 'replied' })
-    .eq('id', existing.id);
+    if (existing) {
+      const { error: updateError } = await supabase
+        .from('leads')
+        .update({ status: 'replied' })
+        .eq('id', existing.id);
 
-  if (updateError) {
-    console.error('❌ Failed to update lead status:', updateError.message);
-  } else {
-    console.log(`🔄 Lead ${senderWaId} marked as 'replied'`);
-  }
-}
+      if (updateError) {
+        console.error('❌ Failed to update lead status:', updateError.message);
+      } else {
+        console.log(`🔄 Lead ${senderWaId} marked as 'replied'`);
+      }
+    }
 
-if (!existing) {
+    if (!existing) {
       const { error: insertError } = await supabase.from('leads').insert([{
         full_name: senderName || 'Unknown',
         phone: senderWaId,
@@ -122,100 +118,80 @@ if (!existing) {
       }
     }
 
+    let previousMessages = [];
 
-    // Generate AI message
-// Fetch previous messages for memory
-let previousMessages = [];
+    if (leadRecord) {
+      const { data: history, error: historyError } = await supabase
+        .from('messages')
+        .select('sender, message')
+        .eq('lead_id', leadRecord.id)
+        .order('created_at', { ascending: true })
+        .limit(10);
 
-if (leadRecord) {
-  const { data: history, error: historyError } = await supabase
-    .from('messages')
-    .select('sender, message')
-    .eq('lead_id', leadRecord.id)
-    .order('created_at', { ascending: true })
-    .limit(10); // You can adjust this to 5–15 if you like
-
-  if (history && !historyError) {
-    previousMessages = history.map(entry =>
-      `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: ${entry.message}`
-    );
-  }
-}
-
-// Now pass memory into AI
-const aiReply = await generateAiMessage({
-  lead: {
-    full_name: senderName,
-    phone_number: senderWaId,
-    message: userText
-  },
-  previousMessages,
-  leadStage: 'new',
-  leadType: 'general'
-});
-
-console.log('🤖 AI reply:', aiReply.messages);
-
-
-const payload1 = qs.stringify({
-  channel: 'whatsapp',
-  source: process.env.WABA_NUMBER,
-  destination: senderWaId,
-  'src.name': 'SmartGuide Doro',
-  message: JSON.stringify({
-    type: 'text',
-    text: aiReply.messages[0]
-  })
-});
-
-await axios.post(
-  'https://api.gupshup.io/sm/api/v1/msg',
-  payload1,
-  {
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'apikey': process.env.GUPSHUP_API_KEY
+      if (history && !historyError) {
+        previousMessages = history.map(entry =>
+          `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: ${entry.message}`
+        );
+      }
     }
-  }
-);
 
-// Optional delay to simulate typing
-await delay(4000);
+    const aiReply = await generateAiMessage({
+      lead: {
+        full_name: senderName,
+        phone_number: senderWaId,
+        message: userText
+      },
+      previousMessages,
+      leadStage: 'new',
+      leadType: 'general'
+    });
 
-// 2nd message
-const payload2 = qs.stringify({
-  channel: 'whatsapp',
-  source: process.env.WABA_NUMBER,
-  destination: senderWaId,
-  'src.name': 'SmartGuide Doro',
-  message: JSON.stringify({
-    type: 'text',
-    text: aiReply.messages[1]
-  })
-});
+    console.log('🤖 AI reply:', aiReply.messages);
 
-await axios.post(
-  'https://api.gupshup.io/sm/api/v1/msg',
-  payload2,
-  {
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'apikey': process.env.GUPSHUP_API_KEY
+    const payload1 = qs.stringify({
+      channel: 'whatsapp',
+      source: process.env.WABA_NUMBER,
+      destination: senderWaId,
+      'src.name': 'SmartGuide Doro',
+      message: JSON.stringify({
+        type: 'text',
+        text: aiReply.messages[0]
+      })
+    });
+
+    await axios.post('https://api.gupshup.io/sm/api/v1/msg', payload1, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'apikey': process.env.GUPSHUP_API_KEY
+      }
+    });
+
+    await delay(4000);
+
+    const payload2 = qs.stringify({
+      channel: 'whatsapp',
+      source: process.env.WABA_NUMBER,
+      destination: senderWaId,
+      'src.name': 'SmartGuide Doro',
+      message: JSON.stringify({
+        type: 'text',
+        text: aiReply.messages[1]
+      })
+    });
+
+    await axios.post('https://api.gupshup.io/sm/api/v1/msg', payload2, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'apikey': process.env.GUPSHUP_API_KEY
+      }
+    });
+
+    if (leadRecord) {
+      await supabase.from('messages').insert([
+        { lead_id: leadRecord.id, sender: 'assistant', message: aiReply.messages[0] },
+        { lead_id: leadRecord.id, sender: 'assistant', message: aiReply.messages[1] }
+      ]);
     }
-  }
-);
-
-// Log both replies into Supabase
-if (leadRecord) {
-  await supabase.from('messages').insert([
-    { lead_id: leadRecord.id, sender: 'assistant', message: aiReply.messages[0] },
-    { lead_id: leadRecord.id, sender: 'assistant', message: aiReply.messages[1] }
-  ]);
-}
-  })
-
-});
-
 
     res.sendStatus(200);
   } catch (err) {
