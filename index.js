@@ -76,7 +76,21 @@ app.post('/gupshup/webhook', async (req, res) => {
       console.error('❌ Supabase lookup error:', lookupError.message);
     }
 
-    if (!existing) {
+    
+if (existing) {
+  const { error: updateError } = await supabase
+    .from('leads')
+    .update({ status: 'replied' })
+    .eq('id', existing.id);
+
+  if (updateError) {
+    console.error('❌ Failed to update lead status:', updateError.message);
+  } else {
+    console.log(`🔄 Lead ${senderWaId} marked as 'replied'`);
+  }
+}
+
+if (!existing) {
       const { error: insertError } = await supabase.from('leads').insert([{
         full_name: senderName || 'Unknown',
         phone: senderWaId,
