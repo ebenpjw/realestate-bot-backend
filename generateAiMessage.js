@@ -1,11 +1,9 @@
 
-const { Configuration, OpenAIApi } = require('openai');
+const OpenAI = require('openai');
 
-const configuration = new Configuration({
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-
-const openai = new OpenAIApi(configuration);
 
 async function generateAiMessage({ name = 'there', project = 'this project', user_input = '', entry_type = 'first_touch' }) {
   const systemPrompt = `
@@ -47,7 +45,7 @@ Write a casual, WhatsApp-style reply in 2 short parts with 2 line breaks between
   `.trim();
 
   try {
-    const completion = await openai.createChatCompletion({
+    const completion = await openai.chat.completions.create({
       model: 'gpt-4',
       messages: [
         { role: 'system', content: systemPrompt },
@@ -56,7 +54,7 @@ Write a casual, WhatsApp-style reply in 2 short parts with 2 line breaks between
       temperature: 0.7,
     });
 
-    return completion.data.choices[0].message.content.trim();
+    return completion.choices[0].message.content.trim();
   } catch (error) {
     console.error('❌ OpenAI error:', error.message);
     return `Hey there! Got your enquiry, thanks for reaching out.
