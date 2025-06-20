@@ -63,6 +63,36 @@ app.post('/gupshup/webhook', async (req, res) => {
 
     console.log(`👤 ${senderName} (${senderWaId}) said: "${userText}"`);
 
+
+    // 🧠 Check if sender already exists in Supabase
+    const { data: existing, error: lookupError } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('phone', senderWaId)
+      .limit(1)
+      .maybeSingle();
+
+    if (lookupError) {
+      console.error('❌ Supabase lookup error:', lookupError.message);
+    }
+
+    if (!existing) {
+      const { error: insertError } = await supabase.from('leads').insert([{
+        full_name: senderName || 'Unknown',
+        phone: senderWaId,
+        project: 'WhatsApp Inquiry',
+        source: 'WA Direct',
+        status: 'new'
+      }]);
+
+      if (insertError) {
+        console.error('❌ Failed to insert lead:', insertError.message);
+      } else {
+        console.log('🆕 New lead inserted for:', senderWaId);
+      }
+    }
+
+
     // Generate AI message
     const aiMessage = await generateAiMessage({
       name: senderName,
