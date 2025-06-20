@@ -216,11 +216,6 @@ if (leadRecord) {
 
 });
 
-try {
-
-} catch (err) {
-  console.error('❌ Gupshup send error:', err.response?.data || err.message);
-}
 
     res.sendStatus(200);
   } catch (err) {
