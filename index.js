@@ -5,6 +5,8 @@ const supabase = require('./supabaseClient');
 const { generateAiMessage } = require('./generateAiMessage');
 const axios = require('axios');
 const qs = require('qs');
+const { sendWhatsAppMessage } = require('./sendWhatsAppMessage');
+
 
 
 // ---🚀 App Init ----------------------------------------------
@@ -167,7 +169,21 @@ await supabase.from('leads').insert([{
     });
 
     console.log('💬 AI-generated message:', aiMessage);
-    sendWhatsAppMessageMock(null, aiMessage);
+if (!pages.phone_number) {
+  console.warn('⚠️ No phone number found for page:', pageId);
+  return res.status(200).json({ message: 'Missing phone number. No message sent.' });
+}
+
+const template = pages.template_name || 'lead_intro_1';
+if (!pages.template_name) {
+  console.warn('⚠️ Using fallback template for page:', pageId);
+}
+
+await sendTemplateMessage({
+  to: pages.phone_number,
+  templateName: template,
+  params: ['there', pages.page_name]
+});
 
     res.status(200).json({ message: 'Lead stored (placeholder)' });
   } catch (err) {
@@ -215,7 +231,21 @@ await supabase.from('leads').insert([{
     });
 
     console.log('💬 AI-generated message:', aiMessage);
-    sendWhatsAppMessageMock(null, aiMessage);
+if (!pages.phone_number) {
+  console.warn('⚠️ No phone number found for page:', pageId);
+  return res.status(200).json({ message: 'Missing phone number. No message sent.' });
+}
+
+const template = pages.template_name || 'lead_intro_1';
+if (!pages.template_name) {
+  console.warn('⚠️ Using fallback template for page:', pageId);
+}
+
+await sendTemplateMessage({
+  to: pages.phone_number,
+  templateName: template,
+  params: ['there', pages.page_name]
+});
 
     res.status(200).json({ message: aiMessage });
   } catch (err) {
