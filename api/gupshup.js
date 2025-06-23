@@ -2,58 +2,69 @@
 
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto'); // <-- ADD THIS
 const supabase = require('../supabaseClient');
 const generateAiMessage = require('../generateAiMessage');
 const { sendWhatsAppMessage } = require('../sendWhatsAppMessage');
+const { findOrCreateLead } = require('../leadManager');
+
+// --- SECURITY FUNCTION ---
+// This function verifies that incoming webhooks are genuinely from Gupshup.
+function verifyGupshupSignature(req) {
+  const secret = process.env.GUPSHUP_API_SECRET;
+  if (!secret) {
+    console.warn('⚠️ GUPSHUP_API_SECRET is not set. Skipping verification. THIS IS NOT SECURE.');
+    return true; 
+  }
+
+  const signature = req.headers['x-gupshup-signature']; 
+  if (!signature) {
+    console.error('❌ Missing Gupshup signature header.');
+    return false;
+  }
+
+  if (!req.rawBody) {
+    console.error('❌ Raw request body not available. Ensure the special JSON parser is used in index.js.');
+    return false;
+  }
+
+  const hash = crypto.createHmac('sha256', secret).update(req.rawBody).digest('hex');
+  
+  if (hash !== signature) {
+    console.error('❌ Invalid Gupshup signature.');
+    return false;
+  }
+  return true;
+}
 
 // This is an async function to handle the actual processing
 async function processMessage(messageValue) {
+  // ... (the rest of your processMessage function remains the same)
   try {
     const messageDetails = messageValue.messages[0];
 
-    // --- NEW: Check if the message is recent ---
     const messageTimestamp = parseInt(messageDetails.timestamp, 10);
     const currentTimestamp = Math.floor(Date.now() / 1000);
-    const messageAgeInSeconds = currentTimestamp - messageTimestamp;
 
-    // If the message is older than 2 minutes (120 seconds), ignore it.
-    if (messageAgeInSeconds > 120) {
-      console.log(`- Stale message (ID: ${messageDetails.id}) ignored. Age: ${messageAgeInSeconds}s.`);
+    if (currentTimestamp - messageTimestamp > 120) {
+      console.log(`- Stale message (ID: ${messageDetails.id}) ignored. Age: ${currentTimestamp - messageTimestamp}s.`);
       return;
     }
-    // --- END NEW ---
 
     const senderWaId = messageDetails.from;
     const userText = messageDetails.text.body;
-    const senderName = messageValue.contacts?.[0]?.profile?.name || 'there';
+    const senderName = messageValue.contacts?.[0]?.profile?.name || 'There';
 
     console.log(`👤 ${senderName} (${senderWaId}) said: "${userText}" (ID: ${messageDetails.id})`);
 
-    // 1. Find or Create the Lead
-    let { data: lead, error: leadError } = await supabase
-      .from('leads')
-      .select('*')
-      .eq('phone_number', senderWaId)
-      .limit(1)
-      .maybeSingle();
+    const lead = await findOrCreateLead({
+      phoneNumber: senderWaId,
+      fullName: senderName,
+      source: 'WA Direct'
+    });
 
-    if (leadError) throw new Error(`Supabase lookup error: ${leadError.message}`);
-
-    if (!lead) {
-      console.log('🆕 Lead not found, creating new one...');
-      const { data: newLead, error: insertError } = await supabase
-        .from('leads')
-        .insert([{ full_name: senderName, phone_number: senderWaId, source: 'WA Direct', status: 'new' }])
-        .select()
-        .single();
-      if (insertError) throw new Error(`Failed to insert new lead: ${insertError.message}`);
-      lead = newLead;
-    }
-
-    // 2. Log Incoming Message
     await supabase.from('messages').insert({ lead_id: lead.id, sender: 'lead', message: userText });
 
-    // 3. Get Message History
     const { data: history } = await supabase
       .from('messages')
       .select('sender, message')
@@ -62,20 +73,15 @@ async function processMessage(messageValue) {
       .limit(10);
     const previousMessages = history ? history.map(entry => ({ sender: entry.sender, message: entry.message })).reverse() : [];
     
-    // 4. Generate AI Reply
     const aiReply = await generateAiMessage({
-      lead: { full_name: lead.full_name, phone_number: lead.phone_number, message: userText },
+      lead,
       previousMessages,
-      leadStage: lead.status || 'new',
-      leadType: 'general'
     });
     console.log('🤖 AI reply:', aiReply.messages);
     
-    // 5. Send WhatsApp Reply
     const fullReply = aiReply.messages.filter(msg => msg).join('\n\n');
     if (fullReply) {
       await sendWhatsAppMessage({ to: senderWaId, message: fullReply });
-      // 6. Log Assistant's Reply
       const messagesToSave = aiReply.messages.filter(msg => msg).map(msg => ({ lead_id: lead.id, sender: 'assistant', message: msg }));
       await supabase.from('messages').insert(messagesToSave);
     }
@@ -86,16 +92,19 @@ async function processMessage(messageValue) {
 
 // --- Main Webhook Handler ---
 router.post('/webhook', (req, res) => {
-  console.log('📩 Incoming Gupshup message');
-  
+  // --- UNCOMMENT THIS BLOCK ONCE YOU ARE READY TO GO LIVE ---
+  // if (!verifyGupshupSignature(req)) {
+  //   return res.status(401).send('Unauthorized');
+  // }
+
+  res.sendStatus(200);
+
   const messageValue = req.body?.entry?.[0]?.changes?.[0]?.value;
 
   if (messageValue?.messages?.[0]?.type === 'text') {
-    res.sendStatus(200);
     processMessage(messageValue);
   } else {
     console.log('ℹ️ Received a status update or non-text message. Acknowledging.');
-    res.sendStatus(200);
   }
 });
 

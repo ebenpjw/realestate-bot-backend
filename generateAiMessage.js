@@ -3,16 +3,17 @@
 const OpenAI = require('openai');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-module.exports = async function generateAiMessage({ lead, previousMessages = [], leadStage = 'new', leadType = 'general' }) {
-  // We can simplify the JS logic now that the main brain is in the prompt
-  
+// Make the AI's creativity configurable via environment variables
+const AI_TEMPERATURE = parseFloat(process.env.OPENAI_TEMPERATURE) || 0.5;
+
+module.exports = async function generateAiMessage({ lead, previousMessages = [] }) {
   const safePreviousMessages = Array.isArray(previousMessages) ? previousMessages : [];
 
-  // Pass all known lead data directly to the prompt
   const memoryContext = `
 <lead_data>
   <name>${lead.full_name || 'Not provided'}</name>
   <phone>${lead.phone_number || 'N/A'}</phone>
+  <status>${lead.status || 'new'}</status>
   <budget>${lead.budget || 'Not yet known'}</budget>
   <citizenship>${lead.citizenship || 'Not yet known'}</citizenship>
   <mop_date>${lead.mop_date || 'N/A'}</mop_date>
@@ -75,22 +76,16 @@ ${safePreviousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'
 `;
 
   try {
-    console.log(`[generateAiMessage] Generating AI response with tactical playbook...`);
+    console.log(`[generateAiMessage] Generating AI response with temp ${AI_TEMPERATURE}...`);
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [{ role: 'system', content: finalPrompt }],
-      temperature: 0.7,
+      temperature: AI_TEMPERATURE,
       response_format: { type: 'json_object' },
     });
 
     const rawResponse = completion.choices[0].message.content;
-    const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
-
-    if (!jsonMatch) {
-      throw new Error("AI did not return a valid JSON object.");
-    }
-
-    const parsedReply = JSON.parse(jsonMatch[0]);
+    const parsedReply = JSON.parse(rawResponse);
     
     // In a future step, we would add logic here to parse the lead's reply,
     // extract entities like budget or citizenship, and update the lead record in Supabase.
@@ -99,10 +94,21 @@ ${safePreviousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'
       messages: [
         parsedReply.message1?.trim() || '',
         parsedReply.message2?.trim() || ''
-      ].filter(m => m)
+      ].filter(m => m) // Filter out any empty messages
     };
   } catch (error) {
     console.error('[generateAiMessage] OpenAI Error:', error);
+
+    // Provide more specific fallbacks based on the error type
+    if (error instanceof OpenAI.APIError) {
+      if (error.status === 429) { // Rate limit exceeded
+        return { messages: ["Just a moment, getting a lot of messages right now! I'll be with you shortly."] };
+      } else if (error.status >= 500) { // Server-side error
+        return { messages: ["Apologies, my brain is a bit fuzzy at the moment. Can you try asking that again in a few seconds?"] };
+      }
+    }
+    
+    // Generic fallback for other errors
     return { messages: ["Sorry, I had a slight issue there. Could you say that again?"] };
   }
 };
