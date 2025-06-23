@@ -6,6 +6,7 @@ const express = require('express');
 const gupshupRouter = require('./api/gupshup');
 const metaRouter = require('./api/meta');
 const testRouter = require('./api/test');
+const authRouter = require('./api/auth'); // <-- ADD THIS LINE
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -29,6 +30,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/gupshup', gupshupRouter);
 app.use('/api/meta', metaRouter);
 app.use('/api/test', testRouter);
+app.use('/api/auth', authRouter); // <-- ADD THIS LINE
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);

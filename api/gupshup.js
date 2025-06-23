@@ -92,10 +92,6 @@ async function processMessage(messageValue) {
 
 // --- Main Webhook Handler ---
 router.post('/webhook', (req, res) => {
-  // --- UNCOMMENT THIS BLOCK ONCE YOU ARE READY TO GO LIVE ---
-  // if (!verifyGupshupSignature(req)) {
-  //   return res.status(401).send('Unauthorized');
-  // }
 
   res.sendStatus(200);
 
