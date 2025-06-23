@@ -6,7 +6,7 @@ const supabase = require('../supabaseClient');
 const generateAiMessage = require('../generateAiMessage');
 const { sendWhatsAppMessage } = require('../sendWhatsAppMessage');
 const { sendTemplateMessage } = require('../sendTemplateMessage');
-const { findOrCreateLead } = require('../leadManager'); // <-- IMPORT
+const { findOrCreateLead } = require('./leadManager'); // <-- CORRECT PATH
 
 // =================================================================
 //  ROUTE 1: Simulate an INBOUND message from an existing lead

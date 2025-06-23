@@ -6,7 +6,7 @@ const crypto = require('crypto'); // <-- ADD THIS
 const supabase = require('../supabaseClient');
 const generateAiMessage = require('../generateAiMessage');
 const { sendWhatsAppMessage } = require('../sendWhatsAppMessage');
-const { findOrCreateLead } = require('../leadManager');
+const { findOrCreateLead } = require('./leadManager'); // <-- CORRECT PATH
 
 // --- SECURITY FUNCTION ---
 // This function verifies that incoming webhooks are genuinely from Gupshup.
