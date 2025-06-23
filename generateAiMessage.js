@@ -4,6 +4,8 @@ const OpenAI = require('openai');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 module.exports = async function generateAiMessage({ lead, previousMessages = [], leadStage = 'new', leadType = 'general' }) {
+  // This object contains all of your original strategies.
+  // It acts as a self-contained library within this file.
   const stageInstructions = {
     new: 'First touchpoint. Keep it casual. Ask what they’re exploring (own stay vs investment). Use soft framing and curiosity.',
     info_only: 'Lead asked for info but not ready for Zoom. Reframe Zoom as helpful and no-pressure. Use takeaway and downplay.',
@@ -43,20 +45,14 @@ module.exports = async function generateAiMessage({ lead, previousMessages = [],
     ]
   };
   
-  // If the leadStage is not a valid key in our tacticsByStage object, default to 'new'.
-  // This prevents the '.map is not a function' error if lead.status is null or unexpected.
   const validLeadStage = tacticsByStage[leadStage] ? leadStage : 'new';
-  
-  // --- Start of The Fix ---
-  // Ensure previousMessages is always an array to prevent .map() errors.
   const safePreviousMessages = Array.isArray(previousMessages) ? previousMessages : [];
-  // --- End of The Fix ---
 
   const memoryContext = `
 <lead_name>${lead.full_name || 'Not provided'}</lead_name>
 <lead_type>${leadType}</lead_type>
 <lead_stage>${validLeadStage}</lead_stage>
-<last_message_from_lead>${safePreviousMessages.find(m => m.sender === 'lead')?.message || lead.message || 'N/A'}</last_message_from_lead>
+<last_message_from_lead>${safePreviousMessages.slice(-1)[0]?.message || lead.message || 'N/A'}</last_message_from_lead>
 <full_conversation_history>
 ${safePreviousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: ${entry.message}`).join('\n')}
 </full_conversation_history>
