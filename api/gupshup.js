@@ -73,16 +73,32 @@ async function processMessage(messageValue) {
       .limit(10);
     const previousMessages = history ? history.map(entry => ({ sender: entry.sender, message: entry.message })).reverse() : [];
     
-    const aiReply = await generateAiMessage({
+    const aiResponse = await generateAiMessage({
       lead,
       previousMessages,
     });
-    console.log('🤖 AI reply:', aiReply.messages);
-    
-    const fullReply = aiReply.messages.filter(msg => msg).join('\n\n');
+    console.log('🤖 AI response object:', aiResponse);
+
+    // --- NEW: LOGIC TO UPDATE LEAD MEMORY ---
+    if (aiResponse.lead_updates && Object.keys(aiResponse.lead_updates).length > 0) {
+      console.log(`[Memory] Updating lead ${lead.id} with new data:`, aiResponse.lead_updates);
+      const { error: updateError } = await supabase
+        .from('leads')
+        .update(aiResponse.lead_updates)
+        .eq('id', lead.id);
+
+      if (updateError) {
+        console.error(`🔥 [Memory] Failed to update lead ${lead.id}:`, updateError.message);
+      } else {
+        console.log(`✅ [Memory] Lead ${lead.id} updated successfully.`);
+      }
+    }
+    // --- END NEW LOGIC ---
+
+    const fullReply = aiResponse.messages.filter(msg => msg).join('\n\n');
     if (fullReply) {
       await sendWhatsAppMessage({ to: senderWaId, message: fullReply });
-      const messagesToSave = aiReply.messages.filter(msg => msg).map(msg => ({ lead_id: lead.id, sender: 'assistant', message: msg }));
+      const messagesToSave = aiResponse.messages.filter(msg => msg).map(msg => ({ lead_id: lead.id, sender: 'assistant', message: msg }));
       await supabase.from('messages').insert(messagesToSave);
     }
   } catch (err) {

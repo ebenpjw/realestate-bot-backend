@@ -70,7 +70,8 @@ ${safePreviousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'
     2.  Check the <conversation_flow_rules> to decide what the single most logical next step is (either ask the next qualifying question or pivot to a tactic).
     3.  If pivoting, select the most appropriate tactic from the <tactics_playbook> and state why you chose it.
     4.  Formulate your response based on your decision. It should be one or two short, natural-sounding messages.
-    5.  Then, outside the thinking block, provide your response in a single, valid JSON object with keys "message1" and "message2".
+    5.  **CRITICAL:** After planning your response, analyze the user's last message one more time. If it contains any new information that should be saved to the lead's profile (like budget, intent, citizenship, MOP date, loan status), extract it.
+    6.  Then, outside the thinking block, provide your FINAL output as a single, valid JSON object. This object MUST have keys "message1" and an optional "message2". If you extracted any new data in step 5, you MUST also include a "lead_updates" key containing an object with ONLY the changed data. The keys must match the fields in <lead_data>. Example: `{ "message1": "Thanks for sharing!", "message2": "Are you a SG citizen or PR?", "lead_updates": { "budget": "2M", "intent": "investment" } }`. If no new data was found, omit the "lead_updates" key entirely.
   </instructions>
 </master_prompt>
 `;

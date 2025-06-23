@@ -37,14 +37,29 @@ router.post('/simulate-inbound', async (req, res) => {
     const previousMessages = history ? history.map(entry => ({ sender: entry.sender, message: entry.message })).reverse() : [];
     
     // Generate AI reply
-    const aiReply = await generateAiMessage({ lead, previousMessages });
-    console.log('[SIMULATION] 🤖 AI reply:', aiReply.messages);
-    
-    // Send and save the reply
-    const fullReply = aiReply.messages.filter(msg => msg).join('\n\n');
+    const aiResponse = await generateAiMessage({ lead, previousMessages });
+    console.log('[SIMULATION] 🤖 AI response object:', aiResponse);
+
+    // --- NEW: LOGIC TO UPDATE LEAD MEMORY ---
+    if (aiResponse.lead_updates && Object.keys(aiResponse.lead_updates).length > 0) {
+      console.log(`[SIM-Memory] Updating lead ${lead.id} with new data:`, aiResponse.lead_updates);
+      const { error: updateError } = await supabase
+        .from('leads')
+        .update(aiResponse.lead_updates)
+        .eq('id', lead.id);
+
+      if (updateError) {
+        console.error(`🔥 [SIM-Memory] Failed to update lead ${lead.id}:`, updateError.message);
+      } else {
+        console.log(`✅ [SIM-Memory] Lead ${lead.id} updated successfully.`);
+      }
+    }
+    // --- END NEW LOGIC ---
+
+    const fullReply = aiResponse.messages.filter(msg => msg).join('\n\n');
     if (fullReply) {
       await sendWhatsAppMessage({ to: senderWaId, message: fullReply });
-      const messagesToSave = aiReply.messages.filter(msg => msg).map(msg => ({ lead_id: lead.id, sender: 'assistant', message: msg }));
+      const messagesToSave = aiResponse.messages.filter(msg => msg).map(msg => ({ lead_id: lead.id, sender: 'assistant', message: msg }));
       await supabase.from('messages').insert(messagesToSave);
     }
     res.status(200).json({ message: "Simulation successful. AI response sent via WhatsApp.", ai_response: aiReply.messages });
