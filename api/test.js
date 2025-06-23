@@ -5,91 +5,107 @@ const router = express.Router();
 const supabase = require('../supabaseClient');
 const generateAiMessage = require('../generateAiMessage');
 const { sendWhatsAppMessage } = require('../sendWhatsAppMessage');
+const { sendTemplateMessage } = require('../sendTemplateMessage'); // Import the template sender
 
-/**
- * This route simulates a message coming from a user via WhatsApp.
- * It triggers the exact same logic as the real gupshup webhook.
- * This is incredibly useful for fast, repeatable testing.
- * To use it, send a POST request to /api/test/simulate-inbound
- * with a JSON body like: { "from": "6591234567", "text": "Hello world" }
- */
+// =================================================================
+//  ROUTE 1: Simulate an INBOUND message from an existing lead
+// =================================================================
 router.post('/simulate-inbound', async (req, res) => {
+  // ... (This is the existing code for simulating replies - no changes here)
   try {
     const { from, text } = req.body;
-
     if (!from || !text) {
       return res.status(400).json({ error: 'Request must include "from" (phone number) and "text" (message).' });
     }
-
     const senderWaId = from;
     const userText = text;
-    const senderName = 'Test Lead'; // We can just use a placeholder name for simulations
-
-    console.log(`[SIMULATION]  simulates: 👤 ${senderName} (${senderWaId}) said: "${userText}"`);
-
-    // --- 1. Find or Create the Lead ---
-    let { data: lead, error: leadError } = await supabase
-      .from('leads')
-      .select('*')
-      .eq('phone', senderWaId)
-      .limit(1)
-      .maybeSingle();
-
+    const senderName = 'Test Lead';
+    console.log(`[SIMULATION] simulates: 👤 ${senderName} (${senderWaId}) said: "${userText}"`);
+    let { data: lead, error: leadError } = await supabase.from('leads').select('*').eq('phone_number', senderWaId).limit(1).maybeSingle();
     if (leadError) throw new Error(`Supabase lookup error: ${leadError.message}`);
-
     if (!lead) {
       console.log('[SIMULATION] 🆕 Lead not found, creating new one...');
-      const { data: newLead, error: insertError } = await supabase
-        .from('leads')
-        .insert([{ full_name: senderName, phone: senderWaId, source: 'WA Simulation', status: 'new' }])
-        .select()
-        .single();
+      const { data: newLead, error: insertError } = await supabase.from('leads').insert([{ full_name: senderName, phone_number: senderWaId, source: 'WA Simulation', status: 'new' }]).select().single();
       if (insertError) throw new Error(`Failed to insert new lead: ${insertError.message}`);
       lead = newLead;
     }
-
-    // --- 2. Log Incoming Message ---
     await supabase.from('messages').insert({ lead_id: lead.id, sender: 'lead', message: userText });
-
-    // --- 3. Get Message History for Context ---
-    // The history needs to be in the format the AI prompt expects: an array of objects
-    const { data: history } = await supabase
-      .from('messages')
-      .select('sender, message')
-      .eq('lead_id', lead.id)
-      .order('created_at', { ascending: false })
-      .limit(10);
-      
+    const { data: history } = await supabase.from('messages').select('sender, message').eq('lead_id', lead.id).order('created_at', { ascending: false }).limit(10);
     const previousMessages = history ? history.map(entry => ({ sender: entry.sender, message: entry.message })).reverse() : [];
-    
-    // --- 4. Generate AI Reply ---
-    const aiReply = await generateAiMessage({
-      lead: { full_name: lead.full_name, phone: lead.phone, message: userText },
-      previousMessages,
-      leadStage: lead.status || 'new',
-      leadType: 'general'
-    });
+    const aiReply = await generateAiMessage({ lead, previousMessages, leadStage: lead.status || 'new', leadType: 'general' });
     console.log('[SIMULATION] 🤖 AI reply:', aiReply.messages);
-
-    // --- 5. Send WhatsApp Reply ---
     const fullReply = aiReply.messages.filter(msg => msg).join('\n\n');
     if (fullReply) {
       await sendWhatsAppMessage({ to: senderWaId, message: fullReply });
-      // --- 6. Log Assistant's Reply ---
       const messagesToSave = aiReply.messages.filter(msg => msg).map(msg => ({ lead_id: lead.id, sender: 'assistant', message: msg }));
       await supabase.from('messages').insert(messagesToSave);
     }
-    
-    // Respond with success and the AI's generated messages
-    res.status(200).json({
-        message: "Simulation successful. AI response has been triggered and sent via WhatsApp.",
-        ai_response: aiReply.messages
-    });
-
+    res.status(200).json({ message: "Simulation successful. AI response sent via WhatsApp.", ai_response: aiReply.messages });
   } catch (err) {
     console.error('🔥 [SIMULATION] Top-level error:', err.message, err.stack);
     res.status(500).json({ error: err.message });
   }
 });
+
+
+// =================================================================
+//  ROUTE 2: Simulate a brand NEW lead (e.g., from a Facebook Ad)
+// =================================================================
+router.post('/simulate-new-lead', async (req, res) => {
+  try {
+    const { full_name, phone_number } = req.body;
+
+    if (!full_name || !phone_number) {
+      return res.status(400).json({ error: 'Request must include "full_name" and "phone_number".' });
+    }
+
+    console.log(`[SIMULATION] Creating new lead: ${full_name} (${phone_number})`);
+
+    // 1. Insert the new lead into Supabase
+    const { data: lead, error: insertError } = await supabase
+      .from('leads')
+      .insert({
+        full_name: full_name,
+        phone_number: phone_number,
+        source: 'New Lead Simulation',
+        status: 'new'
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      // Handle potential duplicate phone number error gracefully
+      if (insertError.code === '23505') { // Code for unique violation
+        console.warn(`⚠️ Lead with phone number ${phone_number} already exists.`);
+        return res.status(409).json({ message: 'Lead with this phone number already exists.' });
+      }
+      throw new Error(`Failed to insert new lead: ${insertError.message}`);
+    }
+    
+    console.log(`✅ Lead ${lead.id} created successfully.`);
+
+    // 2. Send an initial TEMPLATE message to initiate the conversation
+    // IMPORTANT: 'lead_intro_1' must be a pre-approved template name in your Gupshup account.
+    const templateName = 'lead_intro_1';
+    const params = [lead.full_name]; // The template expects the lead's name as the first parameter.
+
+    console.log(`⏳ Sending template message '${templateName}' to ${phone_number}`);
+    await sendTemplateMessage({
+      to: phone_number,
+      templateName: templateName,
+      params: params
+    });
+
+    res.status(200).json({
+      message: `Successfully created lead and sent template message to ${full_name}.`,
+      lead: lead
+    });
+
+  } catch (err) {
+    console.error('🔥 [NEW LEAD SIMULATION] Error:', err.message, err.stack);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 module.exports = router;
