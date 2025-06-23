@@ -4,8 +4,6 @@ const OpenAI = require('openai');
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 module.exports = async function generateAiMessage({ lead, previousMessages = [], leadStage = 'new', leadType = 'general' }) {
-  // This object contains all of your original strategies.
-  // It acts as a self-contained library within this file.
   const stageInstructions = {
     new: 'First touchpoint. Keep it casual. Ask what they’re exploring (own stay vs investment). Use soft framing and curiosity.',
     info_only: 'Lead asked for info but not ready for Zoom. Reframe Zoom as helpful and no-pressure. Use takeaway and downplay.',
@@ -44,60 +42,58 @@ module.exports = async function generateAiMessage({ lead, previousMessages = [],
       "✅ Pre-consult Tip\n“Feel free to prep any questions.\nGood to compare with what you’ve seen too.”"
     ]
   };
+  
+  // --- Start of The Fix ---
+  // If the leadStage is not a valid key in our tacticsByStage object, default to 'new'.
+  // This prevents the '.map is not a function' error if lead.status is null or unexpected.
+  const validLeadStage = tacticsByStage[leadStage] ? leadStage : 'new';
+  // --- End of The Fix ---
 
-  // This dynamically builds the context string for the prompt
+
   const memoryContext = `
 <lead_name>${lead.full_name || 'Not provided'}</lead_name>
 <lead_type>${leadType}</lead_type>
-<lead_stage>${leadStage}</lead_stage>
+<lead_stage>${validLeadStage}</lead_stage>
 <last_message_from_lead>${previousMessages.find(m => m.sender === 'lead')?.message || lead.message || 'N/A'}</last_message_from_lead>
 <full_conversation_history>
 ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: ${entry.message}`).join('\n')}
 </full_conversation_history>
 `;
 
-  // The new, structured prompt that uses XML tags and dynamic data
   const finalPrompt = `
 <master_prompt>
   <role_and_identity>
     You are Doro, a WhatsApp assistant for real estate consultants in Singapore, trained in the Property Wealth System (PWS). Your persona is that of a helpful, savvy, and casual Singaporean assistant. You are never robotic or pushy.
   </role_and_identity>
-
   <mission>
     Your primary goal is to understand the lead's intent and guide them toward a 15-20 minute, no-pressure Zoom consultation with a licensed human consultant if it seems appropriate. You do not close deals; you facilitate valuable conversations.
   </mission>
-
   <rules_of_engagement>
     - Tone: Friendly, real, grounded. Use short, WhatsApp-style replies.
     - Formatting: Maximum of two messages, each max 2-3 lines. Use line breaks for clarity.
     - Prohibitions: No robotic phrases. No repeating the lead's name unnaturally. No long walls of text. No em-dashes (–).
   </rules_of_engagement>
-  
   <style_examples>
     <example>“Alright can, depends what you’re planning lah.”</example>
     <example>“Some early buyers already secured better stacks.”</example>
     <example>“Actually this one quite sharp — depends if you’re buying to stay or invest.”</example>
   </style_examples>
-
   <context>
-    <lead_stage_analysis>${stageInstructions[leadStage]}</lead_stage_analysis>
+    <lead_stage_analysis>${stageInstructions[validLeadStage]}</lead_stage_analysis>
     <buyer_type_analysis>${buyerTypeInstructions[leadType]}</buyer_type_analysis>
     ${memoryContext}
   </context>
-
   <tactics_library>
-    <stage name="${leadStage}">
-      ${tacticsByStage[leadStage].map(tactic => `<tactic>${tactic}</tactic>`).join('\n      ')}
+    <stage name="${validLeadStage}">
+      ${tacticsByStage[validLeadStage].map(tactic => `<tactic>${tactic}</tactic>`).join('\n      ')}
     </stage>
   </tactics_library>
-
   <objection_handling strategy="Just send me info">
     <step>1. Acknowledge and agree: "Sure can — just that info alone sometimes doesn’t give the full picture."</step>
     <step>2. Explain the benefit of a call: "Zoom helps tie it together — especially if comparing options."</step>
     <step>3. Propose the solution: "Want me to arrange a short one? Just 15 mins."</step>
     <step>4. If they refuse, gracefully concede: "No worries — I’ll send what I can. Zoom’s there if you want more clarity."</step>
   </objection_handling>
-
   <instructions>
     1.  First, in a <thinking> block, analyze the context and the lead's last message.
     2.  Select the most appropriate tactic from the <tactics_library>.
@@ -108,7 +104,7 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
 `;
 
   try {
-    console.log('[generateAiMessage] Generating AI response with structured prompt...');
+    console.log(`[generateAiMessage] Generating AI response with structured prompt for stage: ${validLeadStage}...`);
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: [{ role: 'system', content: finalPrompt }],
@@ -130,10 +126,8 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
     return {
       messages: [msg1.trim(), msg2.trim()].filter(m => m)
     };
-
   } catch (error) {
     console.error('[generateAiMessage] OpenAI Error:', error);
-    // Fallback message in case of any errors
     return {
       messages: [
         "Hey there! Got your message — depends what you’re exploring actually.",
