@@ -7,21 +7,33 @@ const generateAiMessage = require('../generateAiMessage');
 const { sendWhatsAppMessage } = require('../sendWhatsAppMessage');
 
 // This is an async function to handle the actual processing
-// We move the logic here so we can call it after responding to Gupshup.
 async function processMessage(messageValue) {
   try {
     const messageDetails = messageValue.messages[0];
+
+    // --- NEW: Check if the message is recent ---
+    const messageTimestamp = parseInt(messageDetails.timestamp, 10);
+    const currentTimestamp = Math.floor(Date.now() / 1000);
+    const messageAgeInSeconds = currentTimestamp - messageTimestamp;
+
+    // If the message is older than 2 minutes (120 seconds), ignore it.
+    if (messageAgeInSeconds > 120) {
+      console.log(`- Stale message (ID: ${messageDetails.id}) ignored. Age: ${messageAgeInSeconds}s.`);
+      return;
+    }
+    // --- END NEW ---
+
     const senderWaId = messageDetails.from;
     const userText = messageDetails.text.body;
     const senderName = messageValue.contacts?.[0]?.profile?.name || 'there';
 
-    console.log(`👤 ${senderName} (${senderWaId}) said: "${userText}"`);
+    console.log(`👤 ${senderName} (${senderWaId}) said: "${userText}" (ID: ${messageDetails.id})`);
 
     // 1. Find or Create the Lead
     let { data: lead, error: leadError } = await supabase
       .from('leads')
       .select('*')
-      .eq('phone_number', senderWaId) // Corrected column name
+      .eq('phone_number', senderWaId)
       .limit(1)
       .maybeSingle();
 
@@ -68,29 +80,20 @@ async function processMessage(messageValue) {
       await supabase.from('messages').insert(messagesToSave);
     }
   } catch (err) {
-    // We catch errors here so they don't crash the main server thread.
     console.error('🔥 Error during message processing:', err.message, err.stack);
   }
 }
 
 // --- Main Webhook Handler ---
 router.post('/webhook', (req, res) => {
-  console.log('📩 Incoming Gupshup message:', JSON.stringify(req.body, null, 2));
+  console.log('📩 Incoming Gupshup message');
   
   const messageValue = req.body?.entry?.[0]?.changes?.[0]?.value;
 
-  // Check if it's a valid user message
   if (messageValue?.messages?.[0]?.type === 'text') {
-    // --- THE FIX ---
-    // 1. Immediately send 200 OK to Gupshup to prevent retries.
     res.sendStatus(200);
-
-    // 2. Process the message in the background.
-    // We call our async function but don't wait for it to finish.
     processMessage(messageValue);
-
   } else {
-    // If it's not a text message or a status update, just acknowledge it.
     console.log('ℹ️ Received a status update or non-text message. Acknowledging.');
     res.sendStatus(200);
   }
