@@ -66,13 +66,14 @@ ${safePreviousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'
   </context>
 
   <instructions>
-    1.  First, in a <thinking> block, analyze the user's last message and the full context.
-    2.  Check the <conversation_flow_rules> to decide what the single most logical next step is (either ask the next qualifying question or pivot to a tactic).
-    3.  If pivoting, select the most appropriate tactic from the <tactics_playbook> and state why you chose it.
-    4.  Formulate your response based on your decision. It should be one or two short, natural-sounding messages.
-    5.  CRITICAL: After planning your response, analyze the user's last message one more time. If it contains any new information that should be saved to the lead's profile (like budget, intent, citizenship, MOP date, loan status), extract it.
-    6.  Then, outside the thinking block, provide your FINAL output as a single, valid JSON object. This object MUST have keys "message1" and an optional "message2". If you extracted any new data in step 5, you MUST also include a "lead_updates" key containing an object with ONLY the changed data. The keys for the data inside "lead_updates" must match the fields in <lead_data>. If no new data was found, you must omit the "lead_updates" key entirely.
+    1.  First, in a <thinking> block, analyze the LAST user message and the full context.
+    2.  Based on the <conversation_flow_rules>, decide the single most logical next step (ask next question or pivot).
+    3.  If pivoting, select a tactic from the <tactics_playbook> and state your reason.
+    4.  Formulate your response messages.
+    5.  **MEMORY UPDATE STEP:** Analyze the LAST user message for any new information for the following fields: 'intent', 'budget', 'citizenship', 'mop_date', 'loan_status'.
+    6.  **FINAL OUTPUT:** Create a final JSON object. It MUST contain "message1" and optional "message2". It MUST also contain a "lead_updates" key. If you found new information in the MEMORY UPDATE STEP, place it inside the "lead_updates" object. If NO new information was found, "lead_updates" MUST be an empty object `{}`. Your entire final output must be only this JSON object.
   </instructions>
+
 </master_prompt>
 `;
 
