@@ -2,27 +2,45 @@
 
 const express = require('express');
 const router = express.Router();
-const supabase = require('../supabaseClient'); // Note the ../
-const generateAiMessage = require('../generateAiMessage'); // Note the ../
-const { sendWhatsAppMessage } = require('../sendWhatsAppMessage'); // Note the ../
+const supabase = require('../supabaseClient');
+const generateAiMessage = require('../generateAiMessage');
+const { sendWhatsAppMessage } = require('../sendWhatsAppMessage');
 
-// This handles POST requests to /api/gupshup/webhook
 router.post('/webhook', async (req, res) => {
   try {
     console.log('📩 Incoming Gupshup message:', JSON.stringify(req.body, null, 2));
 
-    const message = req.body?.payload; // Gupshup's inbound message payload
-    if (!message || message.type !== 'text') {
-      return res.sendStatus(200); // Not a text message, acknowledge and ignore
+    // --- Start of The Fix ---
+    // The actual message data is nested deep inside the object.
+    const messageValue = req.body?.entry?.[0]?.changes?.[0]?.value;
+
+    // Check if it's a user message and not a status update.
+    if (!messageValue?.messages?.[0]) {
+      console.log('ℹ️ Received a status update or non-message event. Acknowledging.');
+      return res.sendStatus(200);
+    }
+    
+    const messageDetails = messageValue.messages[0];
+
+    // Ignore anything that isn't a text message.
+    if (messageDetails.type !== 'text') {
+      console.log('ℹ️ Received a non-text message. Acknowledging.');
+      return res.sendStatus(200);
     }
 
-    const senderWaId = message.sender.phone;
-    const userText = message.payload.text;
-    const senderName = message.sender.name || 'there';
+    // Correctly extract the sender's number and the message text.
+    const senderWaId = messageDetails.from;
+    const userText = messageDetails.text.body;
+
+    // Get the sender's name from the contact profile.
+    const senderName = messageValue.contacts?.[0]?.profile?.name || 'there';
+    // --- End of The Fix ---
 
     console.log(`👤 ${senderName} (${senderWaId}) said: "${userText}"`);
 
-    // --- 1. Find or Create the Lead (Consolidated Logic) ---
+    // --- The rest of the logic remains exactly the same ---
+    
+    // 1. Find or Create the Lead
     let { data: lead, error: leadError } = await supabase
       .from('leads')
       .select('*')
@@ -35,19 +53,13 @@ router.post('/webhook', async (req, res) => {
       return res.status(500).json({ error: 'Database lookup failed' });
     }
 
-    // If lead doesn't exist, create a new one
     if (!lead) {
       console.log('🆕 Lead not found, creating new one...');
       const { data: newLead, error: insertError } = await supabase
         .from('leads')
-        .insert([{
-          full_name: senderName,
-          phone: senderWaId,
-          source: 'WA Direct',
-          status: 'new'
-        }])
+        .insert([{ full_name: senderName, phone: senderWaId, source: 'WA Direct', status: 'new' }])
         .select()
-        .single(); // Use .single() to get the created object back
+        .single();
 
       if (insertError) {
         console.error('❌ Failed to insert new lead:', insertError.message);
@@ -57,51 +69,38 @@ router.post('/webhook', async (req, res) => {
       console.log('✅ New lead inserted for:', senderWaId);
     }
 
-    // --- 2. Log Incoming Message ---
-    await supabase.from('messages').insert({
-      lead_id: lead.id,
-      sender: 'lead',
-      message: userText
-    });
+    // 2. Log Incoming Message
+    await supabase.from('messages').insert({ lead_id: lead.id, sender: 'lead', message: userText });
 
-    // --- 3. Get Message History for Context ---
+    // 3. Get Message History for Context
     const { data: history } = await supabase
       .from('messages')
       .select('sender, message')
       .eq('lead_id', lead.id)
-      .order('created_at', { ascending: false }) // Get the most recent messages
+      .order('created_at', { ascending: false })
       .limit(10);
 
-    const previousMessages = history ? history.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: ${entry.message}`).reverse() : [];
+    const previousMessages = history ? history.map(entry => ({ sender: entry.sender, message: entry.message })).reverse() : [];
 
-    // --- 4. Generate AI Reply ---
+    // 4. Generate AI Reply
     const aiReply = await generateAiMessage({
-      lead: {
-        full_name: lead.full_name,
-        phone_number: lead.phone,
-        message: userText
-      },
+      lead: { full_name: lead.full_name, phone: lead.phone, message: userText },
       previousMessages,
-      leadStage: lead.status || 'new', // Use the lead's actual status
-      leadType: 'general' // We can enhance this later
+      leadStage: lead.status || 'new',
+      leadType: 'general'
     });
     console.log('🤖 AI reply:', aiReply.messages);
 
-    // --- 5. Send WhatsApp Reply (Centralized & Corrected) ---
+    // 5. Send WhatsApp Reply
     const fullReply = aiReply.messages.filter(msg => msg).join('\n\n');
     if (fullReply) {
       await sendWhatsAppMessage({ to: senderWaId, message: fullReply });
-
-      // --- 6. Log Assistant's Reply ---
-      const messagesToSave = aiReply.messages.filter(msg => msg).map(msg => ({
-        lead_id: lead.id,
-        sender: 'assistant',
-        message: msg
-      }));
+      // 6. Log Assistant's Reply
+      const messagesToSave = aiReply.messages.filter(msg => msg).map(msg => ({ lead_id: lead.id, sender: 'assistant', message: msg }));
       await supabase.from('messages').insert(messagesToSave);
     }
 
-    res.sendStatus(200); // Acknowledge receipt to Gupshup
+    res.sendStatus(200);
   } catch (err) {
     console.error('🔥 Top-level webhook error:', err.message, err.stack);
     res.sendStatus(500);
