@@ -43,20 +43,22 @@ module.exports = async function generateAiMessage({ lead, previousMessages = [],
     ]
   };
   
-  // --- Start of The Fix ---
   // If the leadStage is not a valid key in our tacticsByStage object, default to 'new'.
   // This prevents the '.map is not a function' error if lead.status is null or unexpected.
   const validLeadStage = tacticsByStage[leadStage] ? leadStage : 'new';
+  
+  // --- Start of The Fix ---
+  // Ensure previousMessages is always an array to prevent .map() errors.
+  const safePreviousMessages = Array.isArray(previousMessages) ? previousMessages : [];
   // --- End of The Fix ---
-
 
   const memoryContext = `
 <lead_name>${lead.full_name || 'Not provided'}</lead_name>
 <lead_type>${leadType}</lead_type>
 <lead_stage>${validLeadStage}</lead_stage>
-<last_message_from_lead>${previousMessages.find(m => m.sender === 'lead')?.message || lead.message || 'N/A'}</last_message_from_lead>
+<last_message_from_lead>${safePreviousMessages.find(m => m.sender === 'lead')?.message || lead.message || 'N/A'}</last_message_from_lead>
 <full_conversation_history>
-${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: ${entry.message}`).join('\n')}
+${safePreviousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: ${entry.message}`).join('\n')}
 </full_conversation_history>
 `;
 
