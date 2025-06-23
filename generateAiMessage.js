@@ -71,8 +71,9 @@ ${safePreviousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'
     3.  If pivoting, select a tactic from the <tactics_playbook> and state your reason.
     4.  Formulate your response messages.
     5.  **MEMORY UPDATE STEP:** Analyze the LAST user message for any new information for the following fields: 'intent', 'budget', 'citizenship', 'mop_date', 'loan_status'.
-    6.  **FINAL OUTPUT:** Create a final JSON object. It MUST contain "message1" and optional "message2". It MUST also contain a "lead_updates" key. If you found new information in the MEMORY UPDATE STEP, place it inside the "lead_updates" object. If NO new information was found, "lead_updates" MUST be an empty object `{}`. Your entire final output must be only this JSON object.
+    6.  **FINAL OUTPUT:** Create a final JSON object. It MUST contain "message1" and optional "message2". It MUST also contain a "lead_updates" key. If you found new information in the MEMORY UPDATE STEP, place it inside the "lead_updates" object. If NO new information was found, "lead_updates" MUST be an empty JSON object. Your entire final output must be only this JSON object.
   </instructions>
+
 
 </master_prompt>
 `;
