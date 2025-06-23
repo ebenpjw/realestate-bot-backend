@@ -11,7 +11,6 @@ const { sendTemplateMessage } = require('../sendTemplateMessage'); // Import the
 //  ROUTE 1: Simulate an INBOUND message from an existing lead
 // =================================================================
 router.post('/simulate-inbound', async (req, res) => {
-  // ... (This is the existing code for simulating replies - no changes here)
   try {
     const { from, text } = req.body;
     if (!from || !text) {
@@ -53,7 +52,12 @@ router.post('/simulate-inbound', async (req, res) => {
 // =================================================================
 router.post('/simulate-new-lead', async (req, res) => {
   try {
-    const { full_name, phone_number } = req.body;
+    if (!req.body) {
+      return res.status(400).json({ error: 'Request body is missing.' });
+    }
+    
+    // UPDATED: Now expects a template_id
+    const { full_name, phone_number, template_id, template_params } = req.body;
 
     if (!full_name || !phone_number) {
       return res.status(400).json({ error: 'Request must include "full_name" and "phone_number".' });
@@ -74,8 +78,7 @@ router.post('/simulate-new-lead', async (req, res) => {
       .single();
 
     if (insertError) {
-      // Handle potential duplicate phone number error gracefully
-      if (insertError.code === '23505') { // Code for unique violation
+      if (insertError.code === '23505') { 
         console.warn(`⚠️ Lead with phone number ${phone_number} already exists.`);
         return res.status(409).json({ message: 'Lead with this phone number already exists.' });
       }
@@ -84,20 +87,21 @@ router.post('/simulate-new-lead', async (req, res) => {
     
     console.log(`✅ Lead ${lead.id} created successfully.`);
 
-    // 2. Send an initial TEMPLATE message to initiate the conversation
-    // IMPORTANT: 'lead_intro_1' must be a pre-approved template name in your Gupshup account.
-    const templateName = 'lead_intro_1';
-    const params = [lead.full_name]; // The template expects the lead's name as the first parameter.
+    // 2. Send an initial TEMPLATE message
+    // Use the provided template ID, or default to your lead_intro_1 template ID.
+    const templateId = template_id || 'c60dee92-5426-4890-96e4-65469620ac7e';
+    // Use the provided params, or create default ones that match your template.
+    const params = template_params || [lead.full_name, "your property enquiry"]; 
 
-    console.log(`⏳ Sending template message '${templateName}' to ${phone_number}`);
+    console.log(`⏳ Sending template ID '${templateId}' to ${phone_number}`);
     await sendTemplateMessage({
       to: phone_number,
-      templateName: templateName,
+      templateId: templateId,
       params: params
     });
 
     res.status(200).json({
-      message: `Successfully created lead and sent template message to ${full_name}.`,
+      message: `Successfully created lead and sent template message using ID '${templateId}' to ${full_name}.`,
       lead: lead
     });
 

@@ -1,15 +1,21 @@
-
 const axios = require('axios');
 const qs = require('qs');
 
-async function sendTemplateMessage({ to, templateName, params }) {
+// NOTE: This function now expects a templateId, not a templateName.
+async function sendTemplateMessage({ to, templateId, params }) {
+  // Gupshup requires the template data to be a JSON object string
+  // containing the template's ID and the parameters.
+  const templateObject = {
+    id: templateId,
+    params: params
+  };
+
   const payload = qs.stringify({
-    template: templateName,
     channel: 'whatsapp',
     source: process.env.WABA_NUMBER,
     destination: to,
-    'src.name': 'SmartGuide Doro',
-    templateParams: JSON.stringify(params)
+    'src.name': 'DoroSmartGuide', // Using the name from your curl command
+    template: JSON.stringify(templateObject)
   });
 
   try {
