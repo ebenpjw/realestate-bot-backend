@@ -70,8 +70,8 @@ ${safePreviousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'
     2.  Check the <conversation_flow_rules> to decide what the single most logical next step is (either ask the next qualifying question or pivot to a tactic).
     3.  If pivoting, select the most appropriate tactic from the <tactics_playbook> and state why you chose it.
     4.  Formulate your response based on your decision. It should be one or two short, natural-sounding messages.
-    5.  **CRITICAL:** After planning your response, analyze the user's last message one more time. If it contains any new information that should be saved to the lead's profile (like budget, intent, citizenship, MOP date, loan status), extract it.
-    6.  Then, outside the thinking block, provide your FINAL output as a single, valid JSON object. This object MUST have keys "message1" and an optional "message2". If you extracted any new data in step 5, you MUST also include a "lead_updates" key containing an object with ONLY the changed data. The keys must match the fields in <lead_data>. Example: `{ "message1": "Thanks for sharing!", "message2": "Are you a SG citizen or PR?", "lead_updates": { "budget": "2M", "intent": "investment" } }`. If no new data was found, omit the "lead_updates" key entirely.
+    5.  CRITICAL: After planning your response, analyze the user's last message one more time. If it contains any new information that should be saved to the lead's profile (like budget, intent, citizenship, MOP date, loan status), extract it.
+    6.  Then, outside the thinking block, provide your FINAL output as a single, valid JSON object. This object MUST have keys "message1" and an optional "message2". If you extracted any new data in step 5, you MUST also include a "lead_updates" key containing an object with ONLY the changed data. The keys for the data inside "lead_updates" must match the fields in <lead_data>. If no new data was found, you must omit the "lead_updates" key entirely.
   </instructions>
 </master_prompt>
 `;
@@ -88,28 +88,29 @@ ${safePreviousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'
     const rawResponse = completion.choices[0].message.content;
     const parsedReply = JSON.parse(rawResponse);
     
-    // In a future step, we would add logic here to parse the lead's reply,
-    // extract entities like budget or citizenship, and update the lead record in Supabase.
-
+    // --- THIS IS THE CORRECTED RETURN ---
+    // We construct a full response object that our other services expect.
     return {
       messages: [
         parsedReply.message1?.trim() || '',
         parsedReply.message2?.trim() || ''
-      ].filter(m => m) // Filter out any empty messages
+      ].filter(m => m), // Filter out any empty messages
+      lead_updates: parsedReply.lead_updates || {} // Pass along the lead_updates object, or an empty one if not present
     };
+
   } catch (error) {
     console.error('[generateAiMessage] OpenAI Error:', error);
 
-    // Provide more specific fallbacks based on the error type
+    // Provide more specific fallbacks and ensure the return object has the correct shape.
     if (error instanceof OpenAI.APIError) {
       if (error.status === 429) { // Rate limit exceeded
-        return { messages: ["Just a moment, getting a lot of messages right now! I'll be with you shortly."] };
+        return { messages: ["Just a moment, getting a lot of messages right now! I'll be with you shortly."], lead_updates: {} };
       } else if (error.status >= 500) { // Server-side error
-        return { messages: ["Apologies, my brain is a bit fuzzy at the moment. Can you try asking that again in a few seconds?"] };
+        return { messages: ["Apologies, my brain is a bit fuzzy at the moment. Can you try asking that again in a few seconds?"], lead_updates: {} };
       }
     }
     
     // Generic fallback for other errors
-    return { messages: ["Sorry, I had a slight issue there. Could you say that again?"] };
+    return { messages: ["Sorry, I had a slight issue there. Could you say that again?"], lead_updates: {} };
   }
 };
