@@ -55,7 +55,6 @@ async function processMessage(messageValue) {
         const fullReply = messagesToSend.join('\n\n');
         await sendWhatsAppMessage({ to: senderWaId, message: fullReply });
 
-        // Correctly save each message part to the database
         const messagesToSave = messagesToSend.map(part => ({
             lead_id: lead.id,
             sender: 'assistant',
@@ -64,7 +63,6 @@ async function processMessage(messageValue) {
         await supabase.from('messages').insert(messagesToSave);
     }
     
-    // --- HANDLE BOOKING ACTION WITH ZOOM LINK ---
     if (aiResponse.action === 'initiate_booking') {
         logger.info({ leadId: lead.id }, 'AI requested to initiate booking flow.');
         
@@ -107,6 +105,9 @@ async function processMessage(messageValue) {
 
 // --- Webhook Router & Signature Verification ---
 router.post('/webhook', (req, res, next) => {
+  // ADD THIS LINE TO DEBUG THE HEADERS
+  logger.info({ headers: req.headers }, 'Incoming webhook headers');
+
   if (!verifyGupshupSignature(req)) {
       return res.status(403).send('Invalid signature');
   }
