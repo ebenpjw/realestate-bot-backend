@@ -1,18 +1,12 @@
 // config.js
-// Purpose: Centralized configuration management.
-// Loads environment variables from .env file and provides them to the rest of the application.
-// This ensures consistency and makes it easy to manage application settings.
-
 const dotenv = require('dotenv');
 const path = require('path');
 
-// Load environment variables from .env file
 const result = dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 if (result.error) {
-  // This error should crash the process if .env is missing in non-production environments.
-  console.error("⚠️ FATAL: Could not find .env file. Please ensure it exists in the project root.", result.error);
   if (process.env.NODE_ENV !== 'production') {
+    console.error("⚠️ FATAL: Could not find .env file. Please ensure it exists in the project root.", result.error);
     process.exit(1);
   }
 }
@@ -33,7 +27,8 @@ const config = {
 
   // Meta (Facebook) Configuration
   META_VERIFY_TOKEN: process.env.META_VERIFY_TOKEN,
-  
+  META_APP_SECRET: process.env.META_APP_SECRET,
+
   // OpenAI Configuration
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   AI_TEMPERATURE: parseFloat(process.env.OPENAI_TEMPERATURE) || 0.5,
@@ -49,11 +44,10 @@ const config = {
 };
 
 // --- Configuration Validation ---
-// Ensure critical variables are set, otherwise log an error and exit.
 const requiredConfig = [
   'SUPABASE_URL', 'SUPABASE_KEY', 'WABA_NUMBER', 'GUPSHUP_API_KEY', 
   'OPENAI_API_KEY', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 
-  'REFRESH_TOKEN_ENCRYPTION_KEY', 'META_VERIFY_TOKEN'
+  'REFRESH_TOKEN_ENCRYPTION_KEY', 'META_VERIFY_TOKEN', 'META_APP_SECRET'
 ];
 
 const missingConfig = requiredConfig.filter(key => !config[key]);

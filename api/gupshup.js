@@ -50,11 +50,18 @@ async function processMessage(messageValue) {
       }
     }
     
-    const aiReply = aiResponse.messages.filter(msg => msg).join('\n\n');
-    if (aiReply) {
-      await sendWhatsAppMessage({ to: senderWaId, message: aiReply });
-      const messagesToSave = aiResponse.messages.filter(msg => msg).map(msg => ({ lead_id: lead.id, sender: 'assistant', message: aiReply }));
-      await supabase.from('messages').insert(messagesToSave);
+    const messagesToSend = aiResponse.messages.filter(msg => msg);
+    if (messagesToSend.length > 0) {
+        const fullReply = messagesToSend.join('\n\n');
+        await sendWhatsAppMessage({ to: senderWaId, message: fullReply });
+
+        // Correctly save each message part to the database
+        const messagesToSave = messagesToSend.map(part => ({
+            lead_id: lead.id,
+            sender: 'assistant',
+            message: part
+        }));
+        await supabase.from('messages').insert(messagesToSave);
     }
     
     // --- HANDLE BOOKING ACTION WITH ZOOM LINK ---
@@ -66,7 +73,6 @@ async function processMessage(messageValue) {
             const bookingTime = new Date(availableSlots[0]);
             const bookingEndTime = new Date(bookingTime.getTime() + 20 * 60 * 1000);
 
-            // Capture the returned event object from the Google API
             const newEvent = await createEvent(lead.agent_id, {
                 summary: `Zoom Consult: ${lead.full_name}`,
                 description: `Property discussion with lead from WhatsApp. Lead ID: ${lead.id}. Phone: ${lead.phone_number}`,
@@ -75,18 +81,14 @@ async function processMessage(messageValue) {
             });
             
             let confirmationMessage;
-            // Check if the event was created and, crucially, if it has the meeting link
             if (newEvent && newEvent.hangoutLink) {
                 logger.info({ leadId: lead.id, link: newEvent.hangoutLink }, 'Google Meet link generated successfully.');
-                // Format the confirmation message WITH the link
                 confirmationMessage = `Great! I've booked you in for a call on ${bookingTime.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${bookingTime.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}.\n\nHere is your Google Meet link:\n${newEvent.hangoutLink}`;
             } else {
-                // If for some reason the link isn't there, send a fallback message
                 logger.warn({ eventId: newEvent?.id }, 'Calendar event was created, but no hangoutLink was found. Sending fallback message.');
                 confirmationMessage = `Great! I've booked you in for a call on ${bookingTime.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${bookingTime.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}. The consultant will send you the meeting link directly from their calendar.`;
             }
 
-            // Send the final confirmation message
             await sendWhatsAppMessage({ to: senderWaId, message: confirmationMessage });
             await supabase.from('messages').insert({ lead_id: lead.id, sender: 'assistant', message: confirmationMessage });
             await supabase.from('leads').update({ status: 'booked' }).eq('id', lead.id);
@@ -103,7 +105,7 @@ async function processMessage(messageValue) {
   }
 }
 
-// --- Webhook Router & Signature Verification (No Changes) ---
+// --- Webhook Router & Signature Verification ---
 router.post('/webhook', (req, res, next) => {
   if (!verifyGupshupSignature(req)) {
       return res.status(403).send('Invalid signature');
