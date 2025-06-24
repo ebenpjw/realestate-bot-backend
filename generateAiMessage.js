@@ -1,8 +1,8 @@
 // generateAiMessage.js
 
 const OpenAI = require('openai');
-const config = require('../config');
-const logger = require('../logger');
+const config = require('./config'); // Corrected path
+const logger = require('./logger');
 
 const openai = new OpenAI({ apiKey: config.OPENAI_API_KEY });
 const AI_TEMPERATURE = config.AI_TEMPERATURE;
