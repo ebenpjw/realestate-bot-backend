@@ -11,13 +11,8 @@ const { findOrCreateLead } = require('./leadManager');
 const { findNextAvailableSlots } = require('./bookingHelper');
 const { createEvent } = require('./googleCalendarService');
 
-async function processMessage(messageValue) {
+async function processMessage({ senderWaId, userText, senderName }) {
   try {
-    const messageDetails = messageValue.messages[0];
-    const senderWaId = messageDetails.from;
-    const userText = messageDetails.text.body;
-    const senderName = messageValue.contacts?.[0]?.profile?.name || 'There';
-
     logger.info({ senderWaId, senderName }, `Received message: "${userText}"`);
 
     let lead = await findOrCreateLead({
@@ -64,12 +59,20 @@ async function processMessage(messageValue) {
     if (aiResponse.action === 'initiate_booking') {
         logger.info({ leadId: lead.id }, 'AI requested to initiate booking flow.');
         
-        const availableSlots = await findNextAvailableSlots(lead.agent_id);
+        const agentId = lead.agent_id;
+        if (!agentId) {
+            logger.error({ leadId: lead.id }, 'Cannot initiate booking, lead is not assigned to an agent.');
+            const noAgentMessage = "Apologies, I can't book a meeting right now as I can't find an available consultant. Please try again shortly.";
+            await sendWhatsAppMessage({ to: senderWaId, message: noAgentMessage });
+            return;
+        }
+
+        const availableSlots = await findNextAvailableSlots(agentId);
         if (availableSlots.length > 0) {
             const bookingTime = new Date(availableSlots[0]);
             const bookingEndTime = new Date(bookingTime.getTime() + 20 * 60 * 1000);
 
-            const newEvent = await createEvent(lead.agent_id, {
+            const newEvent = await createEvent(agentId, {
                 summary: `Zoom Consult: ${lead.full_name}`,
                 description: `Property discussion with lead from WhatsApp. Lead ID: ${lead.id}. Phone: ${lead.phone_number}`,
                 startTimeISO: bookingTime.toISOString(),
@@ -110,15 +113,21 @@ router.get('/webhook', (req, res) => {
 router.post('/webhook', (req, res) => {
   res.sendStatus(200);
 
-  // NEW Security Check: Verify the token in the URL query
   if (req.query.token !== config.WEBHOOK_SECRET_TOKEN) {
       logger.warn('Invalid or missing webhook token. Request ignored.');
       return;
   }
 
-  const messageValue = req.body?.entry?.[0]?.changes?.[0]?.value;
-  if (messageValue?.messages?.[0]?.type === 'text') {
-    processMessage(messageValue).catch(err => {
+  // UPDATED LOGIC TO PARSE GUPSHUP V2 FORMAT
+  const body = req.body;
+  if (body && body.type === 'message' && body.payload?.type === 'text') {
+    const messageData = {
+      senderWaId: body.payload.source,
+      userText: body.payload.payload.text,
+      senderName: body.payload.sender.name || 'There'
+    };
+    
+    processMessage(messageData).catch(err => {
         logger.error({ err }, 'Unhandled exception in async processMessage from Gupshup webhook.');
     });
   } else {
