@@ -36,6 +36,9 @@ app.use('/api/auth', authRouter);
 // --- Centralized Error Handler ---
 // This middleware catches any errors passed to next() from async routes.
 app.use((err, req, res, next) => {
+  // ADD THIS LINE TO PRINT THE FULL ERROR TO THE LOGS
+  console.error('--- DETAILED ERROR ---', err);
+
   logger.error({
     err: {
       message: err.message,
