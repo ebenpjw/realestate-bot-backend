@@ -104,10 +104,14 @@ async function processMessage(messageValue) {
 }
 
 // --- Webhook Router & Signature Verification ---
-router.post('/webhook', (req, res, next) => {
-  // ADD THIS LINE TO DEBUG THE HEADERS
-  logger.info({ headers: req.headers }, 'Incoming webhook headers');
 
+// ADD THIS BLOCK TO HANDLE GUPSHUP'S URL VERIFICATION
+router.get('/webhook', (req, res) => {
+    logger.info('Received GET request for Gupshup webhook verification.');
+    res.status(200).send('Webhook endpoint is active and ready for POST requests.');
+});
+
+router.post('/webhook', (req, res, next) => {
   if (!verifyGupshupSignature(req)) {
       return res.status(403).send('Invalid signature');
   }
