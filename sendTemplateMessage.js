@@ -1,20 +1,15 @@
 const axios = require('axios');
 const qs = require('qs');
+const config = require('./config');
+const logger = require('./logger');
 
-// NOTE: This function now expects a templateId, not a templateName.
 async function sendTemplateMessage({ to, templateId, params }) {
-  // Gupshup requires the template data to be a JSON object string
-  // containing the template's ID and the parameters.
-  const templateObject = {
-    id: templateId,
-    params: params
-  };
-
+  const templateObject = { id: templateId, params: params };
   const payload = qs.stringify({
     channel: 'whatsapp',
-    source: process.env.WABA_NUMBER,
+    source: config.WABA_NUMBER,
     destination: to,
-    'src.name': 'DoroSmartGuide', // Using the name from your curl command
+    'src.name': 'DoroSmartGuide',
     template: JSON.stringify(templateObject)
   });
 
@@ -24,16 +19,15 @@ async function sendTemplateMessage({ to, templateId, params }) {
       payload,
       {
         headers: {
-          apikey: process.env.GUPSHUP_API_KEY,
+          apikey: config.GUPSHUP_API_KEY,
           'Content-Type': 'application/x-www-form-urlencoded'
         }
       }
     );
-
-    console.log('✅ Template message sent! Gupshup response:', response.data);
+    logger.info({ to, templateId, response: response.data }, 'Template message sent successfully!');
     return response.data;
   } catch (err) {
-    console.error('❌ Template message error:', err.response?.data || err.message);
+    logger.error({ err: err.response?.data || err.message, to, templateId }, 'Template message error');
     return null;
   }
 }

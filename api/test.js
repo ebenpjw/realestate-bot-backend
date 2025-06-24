@@ -1,17 +1,13 @@
-// api/test.js
-
 const express = require('express');
 const router = express.Router();
 const supabase = require('../supabaseClient');
+const logger = require('../logger');
 const generateAiMessage = require('../generateAiMessage');
 const { sendWhatsAppMessage } = require('../sendWhatsAppMessage');
 const { sendTemplateMessage } = require('../sendTemplateMessage');
-const { findOrCreateLead } = require('./leadManager'); // <-- CORRECT PATH
+const { findOrCreateLead } = require('./leadManager');
 
-// =================================================================
-//  ROUTE 1: Simulate an INBOUND message from an existing lead
-// =================================================================
-router.post('/simulate-inbound', async (req, res) => {
+router.post('/simulate-inbound', async (req, res, next) => {
   try {
     const { from, text, name } = req.body;
     if (!from || !text) {
@@ -19,42 +15,32 @@ router.post('/simulate-inbound', async (req, res) => {
     }
     const senderWaId = from;
     const userText = text;
-    const senderName = name || 'Test Lead'; // Allow providing a name in the request body
-    console.log(`[SIMULATION] simulates: 👤 ${senderName} (${senderWaId}) said: "${userText}"`);
+    const senderName = name || 'Test Lead';
+    logger.info({ senderWaId, senderName, userText }, '[SIMULATION] Simulating inbound message.');
 
-    // Use the refactored findOrCreateLead function
     const lead = await findOrCreateLead({
       phoneNumber: senderWaId,
       fullName: senderName,
       source: 'WA Simulation'
     });
 
-    // Log incoming message
     await supabase.from('messages').insert({ lead_id: lead.id, sender: 'lead', message: userText });
     
-    // Get message history
     const { data: history } = await supabase.from('messages').select('sender, message').eq('lead_id', lead.id).order('created_at', { ascending: false }).limit(10);
     const previousMessages = history ? history.map(entry => ({ sender: entry.sender, message: entry.message })).reverse() : [];
     
-    // Generate AI reply
     const aiResponse = await generateAiMessage({ lead, previousMessages });
-    console.log('[SIMULATION] 🤖 AI response object:', aiResponse);
+    logger.info({ leadId: lead.id, aiResponse }, '[SIMULATION] AI response object.');
 
-    // --- NEW: LOGIC TO UPDATE LEAD MEMORY ---
     if (aiResponse.lead_updates && Object.keys(aiResponse.lead_updates).length > 0) {
-      console.log(`[SIM-Memory] Updating lead ${lead.id} with new data:`, aiResponse.lead_updates);
-      const { error: updateError } = await supabase
-        .from('leads')
-        .update(aiResponse.lead_updates)
-        .eq('id', lead.id);
-
+      logger.info({ leadId: lead.id, updates: aiResponse.lead_updates }, `[SIM-Memory] Updating lead.`);
+      const { error: updateError } = await supabase.from('leads').update(aiResponse.lead_updates).eq('id', lead.id);
       if (updateError) {
-        console.error(`🔥 [SIM-Memory] Failed to update lead ${lead.id}:`, updateError.message);
+        logger.error({ err: updateError, leadId: lead.id }, `[SIM-Memory] Failed to update lead.`);
       } else {
-        console.log(`✅ [SIM-Memory] Lead ${lead.id} updated successfully.`);
+        logger.info({ leadId: lead.id }, `[SIM-Memory] Lead updated successfully.`);
       }
     }
-    // --- END NEW LOGIC ---
 
     const fullReply = aiResponse.messages.filter(msg => msg).join('\n\n');
     if (fullReply) {
@@ -62,58 +48,43 @@ router.post('/simulate-inbound', async (req, res) => {
       const messagesToSave = aiResponse.messages.filter(msg => msg).map(msg => ({ lead_id: lead.id, sender: 'assistant', message: msg }));
       await supabase.from('messages').insert(messagesToSave);
     }
-    res.status(200).json({ message: "Simulation successful. AI response sent via WhatsApp.", ai_response: aiReply.messages });
+    // *** BUG FIX: Corrected aiReply to aiResponse ***
+    res.status(200).json({ message: "Simulation successful. AI response sent via WhatsApp.", ai_response: aiResponse.messages });
   } catch (err) {
-    console.error('🔥 [SIMULATION] Top-level error:', err.message, err.stack);
-    res.status(500).json({ error: err.message });
+    next(err); // Pass error to the centralized handler
   }
 });
 
-
-// =================================================================
-//  ROUTE 2: Simulate a brand NEW lead (e.g., from a Facebook Ad)
-// =================================================================
-router.post('/simulate-new-lead', async (req, res) => {
+router.post('/simulate-new-lead', async (req, res, next) => {
   try {
-    if (!req.body) {
-      return res.status(400).json({ error: 'Request body is missing.' });
-    }
-    
+    if (!req.body) return res.status(400).json({ error: 'Request body is missing.' });
     const { full_name, phone_number, template_id, template_params } = req.body;
 
     if (!full_name || !phone_number) {
       return res.status(400).json({ error: 'Request must include "full_name" and "phone_number".' });
     }
+    logger.info({ full_name, phone_number }, '[SIMULATION] Creating new lead.');
 
-    console.log(`[SIMULATION] Creating new lead: ${full_name} (${phone_number})`);
-
-    // 1. Insert the new lead into Supabase
-    const { data: lead, error: insertError } = await supabase
-      .from('leads')
-      .insert({
+    const { data: lead, error: insertError } = await supabase.from('leads').insert({
         full_name: full_name,
         phone_number: phone_number,
         source: 'New Lead Simulation',
         status: 'new'
-      })
-      .select()
-      .single();
+      }).select().single();
 
     if (insertError) {
       if (insertError.code === '23505') { 
-        console.warn(`⚠️ Lead with phone number ${phone_number} already exists.`);
+        logger.warn({ phone_number }, 'Lead with this phone number already exists.');
         return res.status(409).json({ message: 'Lead with this phone number already exists.' });
       }
-      throw new Error(`Failed to insert new lead: ${insertError.message}`);
+      throw insertError;
     }
-    
-    console.log(`✅ Lead ${lead.id} created successfully.`);
+    logger.info({ leadId: lead.id }, `Lead created successfully.`);
 
-    // 2. Send an initial TEMPLATE message
     const templateId = template_id || 'c60dee92-5426-4890-96e4-65469620ac7e';
     const params = template_params || [lead.full_name, "your property enquiry"]; 
 
-    console.log(`⏳ Sending template ID '${templateId}' to ${phone_number}`);
+    logger.info({ templateId, phone_number }, `Sending template message.`);
     await sendTemplateMessage({
       to: phone_number,
       templateId: templateId,
@@ -124,12 +95,9 @@ router.post('/simulate-new-lead', async (req, res) => {
       message: `Successfully created lead and sent template message using ID '${templateId}' to ${full_name}.`,
       lead: lead
     });
-
   } catch (err) {
-    console.error('🔥 [NEW LEAD SIMULATION] Error:', err.message, err.stack);
-    res.status(500).json({ error: err.message });
+    next(err); // Pass error to the centralized handler
   }
 });
-
 
 module.exports = router;

@@ -1,15 +1,15 @@
 // index.js
-
-require('dotenv').config();
+const config = require('./config'); // Use centralized config
+const logger = require('./logger'); // Use structured logger
 const express = require('express');
 
 const gupshupRouter = require('./api/gupshup');
 const metaRouter = require('./api/meta');
 const testRouter = require('./api/test');
-const authRouter = require('./api/auth'); // <-- ADD THIS LINE
+const authRouter = require('./api/auth');
 
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = config.PORT;
 
 app.get('/health', (req, res) => {
   res.send('✅ Bot backend is alive');
@@ -27,11 +27,30 @@ app.use('/api/gupshup', express.json({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// --- API Routers ---
 app.use('/api/gupshup', gupshupRouter);
 app.use('/api/meta', metaRouter);
 app.use('/api/test', testRouter);
-app.use('/api/auth', authRouter); // <-- ADD THIS LINE
+app.use('/api/auth', authRouter);
+
+// --- Centralized Error Handler ---
+// This middleware catches any errors passed to next() from async routes.
+app.use((err, req, res, next) => {
+  logger.error({
+    err: {
+      message: err.message,
+      stack: err.stack,
+    },
+    req: {
+      method: req.method,
+      url: req.originalUrl,
+      body: req.body,
+    }
+  }, 'An unhandled error occurred!');
+  
+  res.status(500).json({ error: 'An internal server error occurred.' });
+});
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  logger.info(`🚀 Server running on port ${PORT} in ${config.NODE_ENV} mode`);
 });

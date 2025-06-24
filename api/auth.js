@@ -1,18 +1,17 @@
-// api/auth.js
-
 const express = require('express');
 const { google } = require('googleapis');
 const router = express.Router();
-const supabase = require('../supabaseClient'); //
+const supabase = require('../supabaseClient');
 const crypto = require('crypto');
+const config = require('../config');
+const logger = require('../logger');
 
-// --- Encryption Configuration ---
 const algorithm = 'aes-256-gcm';
-const encryptionKey = Buffer.from(process.env.REFRESH_TOKEN_ENCRYPTION_KEY, 'hex');
+const encryptionKey = Buffer.from(config.REFRESH_TOKEN_ENCRYPTION_KEY, 'hex');
 
 if (encryptionKey.length !== 32) {
-    console.error('🚫 SECURITY ALERT: REFRESH_TOKEN_ENCRYPTION_KEY must be a 32-byte hex string (64 characters). Current length:', encryptionKey.length);
-    // In a real production app, you might want to throw an error here to prevent startup
+    logger.error({ keyLength: encryptionKey.length }, 'SECURITY ALERT: REFRESH_TOKEN_ENCRYPTION_KEY must be a 32-byte hex string (64 characters).');
+    if (config.NODE_ENV === 'production') process.exit(1);
 }
 
 function encrypt(text) {
@@ -28,7 +27,6 @@ function encrypt(text) {
     };
 }
 
-// Function to decrypt text (defined here for completeness, though used later)
 function decrypt(encryptedData, iv, tag) {
     const decipher = crypto.createDecipheriv(algorithm, encryptionKey, Buffer.from(iv, 'hex'));
     decipher.setAuthTag(Buffer.from(tag, 'hex'));
@@ -37,135 +35,98 @@ function decrypt(encryptedData, iv, tag) {
     return decrypted;
 }
 
-const productionRedirectUri = 'https://realestate-bot-backend-production.up.railway.app/api/auth/google/callback';
-
-function getRedirectUri() { //
-    if (process.env.NODE_ENV === 'production') { //
-        return productionRedirectUri; //
-    }
-    return process.env.GOOGLE_REDIRECT_URI; //
+function getRedirectUri() {
+    return config.NODE_ENV === 'production' ? config.PRODUCTION_REDIRECT_URI : config.GOOGLE_REDIRECT_URI;
 }
 
-const oauth2Client = new google.auth.OAuth2( //
-  process.env.GOOGLE_CLIENT_ID, //
-  process.env.GOOGLE_CLIENT_SECRET, //
-  getRedirectUri() //
+const oauth2Client = new google.auth.OAuth2(
+  config.GOOGLE_CLIENT_ID,
+  config.GOOGLE_CLIENT_SECRET,
+  getRedirectUri()
 );
 
-const scopes = [ //
-  'https://www.googleapis.com/auth/calendar.events', //
-  'https://www.googleapis.com/auth/calendar.freebusy' //
+const scopes = [
+  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/calendar.freebusy'
 ];
 
-
-// === Route 1: Start the Authentication Process ===
 router.get('/google', (req, res) => {
-  const agentId = req.query.agentId; 
-
+  const agentId = req.query.agentId;
   if (!agentId) {
     return res.status(400).send('Agent ID is required to initiate Google Calendar connection.');
   }
-
-  const statePayload = {
-    agentId: agentId,
-    timestamp: Date.now()
-  };
-
-  const url = oauth2Client.generateAuthUrl({ //
-    access_type: 'offline', //
-    scope: scopes, //
-    prompt: 'consent', //
+  const statePayload = { agentId: agentId, timestamp: Date.now() };
+  const url = oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: scopes,
+    prompt: 'consent',
     state: Buffer.from(JSON.stringify(statePayload)).toString('base64')
   });
   res.redirect(url);
 });
 
-
-// === Route 2: Handle the Callback from Google ===
-router.get('/google/callback', async (req, res) => {
+router.get('/google/callback', async (req, res, next) => {
   try {
     const { code, state } = req.query;
-
-    if (!code) {
-      return res.status(400).send('Authorization code not found.');
-    }
-
-    if (!state) {
-      return res.status(400).send('State parameter not found, potential CSRF attack.');
+    if (!code || !state) {
+      return res.status(400).send('Authorization code or state not found.');
     }
 
     let parsedState;
     try {
         parsedState = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
     } catch (parseError) {
-        console.error('🔥 Error parsing state parameter:', parseError.message);
+        logger.error({ err: parseError }, 'Error parsing state parameter');
         return res.status(400).send('Invalid state parameter.');
     }
 
     const agentId = parsedState.agentId;
-    if (!agentId) {
-        return res.status(400).send('Agent ID missing in state parameter.');
-    }
+    if (!agentId) return res.status(400).send('Agent ID missing in state parameter.');
 
-    const { tokens } = await oauth2Client.getToken(code); //
-    const refreshToken = tokens.refresh_token; //
+    const { tokens } = await oauth2Client.getToken(code);
+    const refreshToken = tokens.refresh_token;
 
     if (!refreshToken) {
-        console.warn(`No refresh token received for agent ID: ${agentId}. This might happen if consent was previously granted without 'prompt: consent'.`); //
-        return res.status(400).send('Refresh token not received from Google. Please try connecting again or check if you already granted consent.'); //
+        logger.warn({ agentId }, "No refresh token received for agent. This might happen if consent was previously granted without 'prompt: consent'.");
+        return res.status(400).send('Refresh token not received. Please try connecting again.');
     }
     
-    console.log(`--- GOOGLE REFRESH TOKEN RECEIVED for Agent ID: ${agentId} ---`);
-    console.log('------------------------------------');
-
+    logger.info({ agentId }, `Google Refresh Token Received for Agent.`);
     const encryptedTokenData = encrypt(refreshToken);
 
-    // Get agent's Google email from id_token (optional but recommended)
     let googleEmail = null;
     if (tokens.id_token) {
         try {
             const decodedIdToken = JSON.parse(Buffer.from(tokens.id_token.split('.')[1], 'base64').toString('utf8'));
             googleEmail = decodedIdToken.email;
-            console.log(`Agent's Google Email: ${googleEmail}`);
+            logger.info({ agentId, googleEmail }, `Agent's Google Email identified.`);
         } catch (decodeError) {
-            console.warn('Could not decode id_token to get agent email:', decodeError.message);
+            logger.warn({ agentId, err: decodeError }, 'Could not decode id_token to get agent email.');
         }
     }
 
-    // Save the encrypted token data to the 'agents' table for that agent in Supabase.
-    try {
-        const { data, error } = await supabase.from('agents') //
-            .update({
-                google_refresh_token_encrypted: encryptedTokenData.encryptedData,
-                google_token_iv: encryptedTokenData.iv,
-                google_token_tag: encryptedTokenData.tag,
-                google_email: googleEmail, // Save the agent's Google email
-                google_connected_at: new Date().toISOString() // Timestamp of connection
-            })
-            .eq('id', agentId);
+    const { error } = await supabase.from('agents')
+        .update({
+            google_refresh_token_encrypted: encryptedTokenData.encryptedData,
+            google_token_iv: encryptedTokenData.iv,
+            google_token_tag: encryptedTokenData.tag,
+            google_email: googleEmail,
+            google_connected_at: new Date().toISOString()
+        })
+        .eq('id', agentId);
 
-        if (error) {
-            console.error('🔥 Supabase error saving refresh token:', error.message);
-            throw new Error('Failed to save Google refresh token to database.');
-        }
-
-        console.log(`✅ Google refresh token saved for agent ID: ${agentId}`);
-
-    } catch (dbError) {
-        console.error('🔥 Database operation failed:', dbError.message);
-        res.status(500).send('An error occurred while saving your Google connection. Please try again.');
-        return;
+    if (error) {
+        logger.error({ err: error, agentId }, 'Supabase error saving refresh token');
+        throw new Error('Failed to save Google refresh token to database.');
     }
 
+    logger.info({ agentId }, 'Google refresh token saved successfully.');
     res.send('<h1>Success!</h1><p>Your Google Calendar has been connected. You can close this tab.</p>');
 
   } catch (error) {
-    console.error('🔥 Error during Google OAuth callback:', error.message, error.stack); //
-    res.status(500).send('An error occurred during authentication.'); //
+    next(error); // Pass error to the centralized handler
   }
 });
 
-// Make the decrypt function available if needed elsewhere (e.g., in a calendar utility)
 router.decryptRefreshToken = decrypt;
-
 module.exports = router;

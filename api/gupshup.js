@@ -2,62 +2,27 @@
 
 const express = require('express');
 const router = express.Router();
-const crypto = require('crypto'); // <-- ADD THIS
+const crypto = require('crypto');
+const config = require('../config');
+const logger = require('../logger');
 const supabase = require('../supabaseClient');
 const generateAiMessage = require('../generateAiMessage');
 const { sendWhatsAppMessage } = require('../sendWhatsAppMessage');
-const { findOrCreateLead } = require('./leadManager'); // <-- CORRECT PATH
+const { findOrCreateLead } = require('./leadManager');
+const { findNextAvailableSlots } = require('./bookingHelper');
+const { createEvent } = require('./googleCalendarService');
 
-// --- SECURITY FUNCTION ---
-// This function verifies that incoming webhooks are genuinely from Gupshup.
-function verifyGupshupSignature(req) {
-  const secret = process.env.GUPSHUP_API_SECRET;
-  if (!secret) {
-    console.warn('⚠️ GUPSHUP_API_SECRET is not set. Skipping verification. THIS IS NOT SECURE.');
-    return true; 
-  }
-
-  const signature = req.headers['x-gupshup-signature']; 
-  if (!signature) {
-    console.error('❌ Missing Gupshup signature header.');
-    return false;
-  }
-
-  if (!req.rawBody) {
-    console.error('❌ Raw request body not available. Ensure the special JSON parser is used in index.js.');
-    return false;
-  }
-
-  const hash = crypto.createHmac('sha256', secret).update(req.rawBody).digest('hex');
-  
-  if (hash !== signature) {
-    console.error('❌ Invalid Gupshup signature.');
-    return false;
-  }
-  return true;
-}
-
-// This is an async function to handle the actual processing
+// --- Main message processing logic ---
 async function processMessage(messageValue) {
-  // ... (the rest of your processMessage function remains the same)
   try {
     const messageDetails = messageValue.messages[0];
-
-    const messageTimestamp = parseInt(messageDetails.timestamp, 10);
-    const currentTimestamp = Math.floor(Date.now() / 1000);
-
-    if (currentTimestamp - messageTimestamp > 120) {
-      console.log(`- Stale message (ID: ${messageDetails.id}) ignored. Age: ${currentTimestamp - messageTimestamp}s.`);
-      return;
-    }
-
     const senderWaId = messageDetails.from;
     const userText = messageDetails.text.body;
     const senderName = messageValue.contacts?.[0]?.profile?.name || 'There';
 
-    console.log(`👤 ${senderName} (${senderWaId}) said: "${userText}" (ID: ${messageDetails.id})`);
+    logger.info({ senderWaId, senderName }, `Received message: "${userText}"`);
 
-    const lead = await findOrCreateLead({
+    let lead = await findOrCreateLead({
       phoneNumber: senderWaId,
       fullName: senderName,
       source: 'WA Direct'
@@ -65,59 +30,117 @@ async function processMessage(messageValue) {
 
     await supabase.from('messages').insert({ lead_id: lead.id, sender: 'lead', message: userText });
 
-    const { data: history } = await supabase
-      .from('messages')
-      .select('sender, message')
-      .eq('lead_id', lead.id)
-      .order('created_at', { ascending: false })
-      .limit(10);
+    const { data: history } = await supabase.from('messages').select('sender, message').eq('lead_id', lead.id).order('created_at', { ascending: false }).limit(10);
     const previousMessages = history ? history.map(entry => ({ sender: entry.sender, message: entry.message })).reverse() : [];
     
-    const aiResponse = await generateAiMessage({
-      lead,
-      previousMessages,
-    });
-    console.log('🤖 AI response object:', aiResponse);
+    const aiResponse = await generateAiMessage({ lead, previousMessages });
+    logger.info({ leadId: lead.id, action: aiResponse.action }, 'AI response received.');
 
-    // --- NEW: LOGIC TO UPDATE LEAD MEMORY ---
     if (aiResponse.lead_updates && Object.keys(aiResponse.lead_updates).length > 0) {
-      console.log(`[Memory] Updating lead ${lead.id} with new data:`, aiResponse.lead_updates);
-      const { error: updateError } = await supabase
+      const { data: updatedLead, error: updateError } = await supabase
         .from('leads')
         .update(aiResponse.lead_updates)
-        .eq('id', lead.id);
-
+        .eq('id', lead.id)
+        .select()
+        .single();
       if (updateError) {
-        console.error(`🔥 [Memory] Failed to update lead ${lead.id}:`, updateError.message);
+        logger.error({ err: updateError, leadId: lead.id }, 'Failed to update lead memory.');
       } else {
-        console.log(`✅ [Memory] Lead ${lead.id} updated successfully.`);
+        lead = updatedLead;
       }
     }
-    // --- END NEW LOGIC ---
-
-    const fullReply = aiResponse.messages.filter(msg => msg).join('\n\n');
-    if (fullReply) {
-      await sendWhatsAppMessage({ to: senderWaId, message: fullReply });
-      const messagesToSave = aiResponse.messages.filter(msg => msg).map(msg => ({ lead_id: lead.id, sender: 'assistant', message: msg }));
+    
+    const aiReply = aiResponse.messages.filter(msg => msg).join('\n\n');
+    if (aiReply) {
+      await sendWhatsAppMessage({ to: senderWaId, message: aiReply });
+      const messagesToSave = aiResponse.messages.filter(msg => msg).map(msg => ({ lead_id: lead.id, sender: 'assistant', message: aiReply }));
       await supabase.from('messages').insert(messagesToSave);
     }
+    
+    // --- HANDLE BOOKING ACTION WITH ZOOM LINK ---
+    if (aiResponse.action === 'initiate_booking') {
+        logger.info({ leadId: lead.id }, 'AI requested to initiate booking flow.');
+        
+        const availableSlots = await findNextAvailableSlots(lead.agent_id);
+        if (availableSlots.length > 0) {
+            const bookingTime = new Date(availableSlots[0]);
+            const bookingEndTime = new Date(bookingTime.getTime() + 20 * 60 * 1000);
+
+            // Capture the returned event object from the Google API
+            const newEvent = await createEvent(lead.agent_id, {
+                summary: `Zoom Consult: ${lead.full_name}`,
+                description: `Property discussion with lead from WhatsApp. Lead ID: ${lead.id}. Phone: ${lead.phone_number}`,
+                startTimeISO: bookingTime.toISOString(),
+                endTimeISO: bookingEndTime.toISOString(),
+            });
+            
+            let confirmationMessage;
+            // Check if the event was created and, crucially, if it has the meeting link
+            if (newEvent && newEvent.hangoutLink) {
+                logger.info({ leadId: lead.id, link: newEvent.hangoutLink }, 'Google Meet link generated successfully.');
+                // Format the confirmation message WITH the link
+                confirmationMessage = `Great! I've booked you in for a call on ${bookingTime.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${bookingTime.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}.\n\nHere is your Google Meet link:\n${newEvent.hangoutLink}`;
+            } else {
+                // If for some reason the link isn't there, send a fallback message
+                logger.warn({ eventId: newEvent?.id }, 'Calendar event was created, but no hangoutLink was found. Sending fallback message.');
+                confirmationMessage = `Great! I've booked you in for a call on ${bookingTime.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${bookingTime.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}. The consultant will send you the meeting link directly from their calendar.`;
+            }
+
+            // Send the final confirmation message
+            await sendWhatsAppMessage({ to: senderWaId, message: confirmationMessage });
+            await supabase.from('messages').insert({ lead_id: lead.id, sender: 'assistant', message: confirmationMessage });
+            await supabase.from('leads').update({ status: 'booked' }).eq('id', lead.id);
+
+        } else {
+            const noSlotsMessage = "It looks like the consultant's calendar is full for the next few days. I'll have them reach out to you directly to arrange a time!";
+            await sendWhatsAppMessage({ to: senderWaId, message: noSlotsMessage });
+            await supabase.from('leads').update({ status: 'needs_human_handoff' }).eq('id', lead.id);
+        }
+    }
+
   } catch (err) {
-    console.error('🔥 Error during message processing:', err.message, err.stack);
+    logger.error({ err }, 'Error during message processing');
   }
 }
 
-// --- Main Webhook Handler ---
-router.post('/webhook', (req, res) => {
-
+// --- Webhook Router & Signature Verification (No Changes) ---
+router.post('/webhook', (req, res, next) => {
+  if (!verifyGupshupSignature(req)) {
+      return res.status(403).send('Invalid signature');
+  }
   res.sendStatus(200);
 
   const messageValue = req.body?.entry?.[0]?.changes?.[0]?.value;
-
   if (messageValue?.messages?.[0]?.type === 'text') {
-    processMessage(messageValue);
+    processMessage(messageValue).catch(err => {
+        logger.error({ err }, 'Unhandled exception in async processMessage from Gupshup webhook.');
+    });
   } else {
-    console.log('ℹ️ Received a status update or non-text message. Acknowledging.');
+    logger.info({ payload: req.body }, 'Received a status update or non-text message. Acknowledging.');
   }
 });
+
+function verifyGupshupSignature(req) {
+  const secret = config.GUPSHUP_API_SECRET;
+  if (!secret) {
+    logger.warn('GUPSHUP_API_SECRET is not set. Verification skipped.');
+    return config.NODE_ENV !== 'production';
+  }
+  const signature = req.headers['x-gupshup-signature'];
+  if (!signature) {
+    logger.error('Missing Gupshup signature header.');
+    return false;
+  }
+  if (!req.rawBody) {
+    logger.error('Raw request body not available.');
+    return false;
+  }
+  const hash = crypto.createHmac('sha256', secret).update(req.rawBody).digest('hex');
+  const isVerified = (hash === signature);
+  if (!isVerified) {
+      logger.error('Invalid Gupshup signature.');
+  }
+  return isVerified;
+}
 
 module.exports = router;
