@@ -12,7 +12,6 @@ const { findOrCreateLead } = require('./leadManager');
 const { findNextAvailableSlots } = require('./bookingHelper');
 const { createEvent } = require('./googleCalendarService');
 
-// --- Main message processing logic ---
 async function processMessage(messageValue) {
   try {
     const messageDetails = messageValue.messages[0];
@@ -97,35 +96,10 @@ async function processMessage(messageValue) {
             await supabase.from('leads').update({ status: 'needs_human_handoff' }).eq('id', lead.id);
         }
     }
-
   } catch (err) {
     logger.error({ err }, 'Error during message processing');
   }
 }
-
-// --- Webhook Router & Signature Verification ---
-
-// ADD THIS BLOCK TO HANDLE GUPSHUP'S URL VERIFICATION
-router.get('/webhook', (req, res) => {
-    logger.info('Received GET request for Gupshup webhook verification.');
-    res.status(200).send('Webhook endpoint is active and ready for POST requests.');
-});
-
-router.post('/webhook', (req, res, next) => {
-  if (!verifyGupshupSignature(req)) {
-      return res.status(403).send('Invalid signature');
-  }
-  res.sendStatus(200);
-
-  const messageValue = req.body?.entry?.[0]?.changes?.[0]?.value;
-  if (messageValue?.messages?.[0]?.type === 'text') {
-    processMessage(messageValue).catch(err => {
-        logger.error({ err }, 'Unhandled exception in async processMessage from Gupshup webhook.');
-    });
-  } else {
-    logger.info({ payload: req.body }, 'Received a status update or non-text message. Acknowledging.');
-  }
-});
 
 function verifyGupshupSignature(req) {
   const secret = config.GUPSHUP_API_SECRET;
@@ -149,5 +123,35 @@ function verifyGupshupSignature(req) {
   }
   return isVerified;
 }
+
+// --- Webhook Router & Signature Verification ---
+
+// Handler for Gupshup's URL verification GET request
+router.get('/webhook', (req, res) => {
+    logger.info('Received GET request for Gupshup webhook verification.');
+    res.status(200).send('Webhook endpoint is active and ready for POST requests.');
+});
+
+// Handler for incoming messages
+router.post('/webhook', (req, res, next) => {
+  // Respond immediately to Gupshup to prevent timeouts and pass validation
+  res.sendStatus(200);
+
+  // Then, process the request asynchronously
+  if (!verifyGupshupSignature(req)) {
+      // If signature is invalid, log it and stop processing.
+      // Do not send another response as we already sent 200 OK.
+      return; 
+  }
+
+  const messageValue = req.body?.entry?.[0]?.changes?.[0]?.value;
+  if (messageValue?.messages?.[0]?.type === 'text') {
+    processMessage(messageValue).catch(err => {
+        logger.error({ err }, 'Unhandled exception in async processMessage from Gupshup webhook.');
+    });
+  } else {
+    logger.info({ payload: req.body }, 'Received a status update or non-text message. Acknowledging.');
+  }
+});
 
 module.exports = router;
