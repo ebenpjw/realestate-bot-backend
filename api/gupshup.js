@@ -95,13 +95,10 @@ async function processMessage(messageValue) {
             await supabase.from('leads').update({ status: 'needs_human_handoff' }).eq('id', lead.id);
         }
     }
-
   } catch (err) {
     logger.error({ err }, 'Error during message processing');
   }
 }
-
-// --- Webhook Router ---
 
 // Handler for Gupshup's URL verification GET request
 router.get('/webhook', (req, res) => {
@@ -110,18 +107,15 @@ router.get('/webhook', (req, res) => {
 });
 
 // Handler for incoming messages
-router.post('/webhook', (req, res, next) => {
-  // Respond immediately to Gupshup
+router.post('/webhook', (req, res) => {
   res.sendStatus(200);
 
-  // NEW: Security check using URL token
-  const providedToken = req.query.token;
-  if (providedToken !== config.WEBHOOK_SECRET_TOKEN) {
+  // NEW Security Check: Verify the token in the URL query
+  if (req.query.token !== config.WEBHOOK_SECRET_TOKEN) {
       logger.warn('Invalid or missing webhook token. Request ignored.');
       return;
   }
 
-  // Process the request asynchronously
   const messageValue = req.body?.entry?.[0]?.changes?.[0]?.value;
   if (messageValue?.messages?.[0]?.type === 'text') {
     processMessage(messageValue).catch(err => {
