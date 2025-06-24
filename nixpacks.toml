@@ -1,0 +1,6 @@
+# Force Nixpacks to use the Node.js provider for this service
+providers = ["node"]
+
+[phases.start]
+# Use the start command from your package.json file
+cmd = "npm start"
