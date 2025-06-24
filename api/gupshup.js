@@ -2,7 +2,6 @@
 
 const express = require('express');
 const router = express.Router();
-const crypto = require('crypto');
 const config = require('../config');
 const logger = require('../logger');
 const supabase = require('../supabaseClient');
@@ -96,35 +95,13 @@ async function processMessage(messageValue) {
             await supabase.from('leads').update({ status: 'needs_human_handoff' }).eq('id', lead.id);
         }
     }
+
   } catch (err) {
     logger.error({ err }, 'Error during message processing');
   }
 }
 
-function verifyGupshupSignature(req) {
-  const secret = config.GUPSHUP_API_SECRET;
-  if (!secret) {
-    logger.warn('GUPSHUP_API_SECRET is not set. Verification skipped.');
-    return config.NODE_ENV !== 'production';
-  }
-  const signature = req.headers['x-gupshup-signature'];
-  if (!signature) {
-    logger.error('Missing Gupshup signature header.');
-    return false;
-  }
-  if (!req.rawBody) {
-    logger.error('Raw request body not available.');
-    return false;
-  }
-  const hash = crypto.createHmac('sha256', secret).update(req.rawBody).digest('hex');
-  const isVerified = (hash === signature);
-  if (!isVerified) {
-      logger.error('Invalid Gupshup signature.');
-  }
-  return isVerified;
-}
-
-// --- Webhook Router & Signature Verification ---
+// --- Webhook Router ---
 
 // Handler for Gupshup's URL verification GET request
 router.get('/webhook', (req, res) => {
@@ -134,16 +111,17 @@ router.get('/webhook', (req, res) => {
 
 // Handler for incoming messages
 router.post('/webhook', (req, res, next) => {
-  // Respond immediately to Gupshup to prevent timeouts and pass validation
+  // Respond immediately to Gupshup
   res.sendStatus(200);
 
-  // Then, process the request asynchronously
-  if (!verifyGupshupSignature(req)) {
-      // If signature is invalid, log it and stop processing.
-      // Do not send another response as we already sent 200 OK.
-      return; 
+  // NEW: Security check using URL token
+  const providedToken = req.query.token;
+  if (providedToken !== config.WEBHOOK_SECRET_TOKEN) {
+      logger.warn('Invalid or missing webhook token. Request ignored.');
+      return;
   }
 
+  // Process the request asynchronously
   const messageValue = req.body?.entry?.[0]?.changes?.[0]?.value;
   if (messageValue?.messages?.[0]?.type === 'text') {
     processMessage(messageValue).catch(err => {

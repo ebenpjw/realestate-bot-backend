@@ -41,13 +41,15 @@ const config = {
 
   // Security & Encryption
   REFRESH_TOKEN_ENCRYPTION_KEY: process.env.REFRESH_TOKEN_ENCRYPTION_KEY,
+  WEBHOOK_SECRET_TOKEN: process.env.WEBHOOK_SECRET_TOKEN,
 };
 
 // --- Configuration Validation ---
 const requiredConfig = [
   'SUPABASE_URL', 'SUPABASE_KEY', 'WABA_NUMBER', 'GUPSHUP_API_KEY', 
   'OPENAI_API_KEY', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 
-  'REFRESH_TOKEN_ENCRYPTION_KEY', 'META_VERIFY_TOKEN', 'META_APP_SECRET'
+  'REFRESH_TOKEN_ENCRYPTION_KEY', 'META_VERIFY_TOKEN', 'META_APP_SECRET',
+  'WEBHOOK_SECRET_TOKEN'
 ];
 
 const missingConfig = requiredConfig.filter(key => !config[key]);
