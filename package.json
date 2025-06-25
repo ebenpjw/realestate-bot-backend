@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "engines": {
-    "node": ">=20.0.0",
-    "npm": ">=10.0.0"
+    "node": "20.x",
+    "npm": ">=9.0.0"
   },
   "scripts": {
     "start": "node index.js",
@@ -22,6 +22,7 @@
     "health-check": "curl -f http://localhost:8080/health || exit 1",
     "db:migrate": "echo 'Run Supabase migrations manually'",
     "deploy-check": "node scripts/railway-deploy.js",
+    "preinstall": "npm cache clean --force || true",
     "postinstall": "echo 'Installation complete - Ready for Railway deployment'"
   },
   "keywords": ["whatsapp", "bot", "real-estate", "ai", "webhook"],

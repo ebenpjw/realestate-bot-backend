@@ -2,41 +2,41 @@
 
 ## Issues Fixed
 
-### 1. **NPM Cache Conflicts**
+### 1. **Nixpacks Package Error**
+- **Problem**: `npm-10_x` is not a valid Nixpacks package name
+- **Solution**: Switched from Nixpacks to Docker for more reliable builds
+
+### 2. **NPM Cache Conflicts**
 - **Problem**: Railway was experiencing cache corruption during `npm ci`
-- **Solution**: 
-  - Updated `nixpacks.toml` to clean cache before install
+- **Solution**:
+  - Created custom Dockerfile with proper cache cleaning
   - Added `.npmrc` with production-optimized settings
-  - Removed conflicting build commands between `railway.json` and `nixpacks.toml`
+  - Added preinstall script to clean cache
 
-### 2. **Node.js Version Mismatch**
-- **Problem**: `nixpacks.toml` specified Node.js 22 but `package.json` required >=18
-- **Solution**: Aligned both to use Node.js 20 for stability
-
-### 3. **Build Command Conflicts**
-- **Problem**: Both `railway.json` and `nixpacks.toml` were running npm install commands
-- **Solution**: Removed duplicate commands, let Nixpacks handle the build process
+### 3. **Build Reliability**
+- **Problem**: Nixpacks was causing inconsistent builds
+- **Solution**: Using Docker provides more predictable and reliable builds
 
 ## Files Modified
 
-### 1. `nixpacks.toml`
-```toml
-[phases.setup]
-nixPkgs = ['nodejs_20', 'npm-10_x']  # Updated from nodejs_22
-
-[phases.install]
-cmds = [
-  'npm cache clean --force',           # Clean cache first
-  'rm -rf node_modules package-lock.json',  # Fresh start
-  'npm install --production --no-cache --prefer-offline'  # Optimized install
-]
+### 1. `Dockerfile` (New File)
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm cache clean --force && \
+    npm install --production --no-optional --no-audit --no-fund
+COPY . .
+# Security and health check setup
+CMD ["npm", "start"]
 ```
 
 ### 2. `railway.json`
 ```json
 {
   "build": {
-    "builder": "NIXPACKS"  # Removed conflicting buildCommand
+    "builder": "DOCKERFILE",        # Switched from NIXPACKS
+    "dockerfilePath": "Dockerfile"  # Use custom Dockerfile
   }
 }
 ```
@@ -45,21 +45,28 @@ cmds = [
 ```json
 {
   "engines": {
-    "node": ">=20.0.0",    # Updated from >=18.0.0
-    "npm": ">=10.0.0"      # Updated from >=8.0.0
+    "node": "20.x",        # Specific Node.js 20
+    "npm": ">=9.0.0"       # Compatible npm version
+  },
+  "scripts": {
+    "preinstall": "npm cache clean --force || true"  # Clean cache before install
   }
 }
 ```
 
-### 4. `.npmrc` (New File)
+### 4. `.npmrc` (Updated)
 - Optimized npm settings for Railway deployment
-- Disabled package-lock generation during CI
+- Removed problematic settings that caused conflicts
 - Set production optimizations
 
 ### 5. `scripts/railway-deploy.js` (New File)
 - Pre-deployment environment check
 - Validates required environment variables
 - Checks package.json configuration
+
+### 6. Removed `nixpacks.toml`
+- Eliminated the source of package name conflicts
+- Docker provides more reliable builds
 
 ## Next Steps
 
@@ -92,12 +99,12 @@ npm run deploy-check
 ## Expected Build Process
 
 With these fixes, Railway will now:
-1. ✅ Use Node.js 20 and npm 10
-2. ✅ Clean npm cache completely
-3. ✅ Remove old node_modules and package-lock.json
-4. ✅ Install dependencies fresh with production optimizations
-5. ✅ Run build and validation
-6. ✅ Start the application
+1. ✅ Use Docker with Node.js 20 Alpine (lightweight and fast)
+2. ✅ Clean npm cache before installation
+3. ✅ Install production dependencies only
+4. ✅ Run build and validation
+5. ✅ Start the application with proper health checks
+6. ✅ Use non-root user for security
 
 ## Troubleshooting
 
