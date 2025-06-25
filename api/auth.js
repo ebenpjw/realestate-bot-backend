@@ -2,6 +2,7 @@
 
 const express = require('express');
 const { google } = require('googleapis');
+const axios = require('axios');
 const router = express.Router();
 const supabase = require('../supabaseClient');
 const config = require('../config');
@@ -95,6 +96,93 @@ router.get('/google/callback', async (req, res, next) => {
 
     logger.info({ agentId }, 'Google refresh token saved successfully.');
     res.send('<h1>Success!</h1><p>Your Google Calendar has been connected. You can close this tab.</p>');
+
+  } catch (error) {
+    next(error); // Pass error to the centralized handler
+  }
+});
+
+// ==========================================
+// ZOOM OAUTH ROUTES
+// ==========================================
+
+router.get('/zoom', (req, res) => {
+  const agentId = req.query.agentId;
+  if (!agentId) {
+    return res.status(400).send('Agent ID is required to initiate Zoom connection.');
+  }
+
+  const statePayload = { agentId: agentId, timestamp: Date.now() };
+  const state = Buffer.from(JSON.stringify(statePayload)).toString('base64');
+
+  const zoomAuthUrl = `https://zoom.us/oauth/authorize?` +
+    `response_type=code&` +
+    `client_id=${config.ZOOM_CLIENT_ID}&` +
+    `redirect_uri=${encodeURIComponent(config.ZOOM_REDIRECT_URI)}&` +
+    `state=${state}`;
+
+  res.redirect(zoomAuthUrl);
+});
+
+router.get('/zoom/callback', async (req, res, next) => {
+  try {
+    const { code, state } = req.query;
+    if (!code || !state) {
+      return res.status(400).send('Missing authorization code or state parameter.');
+    }
+
+    const parsedState = JSON.parse(Buffer.from(state, 'base64').toString());
+    const agentId = parsedState.agentId;
+    if (!agentId) return res.status(400).send('Agent ID missing in state parameter.');
+
+    // Exchange code for tokens
+    const tokenResponse = await axios.post('https://zoom.us/oauth/token', null, {
+      params: {
+        grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: config.ZOOM_REDIRECT_URI
+      },
+      headers: {
+        'Authorization': `Basic ${Buffer.from(`${config.ZOOM_CLIENT_ID}:${config.ZOOM_CLIENT_SECRET}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+
+    const { access_token, refresh_token } = tokenResponse.data;
+    if (!refresh_token) {
+      return res.status(400).send('No refresh token received from Zoom. Please ensure your Zoom app has the correct scopes.');
+    }
+
+    // Get user info to store email
+    const userResponse = await axios.get('https://api.zoom.us/v2/users/me', {
+      headers: {
+        'Authorization': `Bearer ${access_token}`
+      }
+    });
+
+    const zoomEmail = userResponse.data.email;
+    logger.info({ agentId, zoomEmail }, 'Retrieved Zoom user information.');
+
+    // Encrypt and store refresh token
+    const encryptedTokenData = encrypt(refresh_token);
+
+    const { error } = await supabase.from('agents')
+        .update({
+            zoom_refresh_token_encrypted: encryptedTokenData.encryptedData,
+            zoom_token_iv: encryptedTokenData.iv,
+            zoom_token_tag: encryptedTokenData.tag,
+            zoom_email: zoomEmail,
+            zoom_connected_at: new Date().toISOString()
+        })
+        .eq('id', agentId);
+
+    if (error) {
+        logger.error({ err: error, agentId }, 'Supabase error saving Zoom refresh token');
+        throw new Error('Failed to save Zoom refresh token to database.');
+    }
+
+    logger.info({ agentId }, 'Zoom refresh token saved successfully.');
+    res.send('<h1>Success!</h1><p>Your Zoom account has been connected. You can close this tab.</p>');
 
   } catch (error) {
     next(error); // Pass error to the centralized handler

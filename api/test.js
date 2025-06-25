@@ -48,6 +48,23 @@ router.post('/simulate-inbound', async (req, res, next) => {
       const messagesToSave = aiResponse.messages.filter(msg => msg).map(msg => ({ lead_id: lead.id, sender: 'assistant', message: msg }));
       await supabase.from('messages').insert(messagesToSave);
     }
+
+    // Handle appointment-related actions (same as gupshup.js)
+    if (['initiate_booking', 'reschedule_appointment', 'cancel_appointment', 'select_alternative'].includes(aiResponse.action)) {
+      const { handleAppointmentAction } = require('./gupshup');
+      try {
+        await handleAppointmentAction({
+          action: aiResponse.action,
+          lead,
+          senderWaId,
+          userMessage: aiResponse.user_message || userText
+        });
+        logger.info({ leadId: lead.id, action: aiResponse.action }, '[SIMULATION] Appointment action processed');
+      } catch (err) {
+        logger.error({ err, leadId: lead.id, action: aiResponse.action }, '[SIMULATION] Appointment action failed');
+      }
+    }
+
     // *** BUG FIX: Corrected aiReply to aiResponse ***
     res.status(200).json({ message: "Simulation successful. AI response sent via WhatsApp.", ai_response: aiResponse.messages });
   } catch (err) {

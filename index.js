@@ -1,59 +1,201 @@
 // index.js
-const config = require('./config'); // Use centralized config
-const logger = require('./logger'); // Use structured logger
 const express = require('express');
+const pinoHttp = require('pino-http');
 
+// Import configuration and utilities
+const config = require('./config');
+const logger = require('./logger');
+const { HTTP_STATUS, ENV } = require('./constants');
+const CacheManager = require('./utils/cache');
+
+// Import middleware
+const { createSecurityMiddleware, rateLimits } = require('./middleware/security');
+const {
+  errorHandler,
+  notFoundHandler,
+  handleUnhandledRejection,
+  handleUncaughtException,
+  asyncHandler
+} = require('./middleware/errorHandler');
+
+// Import routers
 const gupshupRouter = require('./api/gupshup');
 const metaRouter = require('./api/meta');
 const testRouter = require('./api/test');
 const authRouter = require('./api/auth');
 
+// Initialize Express app
 const app = express();
-const PORT = config.PORT;
+const PORT = config.PORT || 8080;
 
-app.get('/health', (req, res) => {
-  res.send('✅ Bot backend is alive');
-});
+// Setup global error handlers
+handleUnhandledRejection();
+handleUncaughtException();
 
-// IMPORTANT: We need a special JSON parser for the Gupshup webhook
-// to preserve the raw body for signature verification.
-app.use('/api/gupshup', express.json({
-  verify: (req, res, buf) => {
-    req.rawBody = buf.toString();
+// Trust proxy for accurate IP addresses (important for rate limiting)
+app.set('trust proxy', 1);
+
+// Apply security middleware first
+app.use(createSecurityMiddleware());
+
+// Request logging middleware
+app.use(pinoHttp({
+  logger,
+  customLogLevel: (req, res, err) => {
+    if (res.statusCode >= 400 && res.statusCode < 500) return 'warn';
+    if (res.statusCode >= 500 || err) return 'error';
+    return 'info';
+  },
+  customSuccessMessage: (req, res) => {
+    return `${req.method} ${req.url} completed`;
+  },
+  customErrorMessage: (req, res, err) => {
+    return `${req.method} ${req.url} failed: ${err.message}`;
   }
 }));
 
-// Use the standard JSON parser for all other routes that come after.
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Health check endpoint with detailed status for Railway
+app.get('/health', asyncHandler(async (req, res) => {
+  const startTime = Date.now();
 
-// --- API Routers ---
+  try {
+    // Import services dynamically to avoid circular dependencies
+    const aiService = require('./services/aiService');
+    const whatsappService = require('./services/whatsappService');
+    const databaseService = require('./services/databaseService');
+    const templateService = require('./services/templateService');
+
+    // Run health checks in parallel
+    const [aiHealth, whatsappHealth, dbHealth, templateHealth] = await Promise.allSettled([
+      aiService.healthCheck(),
+      whatsappService.healthCheck(),
+      databaseService.healthCheck(),
+      templateService.healthCheck()
+    ]);
+
+    const healthStatus = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: config.NODE_ENV,
+      version: process.env.npm_package_version || '1.0.0',
+      responseTime: Date.now() - startTime,
+      deployment: {
+        platform: 'Railway',
+        nodeVersion: process.version,
+        pid: process.pid
+      },
+      services: {
+        ai: aiHealth.status === 'fulfilled' ? aiHealth.value : { status: 'unhealthy', error: aiHealth.reason?.message },
+        whatsapp: whatsappHealth.status === 'fulfilled' ? whatsappHealth.value : { status: 'unhealthy', error: whatsappHealth.reason?.message },
+        database: dbHealth.status === 'fulfilled' ? dbHealth.value : { status: 'unhealthy', error: dbHealth.reason?.message },
+        templates: templateHealth.status === 'fulfilled' ? templateHealth.value : { status: 'unhealthy', error: templateHealth.reason?.message }
+      },
+      cache: CacheManager.getAllStats(),
+      memory: {
+        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+        external: Math.round(process.memoryUsage().external / 1024 / 1024)
+      }
+    };
+
+    // Determine overall health status
+    const allServicesHealthy = Object.values(healthStatus.services).every(service => service.status === 'healthy');
+    if (!allServicesHealthy) {
+      healthStatus.status = 'degraded';
+    }
+
+    const statusCode = healthStatus.status === 'healthy' ? HTTP_STATUS.OK : HTTP_STATUS.SERVICE_UNAVAILABLE;
+    res.status(statusCode).json(healthStatus);
+
+  } catch (error) {
+    logger.error({ err: error }, 'Health check failed');
+
+    res.status(HTTP_STATUS.SERVICE_UNAVAILABLE).json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      error: error.message,
+      responseTime: Date.now() - startTime
+    });
+  }
+}));
+
+// Readiness probe for Railway deployment
+app.get('/ready', asyncHandler(async (_req, res) => {
+  // Add any readiness checks here (database connectivity, etc.)
+  res.status(HTTP_STATUS.OK).json({
+    status: 'ready',
+    timestamp: new Date().toISOString(),
+    platform: 'Railway'
+  });
+}));
+
+// Body parsing middleware with size limits
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, _res, buf, _encoding) => {
+    // Store raw body for webhook signature verification
+    if (req.originalUrl.includes('/webhook')) {
+      req.rawBody = buf;
+    }
+  }
+}));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Apply rate limiting to different route groups
+app.use('/api/gupshup/webhook', rateLimits.webhook);
+app.use('/api/meta/webhook', rateLimits.webhook);
+app.use('/api/auth', rateLimits.auth);
+app.use('/api', rateLimits.api);
+
+// --- API Routes ---
 app.use('/api/gupshup', gupshupRouter);
 app.use('/api/meta', metaRouter);
 app.use('/api/test', testRouter);
 app.use('/api/auth', authRouter);
 
-// --- Centralized Error Handler ---
-// This middleware catches any errors passed to next() from async routes.
-app.use((err, req, res, next) => {
-  // ADD THIS LINE TO PRINT THE FULL ERROR TO THE LOGS
-  console.error('--- DETAILED ERROR ---', err);
+// 404 handler for undefined routes
+app.use(notFoundHandler);
 
-  logger.error({
-    err: {
-      message: err.message,
-      stack: err.stack,
-    },
-    req: {
-      method: req.method,
-      url: req.originalUrl,
-      body: req.body,
+// Global error handler (must be last)
+app.use(errorHandler);
+
+// Graceful shutdown handler for Railway deployment
+const gracefulShutdown = (signal) => {
+  logger.info(`Received ${signal}. Starting graceful shutdown...`);
+
+  server.close((err) => {
+    if (err) {
+      logger.error({ err }, 'Error during server shutdown');
+      // eslint-disable-next-line no-process-exit
+      process.exit(1);
     }
-  }, 'An unhandled error occurred!');
-  
-  res.status(500).json({ error: 'An internal server error occurred.' });
+
+    logger.info('Server closed successfully');
+    // eslint-disable-next-line no-process-exit
+    process.exit(0);
+  });
+
+  // Force shutdown after timeout (Railway expects quick shutdowns)
+  setTimeout(() => {
+    logger.error('Forced shutdown due to timeout');
+    // eslint-disable-next-line no-process-exit
+    process.exit(1);
+  }, 10000);
+};
+
+// Start server
+const server = app.listen(PORT, () => {
+  logger.info({
+    port: PORT,
+    environment: config.NODE_ENV,
+    nodeVersion: process.version,
+    pid: process.pid
+  }, '🚀 Server started successfully');
 });
 
-app.listen(PORT, () => {
-  logger.info(`🚀 Server running on port ${PORT} in ${config.NODE_ENV} mode`);
-});
+// Handle shutdown signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+module.exports = app;

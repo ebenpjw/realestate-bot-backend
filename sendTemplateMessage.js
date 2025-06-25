@@ -1,33 +1,21 @@
-const axios = require('axios');
-const qs = require('qs');
-const config = require('./config');
+// sendTemplateMessage.js
+// DEPRECATED: This file is kept for backward compatibility
+// New code should use services/whatsappService.js
+
+const whatsappService = require('./services/whatsappService');
 const logger = require('./logger');
 
+/**
+ * @deprecated Use whatsappService.sendTemplateMessage() instead
+ */
 async function sendTemplateMessage({ to, templateId, params }) {
-  const templateObject = { id: templateId, params: params };
-  const payload = qs.stringify({
-    channel: 'whatsapp',
-    source: config.WABA_NUMBER,
-    destination: to,
-    'src.name': 'DoroSmartGuide',
-    template: JSON.stringify(templateObject)
-  });
+  logger.warn('sendTemplateMessage.js is deprecated. Use services/whatsappService.js instead');
 
   try {
-    const response = await axios.post(
-      'https://api.gupshup.io/wa/api/v1/template/msg',
-      payload,
-      {
-        headers: {
-          apikey: config.GUPSHUP_API_KEY,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
-      }
-    );
-    logger.info({ to, templateId, response: response.data }, 'Template message sent successfully!');
-    return response.data;
-  } catch (err) {
-    logger.error({ err: err.response?.data || err.message, to, templateId }, 'Template message error');
+    const result = await whatsappService.sendTemplateMessage({ to, templateId, params });
+    return result.success ? result.response : null;
+  } catch (error) {
+    logger.error({ err: error, to, templateId }, 'Template message send failed');
     return null;
   }
 }

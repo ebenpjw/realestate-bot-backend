@@ -1,0 +1,352 @@
+const whatsappService = require('./whatsappService');
+const databaseService = require('./databaseService');
+const logger = require('../logger');
+const { LEAD } = require('../constants');
+const { ValidationError, ExternalServiceError } = require('../middleware/errorHandler');
+
+/**
+ * Template Service for WABA-compliant messaging
+ * Handles template message sending and 24-hour window compliance
+ */
+class TemplateService {
+  constructor() {
+    // WABA-compliant templates (these are your approved templates in Gupshup)
+    this.approvedTemplates = {
+      // Your existing approved welcome template (lead_intro_1)
+      WELCOME_REAL_ESTATE: {
+        id: process.env.TEMPLATE_WELCOME_ID ||
+            process.env.DEFAULT_WELCOME_TEMPLATE_ID ||
+            'c60dee92-5426-4890-96e4-65469620ac7e', // Your approved template ID
+        gupshupName: 'lead_intro_1', // Template name in Gupshup dashboard
+        name: 'welcome_real_estate', // Internal reference name
+        category: 'MARKETING', // As shown in your Gupshup dashboard
+        language: 'EN',
+        description: 'Approved welcome message for real estate leads',
+        params: ['{{1}}', '{{2}}'], // [leadName, contactReason]
+        content: 'Hi {{1}}, thanks for leaving your contact regarding {{2}}! 😊\n\nJust checking in to see what caught your eye or what you\'re exploring.\n\nFeel free to let me know, I\'ll do my best to help!',
+        example: 'Hi John, thanks for leaving your contact regarding your property enquiry! 😊'
+      },
+      PROPERTY_INQUIRY_FOLLOWUP: {
+        id: process.env.TEMPLATE_FOLLOWUP_ID || 'followup_template_id',
+        name: 'property_inquiry_followup',
+        category: 'UTILITY',
+        description: 'Follow up on property inquiry',
+        params: ['{{1}}', '{{2}}', '{{3}}'], // [leadName, propertyType, location]
+        example: 'Hi {{1}}, following up on your interest in {{2}} properties in {{3}}.'
+      },
+      CONSULTATION_REMINDER: {
+        id: process.env.TEMPLATE_REMINDER_ID || 'reminder_template_id',
+        name: 'consultation_reminder',
+        category: 'UTILITY',
+        description: 'Reminder for scheduled consultation',
+        params: ['{{1}}', '{{2}}'], // [leadName, appointmentTime]
+        example: 'Hi {{1}}, reminder: Your property consultation is scheduled for {{2}}.'
+      },
+      PROPERTY_UPDATE: {
+        id: process.env.TEMPLATE_UPDATE_ID || 'update_template_id',
+        name: 'property_update',
+        category: 'MARKETING',
+        description: 'New property listings update',
+        params: ['{{1}}', '{{2}}'], // [leadName, propertyDetails]
+        example: 'Hi {{1}}, new property alert: {{2}}. Interested to know more?'
+      }
+    };
+
+    logger.info({
+      templatesConfigured: Object.keys(this.approvedTemplates).length,
+      welcomeTemplateId: this.approvedTemplates.WELCOME_REAL_ESTATE.id
+    }, 'Template service initialized with approved templates');
+  }
+
+  /**
+   * Send your approved welcome template (lead_intro_1)
+   * @param {Object} params - Parameters
+   * @param {string} params.phoneNumber - Lead's phone number
+   * @param {string} params.leadName - Lead's name ({{1}} in template)
+   * @param {string} params.contactReason - What they contacted about ({{2}} in template)
+   * @returns {Promise<Object>} Send result
+   */
+  async sendWelcomeTemplate({ phoneNumber, leadName, contactReason = 'your property enquiry' }) {
+    try {
+      this._validatePhoneNumber(phoneNumber);
+
+      const template = this.approvedTemplates.WELCOME_REAL_ESTATE;
+      // Exact parameters for your approved template: Hi {{1}}, thanks for leaving your contact regarding {{2}}!
+      const params = [leadName, contactReason];
+
+      logger.info({
+        phoneNumber,
+        templateId: template.id,
+        gupshupName: template.gupshupName,
+        params,
+        previewMessage: `Hi ${leadName}, thanks for leaving your contact regarding ${contactReason}! 😊`
+      }, 'Sending approved welcome template (lead_intro_1)');
+
+      const result = await whatsappService.sendTemplateMessage({
+        to: phoneNumber,
+        templateId: template.id,
+        params
+      });
+
+      if (result.success) {
+        // Log template usage for compliance tracking
+        await this._logTemplateUsage({
+          phoneNumber,
+          templateId: template.id,
+          templateName: template.name,
+          category: template.category,
+          params,
+          messageId: result.messageId
+        });
+
+        logger.info({
+          phoneNumber,
+          templateName: template.name,
+          messageId: result.messageId
+        }, 'Welcome template sent successfully');
+      }
+
+      return result;
+
+    } catch (error) {
+      logger.error({
+        err: error,
+        phoneNumber,
+        templateName: 'welcome_real_estate'
+      }, 'Failed to send welcome template');
+      throw error;
+    }
+  }
+
+  /**
+   * Send property inquiry follow-up template
+   * @param {Object} params - Parameters
+   * @param {string} params.phoneNumber - Lead's phone number
+   * @param {string} params.leadName - Lead's name
+   * @param {string} params.propertyType - Type of property
+   * @param {string} params.location - Property location
+   * @returns {Promise<Object>} Send result
+   */
+  async sendPropertyFollowupTemplate({ phoneNumber, leadName, propertyType, location }) {
+    try {
+      this._validatePhoneNumber(phoneNumber);
+      
+      const template = this.approvedTemplates.PROPERTY_INQUIRY_FOLLOWUP;
+      const params = [leadName, propertyType, location];
+
+      const result = await whatsappService.sendTemplateMessage({
+        to: phoneNumber,
+        templateId: template.id,
+        params
+      });
+
+      if (result.success) {
+        await this._logTemplateUsage({
+          phoneNumber,
+          templateId: template.id,
+          templateName: template.name,
+          category: template.category,
+          params,
+          messageId: result.messageId
+        });
+
+        logger.info({
+          phoneNumber,
+          templateName: template.name,
+          messageId: result.messageId
+        }, 'Property followup template sent successfully');
+      }
+
+      return result;
+
+    } catch (error) {
+      logger.error({
+        err: error,
+        phoneNumber,
+        templateName: 'property_inquiry_followup'
+      }, 'Failed to send property followup template');
+      throw error;
+    }
+  }
+
+  /**
+   * Check if we can send free-form messages (within 24-hour window)
+   * @param {string} leadId - Lead ID
+   * @returns {Promise<boolean>} True if within 24-hour window
+   */
+  async canSendFreeFormMessage(leadId) {
+    try {
+      const history = await databaseService.getConversationHistory(leadId, 1);
+      
+      if (history.length === 0) {
+        // No conversation history - must use template
+        return false;
+      }
+
+      const lastMessage = history[0];
+      
+      // Check if last message was from the lead (customer)
+      if (lastMessage.sender !== 'lead') {
+        return false;
+      }
+
+      // Check if within 24-hour window
+      const lastMessageTime = new Date(lastMessage.created_at);
+      const now = new Date();
+      const hoursDiff = (now - lastMessageTime) / (1000 * 60 * 60);
+
+      const withinWindow = hoursDiff < 24;
+      
+      logger.debug({
+        leadId,
+        lastMessageTime,
+        hoursDiff,
+        withinWindow
+      }, 'Checked 24-hour messaging window');
+
+      return withinWindow;
+
+    } catch (error) {
+      logger.error({
+        err: error,
+        leadId
+      }, 'Failed to check 24-hour window');
+      
+      // Default to false for safety - use template
+      return false;
+    }
+  }
+
+  /**
+   * Send message with WABA compliance check
+   * @param {Object} params - Parameters
+   * @param {string} params.leadId - Lead ID
+   * @param {string} params.phoneNumber - Phone number
+   * @param {string} params.message - Message content
+   * @param {string} params.templateFallback - Template to use if outside window
+   * @returns {Promise<Object>} Send result
+   */
+  async sendCompliantMessage({ leadId, phoneNumber, message, templateFallback = null }) {
+    try {
+      const canSendFreeForm = await this.canSendFreeFormMessage(leadId);
+
+      if (canSendFreeForm) {
+        // Within 24-hour window - can send free-form message
+        logger.info({
+          leadId,
+          phoneNumber
+        }, 'Sending free-form message (within 24-hour window)');
+
+        return await whatsappService.sendMessage({
+          to: phoneNumber,
+          message
+        });
+      } else {
+        // Outside 24-hour window - must use template
+        if (!templateFallback) {
+          throw new ValidationError('Cannot send free-form message outside 24-hour window without approved template');
+        }
+
+        logger.info({
+          leadId,
+          phoneNumber,
+          templateFallback
+        }, 'Sending template message (outside 24-hour window)');
+
+        return await this.sendWelcomeTemplate({
+          phoneNumber,
+          leadName: 'There', // Default fallback
+          agentName: 'Doro'
+        });
+      }
+
+    } catch (error) {
+      logger.error({
+        err: error,
+        leadId,
+        phoneNumber
+      }, 'Failed to send compliant message');
+      throw error;
+    }
+  }
+
+  /**
+   * Get available templates
+   * @returns {Object} Available templates
+   */
+  getAvailableTemplates() {
+    return this.approvedTemplates;
+  }
+
+  /**
+   * Validate phone number format
+   * @private
+   */
+  _validatePhoneNumber(phoneNumber) {
+    if (!phoneNumber || typeof phoneNumber !== 'string') {
+      throw new ValidationError('Phone number is required');
+    }
+
+    // E.164 format validation
+    const e164Regex = /^\+?[1-9]\d{1,14}$/;
+    if (!e164Regex.test(phoneNumber.replace(/\s+/g, ''))) {
+      throw new ValidationError('Phone number must be in E.164 format');
+    }
+  }
+
+  /**
+   * Log template usage for compliance tracking
+   * @private
+   */
+  async _logTemplateUsage(templateData) {
+    try {
+      await databaseService.supabase
+        .from('template_usage_log')
+        .insert({
+          phone_number: templateData.phoneNumber,
+          template_id: templateData.templateId,
+          template_name: templateData.templateName,
+          template_category: templateData.category,
+          template_params: templateData.params,
+          message_id: templateData.messageId,
+          sent_at: new Date().toISOString()
+        });
+
+      logger.debug({
+        templateName: templateData.templateName,
+        phoneNumber: templateData.phoneNumber
+      }, 'Template usage logged for compliance');
+
+    } catch (error) {
+      // Don't fail the main operation if logging fails
+      logger.warn({
+        err: error,
+        templateData
+      }, 'Failed to log template usage');
+    }
+  }
+
+  /**
+   * Health check for template service
+   */
+  async healthCheck() {
+    try {
+      const templateCount = Object.keys(this.approvedTemplates).length;
+      
+      return {
+        status: 'healthy',
+        service: 'Template Service',
+        templatesConfigured: templateCount,
+        templates: Object.keys(this.approvedTemplates)
+      };
+    } catch (error) {
+      return {
+        status: 'unhealthy',
+        service: 'Template Service',
+        error: error.message
+      };
+    }
+  }
+}
+
+module.exports = new TemplateService();
