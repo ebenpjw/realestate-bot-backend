@@ -417,13 +417,6 @@ class WhatsAppService {
       templateId,
       category
     }, 'Template rate limit check skipped - WABA 2025 has no daily limits');
-
-    } catch (error) {
-      if (error instanceof ValidationError) {
-        throw error;
-      }
-      logger.warn({ err: error }, 'Template rate limit check failed, proceeding');
-    }
   }
 
   /**
