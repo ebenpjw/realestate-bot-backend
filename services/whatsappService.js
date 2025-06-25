@@ -255,6 +255,15 @@ class WhatsAppService {
    */
   async _sendSingleMessage({ to, message, isMultipart, partIndex, totalParts }) {
     try {
+      // Validate inputs before sending
+      if (!this.wabaNumber) {
+        throw new Error('WABA number not configured');
+      }
+
+      if (!this.apiKey) {
+        throw new Error('Gupshup API key not configured');
+      }
+
       const payload = qs.stringify({
         channel: 'whatsapp',
         source: this.wabaNumber,
@@ -263,19 +272,28 @@ class WhatsAppService {
         message: JSON.stringify({ type: 'text', text: message })
       });
 
+      logger.debug({
+        to,
+        messageLength: message.length,
+        wabaNumber: this.wabaNumber,
+        payloadSize: payload.length
+      }, 'Sending WhatsApp message to Gupshup API');
+
       const response = await this.client.post('/msg', payload);
-      
+
       const success = response.data?.status === 'submitted';
-      
-      logger.debug({ 
-        to, 
+
+      logger.info({
+        to,
         messageLength: message.length,
         isMultipart,
         partIndex,
         totalParts,
         success,
-        messageId: response.data?.messageId 
-      }, 'WhatsApp message part sent');
+        messageId: response.data?.messageId,
+        responseStatus: response.data?.status,
+        responseData: response.data
+      }, success ? 'WhatsApp message part sent successfully' : 'WhatsApp message part submission failed');
 
       return {
         success,
@@ -286,15 +304,29 @@ class WhatsAppService {
       };
 
     } catch (error) {
-      logger.error({ 
-        err: error.response?.data || error.message, 
-        to, 
-        partIndex 
+      const errorDetails = {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          headers: error.config?.headers ? { ...error.config.headers, apikey: '[REDACTED]' } : undefined
+        }
+      };
+
+      logger.error({
+        err: errorDetails,
+        to,
+        partIndex,
+        messageLength: message.length
       }, 'WhatsApp message part failed');
-      
+
       return {
         success: false,
         error: error.message,
+        errorDetails,
         partIndex,
         totalParts
       };

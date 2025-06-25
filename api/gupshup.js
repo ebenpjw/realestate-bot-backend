@@ -9,6 +9,49 @@ const whatsappService = require('../services/whatsappService');
 const { findOrCreateLead } = require('./leadManager');
 const appointmentService = require('../services/appointmentService');
 
+// Valid lead update fields and their validation rules
+const VALID_LEAD_FIELDS = {
+  'intent': (value) => typeof value === 'string' && ['own_stay', 'investment', 'hybrid'].includes(value.toLowerCase()),
+  'budget': (value) => typeof value === 'string' && value.length <= 100,
+  'status': (value) => typeof value === 'string' && ['new', 'qualified', 'booked', 'booking_alternatives_offered', 'appointment_cancelled', 'needs_human_handoff', 'converted', 'lost'].includes(value),
+  'location_preference': (value) => typeof value === 'string' && value.length <= 255,
+  'property_type': (value) => typeof value === 'string' && value.length <= 100,
+  'timeline': (value) => typeof value === 'string' && value.length <= 100,
+  'conversation_summary': (value) => typeof value === 'string' && value.length <= 2000,
+  'lead_score': (value) => typeof value === 'number' && value >= 0 && value <= 100,
+  'notes': (value) => typeof value === 'string' && value.length <= 2000,
+  'booking_alternatives': (value) => value === null || (typeof value === 'object' && Array.isArray(value))
+};
+
+function validateLeadUpdates(updates) {
+  const validatedUpdates = {};
+
+  for (const [field, value] of Object.entries(updates)) {
+    if (VALID_LEAD_FIELDS[field]) {
+      try {
+        if (VALID_LEAD_FIELDS[field](value)) {
+          // Special handling for specific fields
+          if (field === 'intent') {
+            validatedUpdates[field] = value.toLowerCase();
+          } else if (field === 'booking_alternatives' && Array.isArray(value)) {
+            validatedUpdates[field] = JSON.stringify(value);
+          } else {
+            validatedUpdates[field] = value;
+          }
+        } else {
+          logger.warn({ field, value }, 'Invalid value for lead field, skipping update');
+        }
+      } catch (error) {
+        logger.error({ err: error, field, value }, 'Error validating lead field');
+      }
+    } else {
+      logger.warn({ field, value }, 'Unknown lead field, skipping update');
+    }
+  }
+
+  return validatedUpdates;
+}
+
 async function processMessage({ senderWaId, userText, senderName }) {
   try {
     logger.info({ senderWaId, senderName }, `Received message: "${userText}"`);
@@ -28,16 +71,39 @@ async function processMessage({ senderWaId, userText, senderName }) {
     logger.info({ leadId: lead.id, action: aiResponse.action }, 'AI response received.');
 
     if (aiResponse.lead_updates && Object.keys(aiResponse.lead_updates).length > 0) {
-      const { data: updatedLead, error: updateError } = await supabase
-        .from('leads')
-        .update(aiResponse.lead_updates)
-        .eq('id', lead.id)
-        .select()
-        .single();
-      if (updateError) {
-        logger.error({ err: updateError, leadId: lead.id }, 'Failed to update lead memory.');
+      // Validate and sanitize lead updates before applying
+      const validatedUpdates = validateLeadUpdates(aiResponse.lead_updates);
+
+      if (Object.keys(validatedUpdates).length > 0) {
+        logger.info({
+          leadId: lead.id,
+          updates: validatedUpdates
+        }, 'Applying lead updates');
+
+        const { data: updatedLead, error: updateError } = await supabase
+          .from('leads')
+          .update(validatedUpdates)
+          .eq('id', lead.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          logger.error({
+            err: updateError,
+            leadId: lead.id,
+            updates: validatedUpdates,
+            errorCode: updateError.code,
+            errorDetails: updateError.details
+          }, 'Failed to update lead memory.');
+        } else {
+          lead = updatedLead;
+          logger.info({ leadId: lead.id }, 'Lead memory updated successfully');
+        }
       } else {
-        lead = updatedLead;
+        logger.warn({
+          leadId: lead.id,
+          originalUpdates: aiResponse.lead_updates
+        }, 'No valid lead updates to apply after validation');
       }
     }
     
