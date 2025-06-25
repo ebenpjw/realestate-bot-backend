@@ -2,11 +2,10 @@
 
 const express = require('express');
 const router = express.Router();
-const config = require('../config');
 const logger = require('../logger');
 const supabase = require('../supabaseClient');
-const generateAiMessage = require('../generateAiMessage');
-const { sendWhatsAppMessage } = require('../sendWhatsAppMessage');
+const aiService = require('../services/aiService');
+const whatsappService = require('../services/whatsappService');
 const { findOrCreateLead } = require('./leadManager');
 const appointmentService = require('../services/appointmentService');
 
@@ -25,7 +24,7 @@ async function processMessage({ senderWaId, userText, senderName }) {
     const { data: history } = await supabase.from('messages').select('sender, message').eq('lead_id', lead.id).order('created_at', { ascending: false }).limit(10);
     const previousMessages = history ? history.map(entry => ({ sender: entry.sender, message: entry.message })).reverse() : [];
     
-    const aiResponse = await generateAiMessage({ lead, previousMessages });
+    const aiResponse = await aiService.generateResponse({ lead, previousMessages });
     logger.info({ leadId: lead.id, action: aiResponse.action }, 'AI response received.');
 
     if (aiResponse.lead_updates && Object.keys(aiResponse.lead_updates).length > 0) {
@@ -45,7 +44,7 @@ async function processMessage({ senderWaId, userText, senderName }) {
     const messagesToSend = aiResponse.messages.filter(msg => msg);
     if (messagesToSend.length > 0) {
         const fullReply = messagesToSend.join('\n\n');
-        await sendWhatsAppMessage({ to: senderWaId, message: fullReply });
+        await whatsappService.sendMessage({ to: senderWaId, message: fullReply });
 
         const messagesToSave = messagesToSend.map(part => ({
             lead_id: lead.id,
@@ -75,7 +74,7 @@ async function handleAppointmentAction({ action, lead, senderWaId, userMessage }
     if (!agentId) {
       logger.error({ leadId: lead.id }, 'Cannot handle appointment action, lead is not assigned to an agent.');
       const noAgentMessage = "Apologies, I can't manage appointments right now as I can't find an available consultant. Please try again shortly.";
-      await sendWhatsAppMessage({ to: senderWaId, message: noAgentMessage });
+      await whatsappService.sendMessage({ to: senderWaId, message: noAgentMessage });
       return;
     }
 
@@ -102,7 +101,7 @@ async function handleAppointmentAction({ action, lead, senderWaId, userMessage }
   } catch (err) {
     logger.error({ err, action, leadId: lead.id }, 'Error handling appointment action');
     const errorMessage = "Sorry, I had an issue processing your appointment request. Please try again or let me know if you need help.";
-    await sendWhatsAppMessage({ to: senderWaId, message: errorMessage });
+    await whatsappService.sendMessage({ to: senderWaId, message: errorMessage });
   }
 }
 
@@ -121,7 +120,7 @@ async function handleInitialBooking({ lead, agentId, senderWaId, userMessage }) 
       consultationNotes
     });
 
-    await sendWhatsAppMessage({ to: senderWaId, message: result.message });
+    await whatsappService.sendMessage({ to: senderWaId, message: result.message });
     await supabase.from('messages').insert({
       lead_id: lead.id,
       sender: 'assistant',
@@ -163,7 +162,7 @@ async function handleRescheduleAppointment({ lead, agentId, senderWaId, userMess
 
     if (!existingAppointment) {
       const noAppointmentMessage = "I couldn't find an existing appointment to reschedule. Would you like to book a new consultation instead?";
-      await sendWhatsAppMessage({ to: senderWaId, message: noAppointmentMessage });
+      await whatsappService.sendMessage({ to: senderWaId, message: noAppointmentMessage });
       return;
     }
 
@@ -174,7 +173,7 @@ async function handleRescheduleAppointment({ lead, agentId, senderWaId, userMess
       leadPhone: lead.phone_number
     });
 
-    await sendWhatsAppMessage({ to: senderWaId, message: result.message });
+    await whatsappService.sendMessage({ to: senderWaId, message: result.message });
     await supabase.from('messages').insert({
       lead_id: lead.id,
       sender: 'assistant',
@@ -206,7 +205,7 @@ async function handleCancelAppointment({ lead, senderWaId }) {
 
     if (!existingAppointment) {
       const noAppointmentMessage = "I couldn't find an existing appointment to cancel. Is there anything else I can help you with?";
-      await sendWhatsAppMessage({ to: senderWaId, message: noAppointmentMessage });
+      await whatsappService.sendMessage({ to: senderWaId, message: noAppointmentMessage });
       return;
     }
 
@@ -214,7 +213,7 @@ async function handleCancelAppointment({ lead, senderWaId }) {
       appointmentId: existingAppointment.id
     });
 
-    await sendWhatsAppMessage({ to: senderWaId, message: result.message });
+    await whatsappService.sendMessage({ to: senderWaId, message: result.message });
     await supabase.from('messages').insert({
       lead_id: lead.id,
       sender: 'assistant',
@@ -244,7 +243,7 @@ async function handleAlternativeSelection({ lead, agentId, senderWaId, userMessa
 
     if (storedAlternatives.length === 0) {
       const noAlternativesMessage = "I don't have any alternative slots stored. Let me find some available times for you.";
-      await sendWhatsAppMessage({ to: senderWaId, message: noAlternativesMessage });
+      await whatsappService.sendMessage({ to: senderWaId, message: noAlternativesMessage });
       // Fall back to initial booking
       await handleInitialBooking({ lead, agentId, senderWaId, userMessage });
       return;
@@ -267,7 +266,7 @@ async function handleAlternativeSelection({ lead, agentId, senderWaId, userMessa
 
       const confirmationMessage = `Perfect! I've booked your consultation for ${selectedSlot.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${selectedSlot.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}.\n\nZoom Link: ${result.zoomMeeting.joinUrl}\n\nI'll send you a reminder before the meeting!`;
 
-      await sendWhatsAppMessage({ to: senderWaId, message: confirmationMessage });
+      await whatsappService.sendMessage({ to: senderWaId, message: confirmationMessage });
       await supabase.from('messages').insert({
         lead_id: lead.id,
         sender: 'assistant',
@@ -286,7 +285,7 @@ async function handleAlternativeSelection({ lead, agentId, senderWaId, userMessa
       }, 'Alternative slot booked successfully');
     } else {
       const clarificationMessage = "I'm not sure which time slot you'd prefer. Could you please specify by saying something like 'option 1' or 'the Monday slot'?";
-      await sendWhatsAppMessage({ to: senderWaId, message: clarificationMessage });
+      await whatsappService.sendMessage({ to: senderWaId, message: clarificationMessage });
     }
   } catch (err) {
     logger.error({ err, leadId: lead.id }, 'Error in alternative selection');
