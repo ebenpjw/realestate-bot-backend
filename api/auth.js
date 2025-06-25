@@ -184,65 +184,128 @@ router.get('/zoom', (req, res) => {
 
 router.get('/zoom/callback', async (req, res, next) => {
   try {
+    logger.info({ query: req.query }, 'Zoom OAuth callback received');
+
     const { code, state } = req.query;
     if (!code || !state) {
+      logger.error({ code: !!code, state: !!state }, 'Missing authorization code or state parameter');
       return res.status(400).send('Missing authorization code or state parameter.');
     }
 
-    const parsedState = JSON.parse(Buffer.from(state, 'base64').toString());
-    const agentId = parsedState.agentId;
-    if (!agentId) return res.status(400).send('Agent ID missing in state parameter.');
-
-    // Exchange code for tokens
-    const tokenResponse = await axios.post('https://zoom.us/oauth/token', null, {
-      params: {
-        grant_type: 'authorization_code',
-        code: code,
-        redirect_uri: config.ZOOM_REDIRECT_URI
-      },
-      headers: {
-        'Authorization': `Basic ${Buffer.from(`${config.ZOOM_CLIENT_ID}:${config.ZOOM_CLIENT_SECRET}`).toString('base64')}`,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    });
-
-    const { access_token, refresh_token } = tokenResponse.data;
-    if (!refresh_token) {
-      return res.status(400).send('No refresh token received from Zoom. Please ensure your Zoom app has the correct scopes.');
+    let parsedState;
+    try {
+      parsedState = JSON.parse(Buffer.from(state, 'base64').toString());
+    } catch (parseError) {
+      logger.error({ err: parseError, state }, 'Failed to parse state parameter');
+      return res.status(400).send('Invalid state parameter.');
     }
 
+    const agentId = parsedState.agentId;
+    if (!agentId) {
+      logger.error({ parsedState }, 'Agent ID missing in state parameter');
+      return res.status(400).send('Agent ID missing in state parameter.');
+    }
+
+    logger.info({ agentId }, 'Starting Zoom token exchange');
+
+    // Exchange code for tokens
+    let tokenResponse;
+    try {
+      tokenResponse = await axios.post('https://zoom.us/oauth/token', null, {
+        params: {
+          grant_type: 'authorization_code',
+          code: code,
+          redirect_uri: config.ZOOM_REDIRECT_URI
+        },
+        headers: {
+          'Authorization': `Basic ${Buffer.from(`${config.ZOOM_CLIENT_ID}:${config.ZOOM_CLIENT_SECRET}`).toString('base64')}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        timeout: 10000
+      });
+    } catch (tokenError) {
+      logger.error({
+        err: tokenError.response?.data || tokenError.message,
+        status: tokenError.response?.status,
+        agentId
+      }, 'Zoom token exchange failed');
+      return res.status(500).send('Failed to exchange authorization code for tokens.');
+    }
+
+    const { access_token, refresh_token } = tokenResponse.data;
+    if (!access_token) {
+      logger.error({ tokenData: tokenResponse.data, agentId }, 'No access token received from Zoom');
+      return res.status(400).send('No access token received from Zoom.');
+    }
+
+    logger.info({ agentId, hasRefreshToken: !!refresh_token }, 'Zoom tokens received');
+
     // Get user info to store email
-    const userResponse = await axios.get('https://api.zoom.us/v2/users/me', {
-      headers: {
-        'Authorization': `Bearer ${access_token}`
-      }
-    });
+    let userResponse;
+    try {
+      userResponse = await axios.get('https://api.zoom.us/v2/users/me', {
+        headers: {
+          'Authorization': `Bearer ${access_token}`
+        },
+        timeout: 10000
+      });
+    } catch (userError) {
+      logger.error({
+        err: userError.response?.data || userError.message,
+        status: userError.response?.status,
+        agentId
+      }, 'Failed to get Zoom user info');
+      return res.status(500).send('Failed to retrieve user information from Zoom.');
+    }
 
     const zoomEmail = userResponse.data.email;
-    logger.info({ agentId, zoomEmail }, 'Retrieved Zoom user information.');
+    logger.info({ agentId, zoomEmail }, 'Retrieved Zoom user information');
 
-    // Encrypt and store refresh token
-    const encryptedTokenData = encrypt(refresh_token);
+    // Store both access and refresh tokens if available
+    const updateData = {
+      zoom_email: zoomEmail,
+      zoom_connected_at: new Date().toISOString()
+    };
 
+    // Encrypt and store access token
+    try {
+      const encryptedAccessToken = encrypt(access_token);
+      updateData.zoom_access_token_encrypted = encryptedAccessToken.encryptedData;
+      updateData.zoom_access_token_iv = encryptedAccessToken.iv;
+      updateData.zoom_access_token_tag = encryptedAccessToken.tag;
+    } catch (encryptError) {
+      logger.error({ err: encryptError, agentId }, 'Failed to encrypt access token');
+      return res.status(500).send('Failed to encrypt access token.');
+    }
+
+    // Encrypt and store refresh token if available
+    if (refresh_token) {
+      try {
+        const encryptedRefreshToken = encrypt(refresh_token);
+        updateData.zoom_refresh_token_encrypted = encryptedRefreshToken.encryptedData;
+        updateData.zoom_refresh_token_iv = encryptedRefreshToken.iv;
+        updateData.zoom_refresh_token_tag = encryptedRefreshToken.tag;
+      } catch (encryptError) {
+        logger.error({ err: encryptError, agentId }, 'Failed to encrypt refresh token');
+        return res.status(500).send('Failed to encrypt refresh token.');
+      }
+    }
+
+    // Save to database
     const { error } = await supabase.from('agents')
-        .update({
-            zoom_refresh_token_encrypted: encryptedTokenData.encryptedData,
-            zoom_refresh_token_iv: encryptedTokenData.iv,
-            zoom_refresh_token_tag: encryptedTokenData.tag,
-            zoom_email: zoomEmail,
-            zoom_connected_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', agentId);
 
     if (error) {
-        logger.error({ err: error, agentId }, 'Supabase error saving Zoom refresh token');
-        throw new Error('Failed to save Zoom refresh token to database.');
+        logger.error({ err: error, agentId, updateData: Object.keys(updateData) }, 'Supabase error saving Zoom tokens');
+        return res.status(500).send('Failed to save Zoom tokens to database.');
     }
 
-    logger.info({ agentId }, 'Zoom refresh token saved successfully.');
-    res.send('<h1>Success!</h1><p>Your Zoom account has been connected. You can close this tab.</p>');
+    logger.info({ agentId, hasRefreshToken: !!refresh_token }, 'Zoom tokens saved successfully');
+    res.send('<h1>Success!</h1><p>Your Zoom account has been connected successfully. You can close this tab.</p>');
 
   } catch (error) {
+    logger.error({ err: error, agentId: req.query.state }, 'Zoom OAuth callback failed');
     next(error); // Pass error to the centralized handler
   }
 });
