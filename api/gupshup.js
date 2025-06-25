@@ -11,7 +11,7 @@ const appointmentService = require('../services/appointmentService');
 
 // Valid lead update fields and their validation rules
 const VALID_LEAD_FIELDS = {
-  'intent': (value) => typeof value === 'string' && ['own_stay', 'investment', 'hybrid'].includes(value.toLowerCase()),
+  'intent': (value) => typeof value === 'string' && ['own_stay', 'investment', 'hybrid', 'own stay'].includes(value.toLowerCase()),
   'budget': (value) => typeof value === 'string' && value.length <= 100,
   'status': (value) => typeof value === 'string' && ['new', 'qualified', 'booked', 'booking_alternatives_offered', 'appointment_cancelled', 'needs_human_handoff', 'converted', 'lost'].includes(value),
   'location_preference': (value) => typeof value === 'string' && value.length <= 255,
@@ -39,7 +39,12 @@ function validateLeadUpdates(updates) {
             validatedUpdates[field] = value;
           }
         } else {
-          logger.warn({ field, value }, 'Invalid value for lead field, skipping update');
+          logger.warn({
+            field,
+            value,
+            valueType: typeof value,
+            validationFunction: VALID_LEAD_FIELDS[field].toString()
+          }, 'Invalid value for lead field, skipping update');
         }
       } catch (error) {
         logger.error({ err: error, field, value }, 'Error validating lead field');

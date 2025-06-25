@@ -14,6 +14,7 @@ class WhatsAppService {
     
     // Create axios instance with default config
     this.client = axios.create({
+      baseURL: this.baseURL,
       timeout: this.timeout,
       headers: {
         'apikey': this.apiKey,
@@ -272,11 +273,13 @@ class WhatsAppService {
         message: JSON.stringify({ type: 'text', text: message })
       });
 
-      logger.debug({
+      logger.info({
         to,
         messageLength: message.length,
         wabaNumber: this.wabaNumber,
-        payloadSize: payload.length
+        payloadSize: payload.length,
+        baseURL: this.baseURL,
+        hasApiKey: !!this.apiKey
       }, 'Sending WhatsApp message to Gupshup API');
 
       const response = await this.client.post('/msg', payload);
