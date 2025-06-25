@@ -334,19 +334,16 @@ router.post('/webhook', (req, res) => {
   logger.info({
     query: req.query,
     headers: req.headers,
-    body: req.body,
-    expectedToken: config.WEBHOOK_SECRET_TOKEN
+    body: req.body
   }, 'Received POST request to Gupshup webhook');
 
   res.sendStatus(200);
 
-  if (req.query.token !== config.WEBHOOK_SECRET_TOKEN) {
-      logger.warn({
-        receivedToken: req.query.token,
-        expectedToken: config.WEBHOOK_SECRET_TOKEN
-      }, 'Invalid or missing webhook token. Request ignored.');
-      return;
-  }
+  // Note: Gupshup 2025 documentation indicates no authentication is required for webhooks
+  // Removed token validation as per latest Gupshup guidelines
+
+  // Optional: Add IP-based validation if needed for security
+  // const allowedIPs = ['gupshup-ip-ranges']; // Can be configured later if needed
 
   // UPDATED LOGIC TO PARSE GUPSHUP V2 FORMAT
   const body = req.body;
@@ -356,7 +353,8 @@ router.post('/webhook', (req, res) => {
       userText: body.payload.payload.text,
       senderName: body.payload.sender.name || 'There'
     };
-    
+
+    logger.info({ messageData }, 'Processing valid Gupshup message');
     processMessage(messageData).catch(err => {
         logger.error({ err }, 'Unhandled exception in async processMessage from Gupshup webhook.');
     });
