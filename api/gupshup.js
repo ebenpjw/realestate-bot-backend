@@ -325,16 +325,26 @@ function parseAlternativeSelection(userMessage, alternatives) {
 
 // Handler for Gupshup's URL verification GET request
 router.get('/webhook', (req, res) => {
-    logger.info('Received GET request for Gupshup webhook verification.');
+    logger.info({ query: req.query, headers: req.headers }, 'Received GET request for Gupshup webhook verification.');
     res.status(200).send('Webhook endpoint is active and ready for POST requests.');
 });
 
 // Handler for incoming messages
 router.post('/webhook', (req, res) => {
+  logger.info({
+    query: req.query,
+    headers: req.headers,
+    body: req.body,
+    expectedToken: config.WEBHOOK_SECRET_TOKEN
+  }, 'Received POST request to Gupshup webhook');
+
   res.sendStatus(200);
 
   if (req.query.token !== config.WEBHOOK_SECRET_TOKEN) {
-      logger.warn('Invalid or missing webhook token. Request ignored.');
+      logger.warn({
+        receivedToken: req.query.token,
+        expectedToken: config.WEBHOOK_SECRET_TOKEN
+      }, 'Invalid or missing webhook token. Request ignored.');
       return;
   }
 
