@@ -11,16 +11,26 @@ const appointmentService = require('../services/appointmentService');
 
 // Valid lead update fields and their validation rules
 const VALID_LEAD_FIELDS = {
-  'intent': (value) => typeof value === 'string' && ['own_stay', 'investment', 'hybrid', 'own stay'].includes(value.toLowerCase()),
-  'budget': (value) => typeof value === 'string' && value.length <= 100,
+  'intent': (value) => {
+    if (typeof value !== 'string') return false;
+    const validIntents = ['own_stay', 'investment', 'hybrid', 'own stay', 'ownstay', 'own-stay', 'buy', 'purchase', 'invest'];
+    return validIntents.includes(value.toLowerCase().trim());
+  },
+  'budget': (value) => {
+    if (typeof value !== 'string') return false;
+    // Allow budget strings like "2m", "2 million", "$2M", "around 2m", etc.
+    return value.length <= 100 && value.trim().length > 0;
+  },
   'status': (value) => typeof value === 'string' && ['new', 'qualified', 'booked', 'booking_alternatives_offered', 'appointment_cancelled', 'needs_human_handoff', 'converted', 'lost'].includes(value),
-  'location_preference': (value) => typeof value === 'string' && value.length <= 255,
-  'property_type': (value) => typeof value === 'string' && value.length <= 100,
-  'timeline': (value) => typeof value === 'string' && value.length <= 100,
+  'location_preference': (value) => typeof value === 'string' && value.length <= 255 && value.trim().length > 0,
+  'property_type': (value) => typeof value === 'string' && value.length <= 100 && value.trim().length > 0,
+  'timeline': (value) => typeof value === 'string' && value.length <= 100 && value.trim().length > 0,
   'conversation_summary': (value) => typeof value === 'string' && value.length <= 2000,
   'lead_score': (value) => typeof value === 'number' && value >= 0 && value <= 100,
   'notes': (value) => typeof value === 'string' && value.length <= 2000,
-  'booking_alternatives': (value) => value === null || (typeof value === 'object' && Array.isArray(value))
+  'booking_alternatives': (value) => value === null || (typeof value === 'object' && Array.isArray(value)),
+  'full_name': (value) => typeof value === 'string' && value.length <= 100 && value.trim().length > 0,
+  'email': (value) => typeof value === 'string' && value.length <= 255 && (value.includes('@') || value.trim().length === 0)
 };
 
 function validateLeadUpdates(updates) {

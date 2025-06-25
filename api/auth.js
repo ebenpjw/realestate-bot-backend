@@ -24,19 +24,53 @@ const scopes = [
   'https://www.googleapis.com/auth/calendar.freebusy'
 ];
 
-router.get('/google', (req, res) => {
-  const agentId = req.query.agentId;
-  if (!agentId) {
-    return res.status(400).send('Agent ID is required to initiate Google Calendar connection.');
+// Test endpoint to check if agent exists
+router.get('/test-agent/:agentId', async (req, res) => {
+  try {
+    const agentId = req.params.agentId;
+    const { data: agent, error } = await supabase
+      .from('agents')
+      .select('id, full_name, status')
+      .eq('id', agentId)
+      .single();
+
+    if (error || !agent) {
+      return res.status(404).json({ error: 'Agent not found', agentId });
+    }
+
+    res.json({
+      success: true,
+      agent,
+      googleAuthUrl: `/api/auth/google?agentId=${agentId}`,
+      zoomAuthUrl: `/api/auth/zoom?agentId=${agentId}`
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-  const statePayload = { agentId: agentId, timestamp: Date.now() };
-  const url = oauth2Client.generateAuthUrl({
-    access_type: 'offline',
-    scope: scopes,
-    prompt: 'consent',
-    state: Buffer.from(JSON.stringify(statePayload)).toString('base64')
-  });
-  res.redirect(url);
+});
+
+router.get('/google', (req, res) => {
+  try {
+    const agentId = req.query.agentId;
+    if (!agentId) {
+      return res.status(400).json({ error: 'Agent ID is required to initiate Google Calendar connection.' });
+    }
+
+    logger.info({ agentId }, 'Initiating Google OAuth for agent');
+
+    const statePayload = { agentId: agentId, timestamp: Date.now() };
+    const url = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: scopes,
+      prompt: 'consent',
+      state: Buffer.from(JSON.stringify(statePayload)).toString('base64')
+    });
+
+    res.redirect(url);
+  } catch (error) {
+    logger.error({ err: error, agentId: req.query.agentId }, 'Error initiating Google OAuth');
+    res.status(500).json({ error: 'Failed to initiate authentication' });
+  }
 });
 
 router.get('/google/callback', async (req, res, next) => {
@@ -107,21 +141,32 @@ router.get('/google/callback', async (req, res, next) => {
 // ==========================================
 
 router.get('/zoom', (req, res) => {
-  const agentId = req.query.agentId;
-  if (!agentId) {
-    return res.status(400).send('Agent ID is required to initiate Zoom connection.');
+  try {
+    const agentId = req.query.agentId;
+    if (!agentId) {
+      return res.status(400).json({ error: 'Agent ID is required to initiate Zoom connection.' });
+    }
+
+    if (!config.ZOOM_CLIENT_ID || !config.ZOOM_CLIENT_SECRET) {
+      return res.status(500).json({ error: 'Zoom OAuth not configured' });
+    }
+
+    logger.info({ agentId }, 'Initiating Zoom OAuth for agent');
+
+    const statePayload = { agentId: agentId, timestamp: Date.now() };
+    const state = Buffer.from(JSON.stringify(statePayload)).toString('base64');
+
+    const zoomAuthUrl = `https://zoom.us/oauth/authorize?` +
+      `response_type=code&` +
+      `client_id=${config.ZOOM_CLIENT_ID}&` +
+      `redirect_uri=${encodeURIComponent(config.ZOOM_REDIRECT_URI)}&` +
+      `state=${state}`;
+
+    res.redirect(zoomAuthUrl);
+  } catch (error) {
+    logger.error({ err: error, agentId: req.query.agentId }, 'Error initiating Zoom OAuth');
+    res.status(500).json({ error: 'Failed to initiate Zoom authentication' });
   }
-
-  const statePayload = { agentId: agentId, timestamp: Date.now() };
-  const state = Buffer.from(JSON.stringify(statePayload)).toString('base64');
-
-  const zoomAuthUrl = `https://zoom.us/oauth/authorize?` +
-    `response_type=code&` +
-    `client_id=${config.ZOOM_CLIENT_ID}&` +
-    `redirect_uri=${encodeURIComponent(config.ZOOM_REDIRECT_URI)}&` +
-    `state=${state}`;
-
-  res.redirect(zoomAuthUrl);
 });
 
 router.get('/zoom/callback', async (req, res, next) => {

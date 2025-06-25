@@ -26,9 +26,36 @@ async function findOrCreateLead({ phoneNumber, fullName, source }) {
   }
 
   logger.info({ phoneNumber }, `Lead not found, creating new one...`);
+
+  // Get a default agent for assignment
+  const { data: defaultAgent, error: agentError } = await supabase
+    .from('agents')
+    .select('id, full_name')
+    .eq('status', 'active')
+    .limit(1)
+    .single();
+
+  const newLeadData = {
+    full_name: fullName,
+    phone_number: phoneNumber,
+    source: source,
+    status: 'new'
+  };
+
+  // Assign to default agent if available
+  if (defaultAgent && !agentError) {
+    newLeadData.agent_id = defaultAgent.id;
+    logger.info({
+      agentId: defaultAgent.id,
+      agentName: defaultAgent.full_name
+    }, 'Assigning lead to active agent');
+  } else {
+    logger.warn({ agentError }, 'No active agents found, creating lead without assignment');
+  }
+
   const { data: newLead, error: insertError } = await supabase
     .from('leads')
-    .insert([{ full_name: fullName, phone_number: phoneNumber, source: source, status: 'new' }])
+    .insert([newLeadData])
     .select()
     .single();
 
