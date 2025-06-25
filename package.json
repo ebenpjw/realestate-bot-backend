@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=8.0.0"
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
   },
   "scripts": {
     "start": "node index.js",
@@ -16,11 +16,12 @@
     "lint:fix": "eslint . --ext .js --fix",
     "format": "prettier --write .",
     "validate": "npm run lint",
-    "build": "echo 'Build complete - Ready for deployment'",
+    "build": "echo 'Build complete - Ready for deployment' && npm run validate",
     "railway:build": "npm run build",
     "railway:start": "NODE_ENV=production npm start",
     "health-check": "curl -f http://localhost:8080/health || exit 1",
     "db:migrate": "echo 'Run Supabase migrations manually'",
+    "deploy-check": "node scripts/railway-deploy.js",
     "postinstall": "echo 'Installation complete - Ready for Railway deployment'"
   },
   "keywords": ["whatsapp", "bot", "real-estate", "ai", "webhook"],
