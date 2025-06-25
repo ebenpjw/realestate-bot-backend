@@ -14,6 +14,9 @@ RUN npm cache clean --force && \
 # Copy application code
 COPY . .
 
+# Set environment variables
+ENV NODE_ENV=production
+
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001

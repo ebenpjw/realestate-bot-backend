@@ -2,13 +2,15 @@
 const dotenv = require('dotenv');
 const path = require('path');
 
-// Load environment variables from .env file
+// Load environment variables from .env file (if it exists)
 const result = dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 if (result.error) {
   if (process.env.NODE_ENV !== 'production') {
     console.error("⚠️ FATAL: Could not find .env file. Please ensure it exists in the project root.", result.error);
     process.exit(1);
+  } else {
+    console.log("ℹ️ No .env file found - using environment variables from Railway");
   }
 }
 
