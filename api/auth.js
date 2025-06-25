@@ -100,7 +100,15 @@ router.get('/google/callback', async (req, res, next) => {
     }
     
     logger.info({ agentId }, `Google Refresh Token Received for Agent.`);
-    const encryptedTokenData = encrypt(refreshToken);
+
+    let encryptedTokenData;
+    try {
+      encryptedTokenData = encrypt(refreshToken);
+      logger.info({ agentId }, 'Token encryption successful');
+    } catch (encryptError) {
+      logger.error({ err: encryptError, agentId }, 'Token encryption failed');
+      throw new Error('Failed to encrypt refresh token');
+    }
 
     let googleEmail = null;
     if (tokens.id_token) {
@@ -113,22 +121,27 @@ router.get('/google/callback', async (req, res, next) => {
         }
     }
 
-    const { error } = await supabase.from('agents')
-        .update({
-            google_refresh_token_encrypted: encryptedTokenData.encryptedData,
-            google_token_iv: encryptedTokenData.iv,
-            google_token_tag: encryptedTokenData.tag,
-            google_email: googleEmail,
-            google_connected_at: new Date().toISOString()
-        })
-        .eq('id', agentId);
+    const updateData = {
+        google_refresh_token_encrypted: encryptedTokenData.encryptedData,
+        google_token_iv: encryptedTokenData.iv,
+        google_token_tag: encryptedTokenData.tag,
+        google_email: googleEmail,
+        google_connected_at: new Date().toISOString()
+    };
+
+    logger.info({ agentId, updateData: { ...updateData, google_refresh_token_encrypted: '[ENCRYPTED]' } }, 'Attempting to save Google auth data');
+
+    const { data, error } = await supabase.from('agents')
+        .update(updateData)
+        .eq('id', agentId)
+        .select();
 
     if (error) {
         logger.error({ err: error, agentId }, 'Supabase error saving refresh token');
         throw new Error('Failed to save Google refresh token to database.');
     }
 
-    logger.info({ agentId }, 'Google refresh token saved successfully.');
+    logger.info({ agentId, updatedAgent: data }, 'Google refresh token saved successfully.');
     res.send('<h1>Success!</h1><p>Your Google Calendar has been connected. You can close this tab.</p>');
 
   } catch (error) {
