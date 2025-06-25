@@ -2,7 +2,7 @@
 const config = require('./config');
 const logger = require('./logger');
 
-function verifyEnvironmentVariables() {
+async function verifyEnvironmentVariables() {
   logger.info('🔍 Verifying environment variables...');
   
   const requiredVars = {
@@ -67,10 +67,10 @@ function verifyEnvironmentVariables() {
   }
   
   // Test database connection
-  testDatabaseConnection();
-  
+  await testDatabaseConnection();
+
   // Test WhatsApp service configuration
-  testWhatsAppConfiguration();
+  await testWhatsAppConfiguration();
   
   return {
     present: present.length,

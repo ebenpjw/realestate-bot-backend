@@ -2,9 +2,8 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../supabaseClient');
 const logger = require('../logger');
-const generateAiMessage = require('../generateAiMessage');
-const { sendWhatsAppMessage } = require('../sendWhatsAppMessage');
-const { sendTemplateMessage } = require('../sendTemplateMessage');
+const aiService = require('../services/aiService');
+const whatsappService = require('../services/whatsappService');
 const { findOrCreateLead } = require('./leadManager');
 
 router.post('/simulate-inbound', async (req, res, next) => {
@@ -29,7 +28,7 @@ router.post('/simulate-inbound', async (req, res, next) => {
     const { data: history } = await supabase.from('messages').select('sender, message').eq('lead_id', lead.id).order('created_at', { ascending: false }).limit(10);
     const previousMessages = history ? history.map(entry => ({ sender: entry.sender, message: entry.message })).reverse() : [];
     
-    const aiResponse = await generateAiMessage({ lead, previousMessages });
+    const aiResponse = await aiService.generateResponse({ lead, previousMessages });
     logger.info({ leadId: lead.id, aiResponse }, '[SIMULATION] AI response object.');
 
     if (aiResponse.lead_updates && Object.keys(aiResponse.lead_updates).length > 0) {
@@ -44,7 +43,7 @@ router.post('/simulate-inbound', async (req, res, next) => {
 
     const fullReply = aiResponse.messages.filter(msg => msg).join('\n\n');
     if (fullReply) {
-      await sendWhatsAppMessage({ to: senderWaId, message: fullReply });
+      await whatsappService.sendMessage({ to: senderWaId, message: fullReply });
       const messagesToSave = aiResponse.messages.filter(msg => msg).map(msg => ({ lead_id: lead.id, sender: 'assistant', message: msg }));
       await supabase.from('messages').insert(messagesToSave);
     }
@@ -102,7 +101,7 @@ router.post('/simulate-new-lead', async (req, res, next) => {
     const params = template_params || [lead.full_name, "your property enquiry"]; 
 
     logger.info({ templateId, phone_number }, `Sending template message.`);
-    await sendTemplateMessage({
+    await whatsappService.sendTemplateMessage({
       to: phone_number,
       templateId: templateId,
       params: params

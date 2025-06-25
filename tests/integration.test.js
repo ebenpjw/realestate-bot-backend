@@ -176,41 +176,15 @@ describe('Application Integration Tests', () => {
     });
   });
 
-  describe('Backward Compatibility', () => {
-    test('generateAiMessage should work with new service', async () => {
-      const generateAiMessage = require('../generateAiMessage');
+  describe('Service Integration', () => {
+    test('AI Service should integrate properly with WhatsApp Service', () => {
+      const aiService = require('../services/aiService');
+      const whatsappService = require('../services/whatsappService');
 
-      expect(typeof generateAiMessage).toBe('function');
-
-      // Mock a simple test (this would normally call OpenAI)
-      const mockLead = {
-        id: 'test-lead-id',
-        full_name: 'Test User',
-        phone_number: '1234567890',
-        status: 'new'
-      };
-
-      // This will fail due to invalid OpenAI key, but should not crash
-      try {
-        await generateAiMessage({ lead: mockLead, previousMessages: [] });
-      } catch (error) {
-        // Expected to fail with test credentials, but should be a proper error
-        expect(error).toBeDefined();
-      }
-    });
-
-    test('sendWhatsAppMessage should work with new service', async () => {
-      const { sendWhatsAppMessage } = require('../sendWhatsAppMessage');
-
-      expect(typeof sendWhatsAppMessage).toBe('function');
-
-      // This will fail due to invalid credentials, but should not crash
-      try {
-        await sendWhatsAppMessage({ to: '1234567890', message: 'Test message' });
-      } catch (error) {
-        // Expected to fail with test credentials, but should be a proper error
-        expect(error).toBeDefined();
-      }
+      expect(aiService).toBeDefined();
+      expect(whatsappService).toBeDefined();
+      expect(typeof aiService.generateResponse).toBe('function');
+      expect(typeof whatsappService.sendMessage).toBe('function');
     });
   });
 
