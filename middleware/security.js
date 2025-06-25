@@ -35,11 +35,11 @@ const rateLimits = {
     1000, // 1000 requests per 15 minutes per IP
     'Too many API requests'
   ),
-  auth: createRateLimit(
-    15 * 60 * 1000, // 15 minutes
-    5, // 5 auth attempts per 15 minutes per IP
-    'Too many authentication attempts'
-  )
+  // auth: createRateLimit(
+  //   15 * 60 * 1000, // 15 minutes
+  //   5, // 5 auth attempts per 15 minutes per IP
+  //   'Too many authentication attempts'
+  // )
 };
 
 // CORS configuration

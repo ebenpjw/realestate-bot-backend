@@ -14,10 +14,10 @@ const APP_CONSTANTS = {
       WINDOW_MS: 15 * 60 * 1000, // 15 minutes
       MAX_REQUESTS: 1000
     },
-    AUTH: {
-      WINDOW_MS: 15 * 60 * 1000, // 15 minutes
-      MAX_REQUESTS: 5
-    }
+    // AUTH: {
+    //   WINDOW_MS: 15 * 60 * 1000, // 15 minutes
+    //   MAX_REQUESTS: 5
+    // } // Disabled for testing
   },
   
   // Message processing

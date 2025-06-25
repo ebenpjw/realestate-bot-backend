@@ -102,8 +102,8 @@ class WhatsAppService {
       // Validate inputs
       this._validateTemplateParams({ to, templateId, params });
 
-      // Check template rate limits (WABA compliance)
-      await this._checkTemplateRateLimit(to, templateId, category);
+      // Note: WABA 2025 - No daily template limits, per-message pricing model
+      // await this._checkTemplateRateLimit(to, templateId, category); // Removed - outdated limits
 
       const templateObject = { id: templateId, params };
       const payload = qs.stringify({
@@ -403,50 +403,20 @@ class WhatsAppService {
   }
 
   /**
-   * Check template rate limits for WABA compliance
+   * DEPRECATED: Check template rate limits for WABA compliance
+   * NOTE: As of June 2025, WABA uses per-message pricing with no daily limits
    * @private
+   * @deprecated WABA 2025 removed daily template limits
    */
   async _checkTemplateRateLimit(phoneNumber, templateId, category) {
-    try {
-      const databaseService = require('./databaseService');
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      // Check daily template limits per phone number
-      const { data: todayUsage, error } = await databaseService.supabase
-        .from('template_usage_log')
-        .select('*')
-        .eq('phone_number', phoneNumber)
-        .gte('sent_at', today.toISOString());
-
-      if (error) {
-        logger.warn({ err: error }, 'Failed to check template rate limit');
-        return; // Don't block on rate limit check failure
-      }
-
-      const dailyCount = todayUsage?.length || 0;
-      const categoryCount = todayUsage?.filter(t => t.template_category === category).length || 0;
-
-      // WABA limits (conservative approach)
-      const limits = {
-        MARKETING: 10, // Marketing templates are more restricted
-        UTILITY: 50,   // Utility templates have higher limits
-        AUTHENTICATION: 100 // Auth templates have highest limits
-      };
-
-      const dailyLimit = limits[category] || limits.UTILITY;
-
-      if (categoryCount >= dailyLimit) {
-        throw new ValidationError(`Daily ${category} template limit (${dailyLimit}) exceeded for ${phoneNumber}`);
-      }
-
-      logger.debug({
-        phoneNumber,
-        category,
-        dailyCount,
-        categoryCount,
-        limit: dailyLimit
-      }, 'Template rate limit check passed');
+    // WABA 2025 Update: No daily template limits exist
+    // Per-message pricing model allows unlimited messages
+    // Only per-user marketing limits based on engagement apply
+    logger.debug({
+      phoneNumber,
+      templateId,
+      category
+    }, 'Template rate limit check skipped - WABA 2025 has no daily limits');
 
     } catch (error) {
       if (error instanceof ValidationError) {
