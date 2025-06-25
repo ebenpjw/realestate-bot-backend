@@ -206,30 +206,53 @@ router.get('/zoom/callback', async (req, res, next) => {
       return res.status(400).send('Agent ID missing in state parameter.');
     }
 
-    logger.info({ agentId }, 'Starting Zoom token exchange');
+    logger.info({
+      agentId,
+      clientId: config.ZOOM_CLIENT_ID,
+      redirectUri: config.ZOOM_REDIRECT_URI,
+      hasClientSecret: !!config.ZOOM_CLIENT_SECRET,
+      codeLength: code?.length
+    }, 'Starting Zoom token exchange');
 
     // Exchange code for tokens
     let tokenResponse;
     try {
+      const requestParams = {
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: config.ZOOM_REDIRECT_URI
+      };
+
+      const requestHeaders = {
+        'Authorization': `Basic ${Buffer.from(`${config.ZOOM_CLIENT_ID}:${config.ZOOM_CLIENT_SECRET}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      };
+
+      logger.info({
+        agentId,
+        requestParams,
+        requestHeaders: { ...requestHeaders, Authorization: 'Basic [HIDDEN]' }
+      }, 'Zoom token exchange request details');
+
       tokenResponse = await axios.post('https://zoom.us/oauth/token', null, {
-        params: {
-          grant_type: 'authorization_code',
-          code: code,
-          redirect_uri: config.ZOOM_REDIRECT_URI
-        },
-        headers: {
-          'Authorization': `Basic ${Buffer.from(`${config.ZOOM_CLIENT_ID}:${config.ZOOM_CLIENT_SECRET}`).toString('base64')}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
+        params: requestParams,
+        headers: requestHeaders,
         timeout: 10000
       });
     } catch (tokenError) {
       logger.error({
         err: tokenError.response?.data || tokenError.message,
         status: tokenError.response?.status,
+        headers: tokenError.response?.headers,
+        requestConfig: {
+          url: tokenError.config?.url,
+          method: tokenError.config?.method,
+          params: tokenError.config?.params,
+          headers: tokenError.config?.headers
+        },
         agentId
       }, 'Zoom token exchange failed');
-      return res.status(500).send('Failed to exchange authorization code for tokens.');
+      return res.status(500).send(`Failed to exchange authorization code for tokens. Error: ${JSON.stringify(tokenError.response?.data || tokenError.message)}`);
     }
 
     const { access_token, refresh_token } = tokenResponse.data;
@@ -308,6 +331,27 @@ router.get('/zoom/callback', async (req, res, next) => {
     logger.error({ err: error, agentId: req.query.state }, 'Zoom OAuth callback failed');
     next(error); // Pass error to the centralized handler
   }
+});
+
+// Debug endpoint to check environment variables (Railway only)
+router.get('/debug-env', (req, res) => {
+  if (config.NODE_ENV !== 'production') {
+    return res.status(403).json({ error: 'Debug endpoint only available in production' });
+  }
+
+  res.json({
+    timestamp: new Date().toISOString(),
+    environment: config.NODE_ENV,
+    zoom: {
+      clientId: config.ZOOM_CLIENT_ID ? `${config.ZOOM_CLIENT_ID.substring(0, 8)}...` : 'MISSING',
+      clientSecret: config.ZOOM_CLIENT_SECRET ? `${config.ZOOM_CLIENT_SECRET.substring(0, 8)}...` : 'MISSING',
+      redirectUri: config.ZOOM_REDIRECT_URI || 'MISSING'
+    },
+    google: {
+      clientId: config.GOOGLE_CLIENT_ID ? `${config.GOOGLE_CLIENT_ID.substring(0, 8)}...` : 'MISSING',
+      clientSecret: config.GOOGLE_CLIENT_SECRET ? `${config.GOOGLE_CLIENT_SECRET.substring(0, 8)}...` : 'MISSING'
+    }
+  });
 });
 
 module.exports = router;
