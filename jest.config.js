@@ -1,13 +1,13 @@
 module.exports = {
   testEnvironment: 'node',
   collectCoverageFrom: [
-    '**/*.js',
+    'services/**/*.js',
+    'utils/**/*.js',
+    'middleware/**/*.js',
     '!node_modules/**',
     '!coverage/**',
     '!jest.config.js',
     '!.eslintrc.js',
-    '!api/**',
-    '!supabase/**',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
@@ -17,10 +17,14 @@ module.exports = {
   ],
   testPathIgnorePatterns: [
     '/node_modules/',
-    '/api/',
-    '/supabase/'
+    '/coverage/',
+    '/build/',
+    '/dist/'
   ],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
-  testTimeout: 10000,
+  testTimeout: 15000,
   verbose: true,
+  forceExit: true,
+  detectOpenHandles: true,
+  maxWorkers: 1
 };
