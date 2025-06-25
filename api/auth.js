@@ -227,8 +227,8 @@ router.get('/zoom/callback', async (req, res, next) => {
     const { error } = await supabase.from('agents')
         .update({
             zoom_refresh_token_encrypted: encryptedTokenData.encryptedData,
-            zoom_token_iv: encryptedTokenData.iv,
-            zoom_token_tag: encryptedTokenData.tag,
+            zoom_refresh_token_iv: encryptedTokenData.iv,
+            zoom_refresh_token_tag: encryptedTokenData.tag,
             zoom_email: zoomEmail,
             zoom_connected_at: new Date().toISOString()
         })
