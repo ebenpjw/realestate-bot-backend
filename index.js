@@ -206,7 +206,7 @@ app.get('/debug/agents', asyncHandler(async (req, res) => {
 
   const { data: agents, error } = await supabase
     .from('agents')
-    .select('id, name, google_email, phone_number')
+    .select('id, google_email, phone_number')
     .limit(10);
 
   if (error) {
