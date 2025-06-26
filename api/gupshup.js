@@ -182,9 +182,9 @@ async function processMessage({ senderWaId, userText, senderName }) {
 
 async function handleAppointmentAction({ action, lead, senderWaId, userMessage }) {
   try {
-    const agentId = lead.agent_id;
+    const agentId = lead.assigned_agent_id; // Fixed: use correct column name
     if (!agentId) {
-      logger.error({ leadId: lead.id }, 'Cannot handle appointment action, lead is not assigned to an agent.');
+      logger.error({ leadId: lead.id, leadData: lead }, 'Cannot handle appointment action, lead is not assigned to an agent.');
       const noAgentMessage = "Apologies, I can't manage appointments right now as I can't find an available consultant. Please try again shortly.";
       await whatsappService.sendMessage({ to: senderWaId, message: noAgentMessage });
       return;
