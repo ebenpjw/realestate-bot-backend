@@ -71,13 +71,44 @@ async function processMessage({ senderWaId, userText, senderName }) {
   try {
     logger.info({ senderWaId, senderName }, `Received message: "${userText}"`);
 
-    let lead = await findOrCreateLead({
-      phoneNumber: senderWaId,
-      fullName: senderName,
-      source: 'WA Direct'
-    });
+    // Enhanced lead creation with detailed error handling
+    let lead;
+    try {
+      lead = await findOrCreateLead({
+        phoneNumber: senderWaId,
+        fullName: senderName,
+        source: 'WA Direct'
+      });
+      logger.info({ leadId: lead.id, senderWaId }, 'Lead found/created successfully');
+    } catch (leadError) {
+      logger.error({
+        err: leadError,
+        senderWaId,
+        senderName,
+        stack: leadError.stack
+      }, 'Critical error in lead creation');
+      throw new Error(`Lead creation failed: ${leadError.message}`);
+    }
 
-    await supabase.from('messages').insert({ lead_id: lead.id, sender: 'lead', message: userText });
+    // Save incoming message with error handling
+    try {
+      const { error: messageError } = await supabase
+        .from('messages')
+        .insert({
+          lead_id: lead.id,
+          sender: 'lead',
+          message: userText,
+          created_at: new Date().toISOString()
+        });
+
+      if (messageError) {
+        logger.error({ err: messageError, leadId: lead.id }, 'Failed to save incoming message');
+        throw new Error(`Message save failed: ${messageError.message}`);
+      }
+    } catch (msgSaveError) {
+      logger.error({ err: msgSaveError, leadId: lead.id }, 'Error saving incoming message');
+      // Don't throw here - continue processing even if message save fails
+    }
 
     const { data: history } = await supabase.from('messages').select('sender, message').eq('lead_id', lead.id).order('created_at', { ascending: false }).limit(10);
     const previousMessages = history ? history.map(entry => ({ sender: entry.sender, message: entry.message })).reverse() : [];

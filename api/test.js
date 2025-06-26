@@ -116,4 +116,107 @@ router.post('/simulate-new-lead', async (req, res, next) => {
   }
 });
 
+// Database diagnostic endpoint
+router.get('/db-diagnostic', async (req, res) => {
+  try {
+    logger.info('Running database diagnostic...');
+
+    const diagnostics = {
+      timestamp: new Date().toISOString(),
+      tests: []
+    };
+
+    // Test 1: Basic connection
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('count')
+        .limit(1);
+
+      diagnostics.tests.push({
+        name: 'Basic Connection',
+        status: error ? 'FAILED' : 'PASSED',
+        error: error?.message,
+        result: data
+      });
+    } catch (err) {
+      diagnostics.tests.push({
+        name: 'Basic Connection',
+        status: 'FAILED',
+        error: err.message
+      });
+    }
+
+    // Test 2: Agent lookup
+    try {
+      const { data: agents, error } = await supabase
+        .from('agents')
+        .select('id, full_name, status')
+        .eq('status', 'active')
+        .limit(1);
+
+      diagnostics.tests.push({
+        name: 'Agent Lookup',
+        status: error ? 'FAILED' : 'PASSED',
+        error: error?.message,
+        result: agents
+      });
+    } catch (err) {
+      diagnostics.tests.push({
+        name: 'Agent Lookup',
+        status: 'FAILED',
+        error: err.message
+      });
+    }
+
+    // Test 3: Lead creation test
+    try {
+      const testPhoneNumber = `+65${Date.now().toString().slice(-8)}`;
+      const { data: newLead, error } = await supabase
+        .from('leads')
+        .insert({
+          phone_number: testPhoneNumber,
+          full_name: 'Test Diagnostic Lead',
+          source: 'Diagnostic Test',
+          status: 'new'
+        })
+        .select()
+        .single();
+
+      if (!error && newLead) {
+        // Clean up test lead
+        await supabase.from('leads').delete().eq('id', newLead.id);
+      }
+
+      diagnostics.tests.push({
+        name: 'Lead Creation Test',
+        status: error ? 'FAILED' : 'PASSED',
+        error: error?.message,
+        result: newLead ? { id: newLead.id, created: true, cleaned: true } : null
+      });
+    } catch (err) {
+      diagnostics.tests.push({
+        name: 'Lead Creation Test',
+        status: 'FAILED',
+        error: err.message
+      });
+    }
+
+    const allPassed = diagnostics.tests.every(test => test.status === 'PASSED');
+
+    res.status(allPassed ? 200 : 500).json({
+      status: allPassed ? 'HEALTHY' : 'UNHEALTHY',
+      ...diagnostics
+    });
+
+  } catch (error) {
+    logger.error({ err: error }, 'Database diagnostic failed');
+    res.status(500).json({
+      status: 'FAILED',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 module.exports = router;

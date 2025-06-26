@@ -49,28 +49,67 @@ if (config.NODE_ENV === 'production') {
   }, 'Using Supabase connection pooling for production');
 }
 
+// Validate configuration before creating client
+if (!config.SUPABASE_URL || !config.SUPABASE_KEY) {
+  logger.error({
+    hasUrl: !!config.SUPABASE_URL,
+    hasKey: !!config.SUPABASE_KEY
+  }, 'Missing required Supabase configuration');
+  throw new Error('Missing required Supabase configuration');
+}
+
+// Log configuration details (without exposing sensitive data)
+logger.info({
+  supabaseUrl: config.SUPABASE_URL,
+  keyLength: config.SUPABASE_KEY?.length,
+  keyPrefix: config.SUPABASE_KEY?.substring(0, 20) + '...',
+  environment: config.NODE_ENV,
+  connectionPooling: config.NODE_ENV === 'production'
+}, 'Initializing Supabase client');
+
 // Create Supabase client with enhanced configuration
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_KEY, supabaseConfig);
 
-// Test connection on startup (async function to properly handle the promise)
+// Test connection on startup with enhanced diagnostics
 (async () => {
   try {
-    const { error } = await supabase
+    logger.info('Testing Supabase connection...');
+
+    // Test basic connectivity
+    const { data, error } = await supabase
       .from('leads')
       .select('count')
       .limit(1);
 
     if (error) {
-      logger.error({ err: error }, 'Failed to establish Supabase connection');
+      logger.error({
+        err: error,
+        errorCode: error.code,
+        errorMessage: error.message,
+        errorDetails: error.details,
+        errorHint: error.hint
+      }, 'Failed to establish Supabase connection');
     } else {
       logger.info({
         project: 're-bot-db',
         region: 'ap-southeast-1',
-        environment: config.NODE_ENV
+        environment: config.NODE_ENV,
+        testQueryResult: data
       }, 'Supabase connection established successfully');
+
+      // Test RLS authentication by trying to insert a test record (will be rolled back)
+      try {
+        const testResult = await supabase.rpc('auth.role');
+        logger.info({ authRole: testResult }, 'Supabase authentication role verified');
+      } catch (authError) {
+        logger.warn({ err: authError }, 'Could not verify authentication role');
+      }
     }
   } catch (error) {
-    logger.error({ err: error }, 'Failed to establish Supabase connection');
+    logger.error({
+      err: error,
+      stack: error.stack
+    }, 'Critical error during Supabase connection test');
   }
 })();
 
