@@ -10,7 +10,7 @@ async function getAgentWithToken(agentId) {
 
     const { data: agent, error } = await supabase
         .from('agents')
-        .select('id, google_email, google_refresh_token_encrypted, google_token_iv, google_token_tag')
+        .select('id, google_email, google_refresh_token_encrypted')
         .eq('id', agentId)
         .single();
 
@@ -33,14 +33,15 @@ async function getAgentWithToken(agentId) {
     }
 
     try {
-        agent.decrypted_refresh_token = decrypt(
-            agent.google_refresh_token_encrypted,
-            agent.google_token_iv,
-            agent.google_token_tag
-        );
+        // Use new simplified decryption (handles both old and new formats)
+        agent.decrypted_refresh_token = decrypt(agent.google_refresh_token_encrypted);
         return agent;
     } catch (decryptError) {
-        logger.error({ err: decryptError, agentId }, "Failed to decrypt agent's refresh token.");
+        if (decryptError.message.includes('Legacy encrypted data format')) {
+            logger.warn({ agentId }, "Agent has legacy encrypted token - requires re-authentication with Google Calendar");
+        } else {
+            logger.error({ err: decryptError, agentId }, "Failed to decrypt agent's refresh token.");
+        }
         return null;
     }
 }
@@ -165,12 +166,7 @@ async function createEvent(agentId, eventDetails) {
         attendees: [
             { email: agent.google_email } // Only add the agent to the event
         ],
-        conferenceData: {
-            createRequest: {
-                requestId: `zoom-consult-${Date.now()}`,
-                conferenceSolutionKey: { type: 'hangoutsMeet' },
-            },
-        },
+        // No conferenceData - we only use Zoom meetings, not Google Meet
         reminders: {
             useDefault: true,
         },
@@ -179,7 +175,7 @@ async function createEvent(agentId, eventDetails) {
     const response = await calendar.events.insert({
         calendarId: 'primary',
         resource: event,
-        conferenceDataVersion: 1,
+        // No conferenceDataVersion needed since we're not using Google Meet
     });
 
     logger.info({ agentId, eventId: response.data.id }, 'Successfully created calendar event for agent.');

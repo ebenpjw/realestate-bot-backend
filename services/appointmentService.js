@@ -3,8 +3,7 @@
 const supabase = require('../supabaseClient');
 const logger = require('../logger');
 const { createEvent } = require('../api/googleCalendarService');
-const { createZoomMeeting, updateZoomMeeting, deleteZoomMeeting } = require('../api/zoomService');
-const { createZoomMeetingForUser, updateZoomMeetingForUser, deleteZoomMeetingForUser, getZoomUser } = require('../api/zoomServerService');
+const { createZoomMeetingForUser, deleteZoomMeetingForUser } = require('../api/zoomServerService');
 const { findMatchingSlot } = require('../api/bookingHelper');
 const whatsappService = require('./whatsappService');
 
@@ -70,15 +69,13 @@ class AppointmentService {
           });
           logger.info({ leadId, zoomMeetingId: zoomMeeting.id, hostEmail: agent.zoom_email }, 'Zoom meeting created successfully with Server-to-Server OAuth');
         } else {
-          // Fallback to old OAuth method if zoom_email is not set
-          logger.info({ agentId }, 'No zoom_email found for agent, trying legacy OAuth method');
-          zoomMeeting = await createZoomMeeting(agentId, {
-            topic: `Property Consultation: ${leadName}`,
-            startTime: appointmentStart.toISOString(),
-            duration: this.APPOINTMENT_DURATION,
-            agenda: enhancedConsultationNotes
-          });
-          logger.info({ leadId, zoomMeetingId: zoomMeeting.id }, 'Zoom meeting created successfully with legacy OAuth');
+          // No zoom_email found - create placeholder meeting
+          logger.warn({ agentId }, 'No zoom_email found for agent, creating placeholder meeting');
+          zoomMeeting = {
+            id: null,
+            joinUrl: 'https://zoom.us/j/placeholder',
+            password: null
+          };
         }
       } catch (zoomError) {
         logger.warn({ err: zoomError, leadId, agentId }, 'Failed to create Zoom meeting, continuing without it');
@@ -186,14 +183,9 @@ class AppointmentService {
       const newStart = new Date(newAppointmentTime);
       const newEnd = new Date(newStart.getTime() + this.APPOINTMENT_DURATION * 60 * 1000);
 
-      // 2. Update Zoom meeting
+      // 2. Update Zoom meeting (Server-to-Server OAuth only)
       if (appointment.zoom_meeting_id) {
-        await updateZoomMeeting(appointment.agent_id, appointment.zoom_meeting_id, {
-          topic: `Property Consultation: ${appointment.leads.full_name}`,
-          startTime: newStart.toISOString(),
-          duration: this.APPOINTMENT_DURATION,
-          agenda: `Rescheduled consultation with ${appointment.leads.full_name}.\n\nReason: ${reason}\n\n${appointment.consultation_notes}`
-        });
+        logger.warn({ appointmentId, zoomMeetingId: appointment.zoom_meeting_id }, 'Zoom meeting update not implemented for Server-to-Server OAuth - manual update required');
       }
 
       // 3. Update calendar event (you might need to implement updateEvent in googleCalendarService)
@@ -282,9 +274,8 @@ class AppointmentService {
             await deleteZoomMeetingForUser(appointment.agents.zoom_email, appointment.zoom_meeting_id);
             logger.info({ appointmentId, zoomMeetingId: appointment.zoom_meeting_id }, 'Zoom meeting cancelled with Server-to-Server OAuth');
           } else {
-            // Fallback to legacy OAuth method
-            await deleteZoomMeeting(appointment.agent_id, appointment.zoom_meeting_id);
-            logger.info({ appointmentId, zoomMeetingId: appointment.zoom_meeting_id }, 'Zoom meeting cancelled with legacy OAuth');
+            // No zoom_email found - cannot cancel meeting
+            logger.warn({ appointmentId, zoomMeetingId: appointment.zoom_meeting_id }, 'Cannot cancel Zoom meeting - no zoom_email found for agent');
           }
         } catch (zoomError) {
           logger.warn({ err: zoomError, appointmentId }, 'Failed to cancel Zoom meeting, continuing with appointment cancellation');

@@ -5,60 +5,21 @@ const router = express.Router();
 const crypto = require('crypto');
 const config = require('../config');
 const logger = require('../logger');
-const supabase = require('../supabaseClient');
+// const supabase = require('../supabaseClient'); // Disabled - pages table removed
 
 // This is the background processing function for Meta leads
-// It now also fetches the agent's page-specific access token.
+// NOTE: Currently disabled as pages table was removed during database cleanup
+// Re-enable when Facebook Lead Ads integration is needed
 async function processMetaLead(changeValue) {
     try {
         const { leadgen_id, form_id, page_id } = changeValue;
-        logger.info({ leadgen_id, form_id, page_id }, 'New lead from Meta!');
+        logger.info({ leadgen_id, form_id, page_id }, 'New lead from Meta - currently disabled');
 
-        // 1. Find the agent and page details associated with this Facebook Page
-        // We now also select the page_access_token, which is required by the
-        // Graph API to fetch lead details. This token should be stored in your `pages` table.
-        const { data: page, error: pageError } = await supabase
-            .from('pages')
-            .select('agent_id, page_name, page_access_token, welcome_template_id') // Added page_access_token and template_id
-            .eq('page_id', page_id)
-            .eq('form_id', form_id)
-            .single();
-
-        if (pageError || !page) {
-            logger.error({ page_id, form_id, err: pageError }, 'Could not find matching page/form in Supabase.');
-            return;
-        }
-        logger.info({ pageName: page.page_name, agentId: page.agent_id }, `Page found, associated with agent.`);
-
-        if (!page.page_access_token) {
-            logger.error({ page_id, form_id }, 'FATAL: page_access_token is missing for this page in Supabase. Cannot fetch lead details.');
-            return;
-        }
-
-        // 2. Create a placeholder lead in Supabase.
-        // The phone number and name will be filled in by a subsequent process (e.g., Supabase Edge Function).
-        // We now pass the page_access_token to the new lead record.
-        const { data: lead, error: leadInsertError } = await supabase
-            .from('leads')
-            .insert({
-                agent_id: page.agent_id,
-                source: 'Facebook Lead Ad',
-                status: 'new', // Status indicates it's fresh
-                meta_page_id: page_id,
-                meta_form_id: form_id,
-                meta_lead_id: leadgen_id,
-                meta_page_access_token: page.page_access_token, // Store the token for the Edge Function to use
-                welcome_template_id: page.welcome_template_id, // Store the template for the Edge Function to use
-            })
-            .select('id')
-            .single();
-
-        if (leadInsertError) {
-            logger.error({ err: leadInsertError }, 'Error inserting placeholder lead.');
-            return;
-        }
-
-        logger.info({ leadId: lead.id }, 'Placeholder lead created. Awaiting details fetch from Meta Graph API (via Edge Function).');
+        // TODO: Re-implement when Facebook Lead Ads integration is needed
+        // Will need to recreate pages table and configure page access tokens
+        logger.warn('Meta lead processing is currently disabled - pages table removed during cleanup');
+        return;
+        // Placeholder for future Facebook Lead Ads implementation
 
     } catch (error) {
         logger.error({ err: error }, 'Meta webhook processing error.');

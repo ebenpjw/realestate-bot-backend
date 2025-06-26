@@ -6,7 +6,6 @@
 const axios = require('axios');
 const config = require('../config');
 const logger = require('../logger');
-const supabase = require('../supabaseClient');
 
 /**
  * Get Server-to-Server access token using account credentials grant type
@@ -187,7 +186,7 @@ async function updateZoomMeetingForUser(userEmail, meetingId, updateDetails) {
             agenda: updateDetails.agenda || ''
         };
 
-        const response = await axios.patch(`https://api.zoom.us/v2/meetings/${meetingId}`, updatePayload, {
+        await axios.patch(`https://api.zoom.us/v2/meetings/${meetingId}`, updatePayload, {
             headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'Content-Type': 'application/json'

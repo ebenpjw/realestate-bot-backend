@@ -21,19 +21,45 @@ function encrypt(text) {
     let encrypted = cipher.update(text, 'utf8', 'hex');
     encrypted += cipher.final('hex');
     const tag = cipher.getAuthTag();
+
+    // Combine IV, encrypted data, and tag into a single string
+    const combined = `${iv.toString('hex')}:${encrypted}:${tag.toString('hex')}`;
+
     return {
         iv: iv.toString('hex'),
-        encryptedData: encrypted,
+        encryptedData: combined, // Store combined format for new simplified structure
         tag: tag.toString('hex')
     };
 }
 
-function decrypt(encryptedData, iv, tag) {
-    const decipher = crypto.createDecipheriv(algorithm, encryptionKey, Buffer.from(iv, 'hex'));
-    decipher.setAuthTag(Buffer.from(tag, 'hex'));
-    let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    return decrypted;
+function decrypt(encryptedData, iv = null, tag = null) {
+    // Handle both old format (separate iv, tag) and new format (combined)
+    if (iv && tag) {
+        // Old format - separate parameters
+        const decipher = crypto.createDecipheriv(algorithm, encryptionKey, Buffer.from(iv, 'hex'));
+        decipher.setAuthTag(Buffer.from(tag, 'hex'));
+        let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        return decrypted;
+    } else {
+        // Check if it's new combined format (contains colons)
+        if (encryptedData.includes(':')) {
+            const parts = encryptedData.split(':');
+            if (parts.length !== 3) {
+                throw new Error('Invalid encrypted data format');
+            }
+
+            const [ivHex, encrypted, tagHex] = parts;
+            const decipher = crypto.createDecipheriv(algorithm, encryptionKey, Buffer.from(ivHex, 'hex'));
+            decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+            let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+            decrypted += decipher.final('utf8');
+            return decrypted;
+        } else {
+            // Old format without IV/tag - cannot decrypt, needs re-authentication
+            throw new Error('Legacy encrypted data format - requires re-authentication');
+        }
+    }
 }
 
 module.exports = { encrypt, decrypt };

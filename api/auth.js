@@ -140,10 +140,7 @@ router.get('/google/callback', async (req, res, next) => {
 
     const updateData = {
         google_refresh_token_encrypted: encryptedTokenData.encryptedData,
-        google_token_iv: encryptedTokenData.iv,
-        google_token_tag: encryptedTokenData.tag,
-        google_email: googleEmail,
-        google_connected_at: new Date().toISOString()
+        google_email: googleEmail
     };
 
     logger.info({ agentId, updateData: { ...updateData, google_refresh_token_encrypted: '[ENCRYPTED]' } }, 'Attempting to save Google auth data');

@@ -51,11 +51,7 @@ enable_signup = false
 enable_confirmations = false
 
 # Edge Functions Configuration
-[functions.fetch-meta-lead]
-enabled = true
-verify_jwt = true
-import_map = "./functions/fetch-meta-lead/deno.json"
-entrypoint = "./functions/fetch-meta-lead/index.ts"
+# No functions currently configured
 
 # Database migrations
 [db.migrations]

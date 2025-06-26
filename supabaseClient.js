@@ -64,7 +64,7 @@ const isServiceRoleKey = config.SUPABASE_KEY.includes('service_role') ||
 
 if (!isServiceRoleKey) {
   logger.warn({
-    keyPrefix: config.SUPABASE_KEY?.substring(0, 20) + '...',
+    keyPrefix: `${config.SUPABASE_KEY?.substring(0, 20)}...`,
     keyLength: config.SUPABASE_KEY?.length
   }, 'WARNING: Supabase key may not be service_role key - this could cause RLS issues');
 }
@@ -73,7 +73,7 @@ if (!isServiceRoleKey) {
 logger.info({
   supabaseUrl: config.SUPABASE_URL,
   keyLength: config.SUPABASE_KEY?.length,
-  keyPrefix: config.SUPABASE_KEY?.substring(0, 20) + '...',
+  keyPrefix: `${config.SUPABASE_KEY?.substring(0, 20)}...`,
   keyType: isServiceRoleKey ? 'service_role' : 'anon/unknown',
   environment: config.NODE_ENV,
   connectionPooling: config.NODE_ENV === 'production'

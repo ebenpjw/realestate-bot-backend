@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 /**
  * Manual Setup Script
  * Run this manually if Railway auto-setup fails
@@ -27,5 +25,5 @@ railwayDeploy()
   .catch((error) => {
     console.error('❌ Manual setup failed:', error.message);
     console.error('Please check your environment variables and try again.');
-    process.exit(1);
+    throw new Error('Manual setup failed');
   });

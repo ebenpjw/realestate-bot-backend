@@ -58,7 +58,7 @@ async function findOrCreateLead({ phoneNumber, fullName, source }) {
     const newLeadData = {
       full_name: fullName,
       phone_number: phoneNumber,
-      source: source,
+      source,
       status: 'new',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()

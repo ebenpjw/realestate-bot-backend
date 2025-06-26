@@ -14,7 +14,7 @@ async function debugZoomIntegration() {
         console.log('🔑 Getting Server Access Token...');
         const accessToken = await getServerAccessToken();
         console.log('✅ Access token obtained successfully');
-        console.log('Token preview:', accessToken.substring(0, 50) + '...\n');
+        console.log(`Token preview: ${accessToken.substring(0, 50)}...\n`);
 
         // Test different API endpoints to understand the issue
         const testEndpoints = [

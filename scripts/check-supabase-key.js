@@ -1,12 +1,9 @@
-#!/usr/bin/env node
-
 /**
  * Script to check if the correct Supabase key is being used
  * This helps diagnose RLS authentication issues
  */
 
 const config = require('../config');
-const logger = require('../logger');
 
 function checkSupabaseKey() {
   console.log('\n=== Supabase Key Diagnostic ===\n');
@@ -18,7 +15,7 @@ function checkSupabaseKey() {
   
   const key = config.SUPABASE_KEY;
   const keyLength = key.length;
-  const keyPrefix = key.substring(0, 30) + '...';
+  const keyPrefix = `${key.substring(0, 30)}...`;
   
   console.log(`Key Length: ${keyLength}`);
   console.log(`Key Prefix: ${keyPrefix}`);
@@ -65,7 +62,7 @@ function main() {
     console.log('\n❌ ISSUE DETECTED: Incorrect Supabase key type');
     console.log('\nThis is likely causing the "row-level security policy" error.');
     console.log('The backend needs the service_role key to bypass RLS policies.');
-    process.exit(1);
+    throw new Error('Supabase key validation failed');
   } else {
     console.log('\n✅ Supabase key configuration looks correct');
     console.log('\nIf you\'re still getting RLS errors, check:');

@@ -286,7 +286,7 @@ async function handleRescheduleAppointment({ lead, agentId, senderWaId, userMess
 
     if (exactMatch) {
       // Reschedule to the exact match
-      const updatedAppointment = await appointmentService.rescheduleAppointment({
+      await appointmentService.rescheduleAppointment({
         appointmentId: existingAppointment.id,
         newAppointmentTime: exactMatch.toISOString(),
         reason: `Rescheduled via WhatsApp: ${userMessage}`
