@@ -4,7 +4,7 @@ const supabase = require('../supabaseClient');
 const logger = require('../logger');
 const { createEvent } = require('../api/googleCalendarService');
 const { createZoomMeeting, updateZoomMeeting, deleteZoomMeeting } = require('../api/zoomService');
-const { createZoomMeetingForUser, updateZoomMeetingForUser, deleteZoomMeetingForUser } = require('../api/zoomServerService');
+const { createZoomMeetingForUser, updateZoomMeetingForUser, deleteZoomMeetingForUser, getZoomUser } = require('../api/zoomServerService');
 const { findMatchingSlot } = require('../api/bookingHelper');
 const whatsappService = require('./whatsappService');
 

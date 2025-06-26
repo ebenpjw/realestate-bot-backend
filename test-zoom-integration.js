@@ -55,9 +55,9 @@ async function testZoomIntegration() {
         });
         console.log();
 
-        // Test 4: Test user creation with a test email
+        // Test 4: Test user creation with the actual agent email
         console.log('👤 Test 4: Zoom User Creation');
-        const testEmail = 'test-agent@marketingwithdoro.com';
+        const testEmail = agents[0].zoom_email || 'doro@marketingwithdoro.com';
         try {
             const zoomUser = await getOrCreateZoomUser(testEmail, 'Test', 'Agent');
             console.log('✅ Successfully created/found Zoom user:');

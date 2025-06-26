@@ -45,74 +45,42 @@ async function getServerAccessToken() {
 }
 
 /**
- * Get or create a Zoom user under our account
+ * Check if a Zoom user exists in the account
  * @param {string} email - User email
- * @param {string} firstName - User first name
- * @param {string} lastName - User last name
- * @returns {Promise<Object>} User details
+ * @returns {Promise<Object|null>} User details if exists, null if not found
  */
-async function getOrCreateZoomUser(email, firstName = 'Agent', lastName = 'User') {
+async function getZoomUser(email) {
     try {
         const accessToken = await getServerAccessToken();
 
-        // First, try to get existing user
-        try {
-            const userResponse = await axios.get(`https://api.zoom.us/v2/users/${encodeURIComponent(email)}`, {
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json'
-                },
-                timeout: config.ZOOM_TIMEOUT
-            });
+        const userResponse = await axios.get(`https://api.zoom.us/v2/users/${encodeURIComponent(email)}`, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            timeout: config.ZOOM_TIMEOUT
+        });
 
-            logger.info({ 
-                email,
-                userId: userResponse.data.id,
-                status: userResponse.data.status 
-            }, 'Found existing Zoom user');
-
-            return userResponse.data;
-        } catch (getUserError) {
-            // If user doesn't exist (404), create them
-            if (getUserError.response?.status === 404) {
-                logger.info({ email }, 'Zoom user not found, creating new user');
-
-                const createUserPayload = {
-                    action: 'create',
-                    user_info: {
-                        email: email,
-                        type: 1, // Basic user type
-                        first_name: firstName,
-                        last_name: lastName
-                    }
-                };
-
-                const createResponse = await axios.post('https://api.zoom.us/v2/users', createUserPayload, {
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    timeout: config.ZOOM_TIMEOUT
-                });
-
-                logger.info({ 
-                    email,
-                    userId: createResponse.data.id 
-                }, 'Successfully created new Zoom user');
-
-                return createResponse.data;
-            } else {
-                throw getUserError;
-            }
-        }
-    } catch (error) {
-        logger.error({ 
-            err: error,
+        logger.info({
             email,
-            responseData: error.response?.data,
-            responseStatus: error.response?.status
-        }, 'Failed to get or create Zoom user');
-        throw error;
+            userId: userResponse.data.id,
+            status: userResponse.data.status
+        }, 'Found existing Zoom user');
+
+        return userResponse.data;
+    } catch (getUserError) {
+        if (getUserError.response?.status === 404) {
+            logger.warn({ email }, 'Zoom user not found in account - user must be manually created in Zoom admin panel');
+            return null;
+        } else {
+            logger.error({
+                err: getUserError,
+                email,
+                responseData: getUserError.response?.data,
+                responseStatus: getUserError.response?.status
+            }, 'Failed to get Zoom user');
+            throw getUserError;
+        }
     }
 }
 
@@ -132,8 +100,11 @@ async function createZoomMeetingForUser(userEmail, meetingDetails) {
 
         const accessToken = await getServerAccessToken();
 
-        // Ensure user exists in our Zoom account
-        await getOrCreateZoomUser(userEmail);
+        // Check if user exists in our Zoom account
+        const zoomUser = await getZoomUser(userEmail);
+        if (!zoomUser) {
+            throw new Error(`Zoom user ${userEmail} not found in account. Please create this user in your Zoom admin panel first.`);
+        }
 
         const meetingPayload = {
             topic: meetingDetails.topic,
@@ -291,7 +262,7 @@ async function deleteZoomMeetingForUser(userEmail, meetingId) {
 
 module.exports = {
     getServerAccessToken,
-    getOrCreateZoomUser,
+    getZoomUser,
     createZoomMeetingForUser,
     updateZoomMeetingForUser,
     deleteZoomMeetingForUser
