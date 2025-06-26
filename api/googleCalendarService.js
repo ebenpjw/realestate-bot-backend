@@ -78,23 +78,59 @@ async function getAuthenticatedClient(agentId) {
 }
 
 async function checkAvailability(agentId, startTimeISO, endTimeISO) {
-    const { authClient } = await getAuthenticatedClient(agentId);
-    if (!authClient) throw new Error('Could not authenticate with Google Calendar.');
+    try {
+        logger.info({
+            agentId,
+            startTimeISO,
+            endTimeISO
+        }, 'Checking Google Calendar availability');
 
-    const calendar = google.calendar({ version: 'v3', auth: authClient });
+        const { authClient } = await getAuthenticatedClient(agentId);
+        if (!authClient) {
+            throw new Error('Could not authenticate with Google Calendar.');
+        }
 
-    const response = await calendar.freebusy.query({
-        requestBody: {
-            timeMin: startTimeISO,
-            timeMax: endTimeISO,
-            items: [{ id: 'primary' }],
-            timeZone: 'Asia/Singapore',
-        },
-    });
-    
-    const busySlots = response.data.calendars.primary.busy;
-    logger.info({ agentId, busySlotsCount: busySlots.length }, 'Checked calendar for busy slots.');
-    return busySlots;
+        const calendar = google.calendar({ version: 'v3', auth: authClient });
+
+        const response = await calendar.freebusy.query({
+            requestBody: {
+                timeMin: startTimeISO,
+                timeMax: endTimeISO,
+                items: [{ id: 'primary' }],
+                timeZone: 'Asia/Singapore',
+            },
+        });
+
+        logger.info({
+            agentId,
+            response: response.data,
+            calendars: Object.keys(response.data.calendars || {})
+        }, 'Google Calendar freebusy response');
+
+        // Handle case where calendar data might be missing
+        if (!response.data.calendars || !response.data.calendars.primary) {
+            logger.warn({ agentId }, 'No primary calendar found in response, assuming no busy slots');
+            return [];
+        }
+
+        const busySlots = response.data.calendars.primary.busy || [];
+        logger.info({ agentId, busySlotsCount: busySlots.length }, 'Checked calendar for busy slots.');
+        return busySlots;
+
+    } catch (error) {
+        logger.error({
+            err: error,
+            agentId,
+            startTimeISO,
+            endTimeISO,
+            errorMessage: error.message,
+            errorCode: error.code
+        }, 'Error checking Google Calendar availability');
+
+        // Return empty array so appointment booking can continue
+        // This allows the system to show all slots as available if calendar check fails
+        return [];
+    }
 }
 
 async function createEvent(agentId, eventDetails) {

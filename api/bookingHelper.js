@@ -66,6 +66,14 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
         const now = new Date();
         const searchStart = new Date(now);
 
+        logger.info({
+            agentId,
+            currentTime: now.toISOString(),
+            currentHour: now.getHours(),
+            currentDay: now.getDay(),
+            timezone: 'Asia/Singapore'
+        }, 'Current time information for slot calculation');
+
         // If preferred time is provided and it's in the future, start search from that day
         if (preferredTime && preferredTime > now) {
             searchStart.setTime(preferredTime.getTime());
@@ -85,7 +93,19 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
         searchEnd.setHours(workingHours.end, 0, 0, 0);
 
         // 1. Get all busy periods from Google Calendar
+        logger.info({
+            agentId,
+            searchStart: searchStart.toISOString(),
+            searchEnd: searchEnd.toISOString()
+        }, 'Checking calendar availability for date range');
+
         const busySlots = await checkAvailability(agentId, searchStart.toISOString(), searchEnd.toISOString());
+
+        logger.info({
+            agentId,
+            busySlotsCount: busySlots.length,
+            busySlots: busySlots.map(slot => ({ start: slot.start, end: slot.end }))
+        }, 'Retrieved busy slots from calendar');
 
         // 2. Generate all potential slots within working hours
         const potentialSlots = [];
@@ -107,6 +127,12 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
                 currentSlotTime.setHours(workingHours.start, 0, 0, 0);
             }
         }
+
+        logger.info({
+            agentId,
+            potentialSlotsCount: potentialSlots.length,
+            firstFewSlots: potentialSlots.slice(0, 3).map(slot => slot.toISOString())
+        }, 'Generated potential appointment slots');
 
         // 3. Filter out slots that overlap with busy periods
         const availableSlots = potentialSlots.filter(slot => {
