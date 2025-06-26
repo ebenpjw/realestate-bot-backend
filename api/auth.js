@@ -198,12 +198,12 @@ router.get('/zoom', (req, res) => {
       `client_id=${config.ZOOM_CLIENT_ID}&` +
       `redirect_uri=${encodeURIComponent(config.ZOOM_REDIRECT_URI)}&` +
       `state=${state}&` +
-      `scope=meeting:write:admin%20user:read:admin`; // Explicit scopes for 2025
+      `scope=meeting:write:meeting%20user:read:user`; // Updated scopes to match Zoom Marketplace configuration
 
     logger.info({
       agentId,
       stateNonce: statePayload.nonce,
-      scopes: 'meeting:write:admin user:read:admin'
+      scopes: 'meeting:write:meeting user:read:user'
     }, 'Zoom OAuth URL generated with enhanced security');
 
     res.redirect(zoomAuthUrl);
