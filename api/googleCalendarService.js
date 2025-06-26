@@ -6,11 +6,21 @@ const logger = require('../logger');
 const { decrypt } = require('./authHelper'); // Correctly import from helper
 
 async function getAgentWithToken(agentId) {
+    logger.info({ agentId }, 'Looking up agent with Google credentials');
+
     const { data: agent, error } = await supabase
         .from('agents')
         .select('id, google_email, google_refresh_token_encrypted, google_token_iv, google_token_tag')
         .eq('id', agentId)
         .single();
+
+    logger.info({
+        agentId,
+        hasData: !!agent,
+        hasError: !!error,
+        errorCode: error?.code,
+        errorMessage: error?.message
+    }, 'Agent lookup result');
 
     if (error || !agent) {
         logger.error({ err: error, agentId }, 'Could not find agent or their Google credentials.');

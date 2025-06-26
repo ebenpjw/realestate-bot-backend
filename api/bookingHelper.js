@@ -79,14 +79,24 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
             searchStart.setTime(preferredTime.getTime());
             searchStart.setHours(workingHours.start, 0, 0, 0);
         } else {
-            // Start search from current time (no advance booking required)
-            searchStart.setTime(now.getTime());
-            // If current time is past working hours, start from next day
-            if (now.getHours() >= workingHours.end) {
+            // Start search from next available hour (not current time)
+            const nextHour = now.getHours() + 1;
+
+            if (nextHour >= workingHours.end) {
+                // If next hour is past working hours, start from next day
                 searchStart.setDate(now.getDate() + 1);
                 searchStart.setHours(workingHours.start, 0, 0, 0);
+            } else {
+                // Start from next hour today
+                searchStart.setHours(nextHour, 0, 0, 0);
             }
         }
+
+        logger.info({
+            agentId,
+            searchStartTime: searchStart.toISOString(),
+            searchStartLocal: searchStart.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+        }, 'Calculated search start time');
 
         const searchEnd = new Date(searchStart);
         searchEnd.setDate(searchStart.getDate() + daysToSearch);
@@ -179,28 +189,45 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
  */
 function parsePreferredTime(message) {
     try {
+        // Use Singapore timezone for consistency
         const now = new Date();
         const lowerMessage = message.toLowerCase();
 
-        // Common time patterns
+        logger.info({ message, lowerMessage }, 'Parsing preferred time from message');
+
+        // Common time patterns with proper capture groups
         const timePatterns = [
             // "tomorrow at 3pm", "today at 2:30pm"
-            /(?:tomorrow|today)\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i,
+            {
+                pattern: /(?:tomorrow|today)\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i,
+                hourIndex: 1, minuteIndex: 2, ampmIndex: 3
+            },
             // "3pm tomorrow", "2:30pm today"
-            /(\d{1,2})(?::(\d{2}))?\s*(am|pm)\s+(?:tomorrow|today)/i,
+            {
+                pattern: /(\d{1,2})(?::(\d{2}))?\s*(am|pm)\s+(?:tomorrow|today)/i,
+                hourIndex: 1, minuteIndex: 2, ampmIndex: 3
+            },
             // "Monday at 3pm", "Tuesday 2pm"
-            /(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i,
-            // Just time: "3pm", "2:30pm"
-            /(?:^|\s)(\d{1,2})(?::(\d{2}))?\s*(am|pm)(?:\s|$)/i
+            {
+                pattern: /(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i,
+                hourIndex: 2, minuteIndex: 3, ampmIndex: 4
+            },
+            // Just time: "3pm", "2:30pm", "for 2pm"
+            {
+                pattern: /(?:^|\s|for\s+)(\d{1,2})(?::(\d{2}))?\s*(am|pm)(?:\s|$)/i,
+                hourIndex: 1, minuteIndex: 2, ampmIndex: 3
+            }
         ];
 
-        for (const pattern of timePatterns) {
+        for (const { pattern, hourIndex, minuteIndex, ampmIndex } of timePatterns) {
             const match = lowerMessage.match(pattern);
             if (match) {
+                logger.info({ match: match[0], fullMatch: match }, 'Found time pattern match');
+
                 const targetDate = new Date(now);
-                let hour = parseInt(match[1] || match[2]);
-                const minute = parseInt(match[2] || match[3] || '0');
-                const ampm = (match[3] || match[4] || '').toLowerCase();
+                let hour = parseInt(match[hourIndex]);
+                const minute = parseInt(match[minuteIndex] || '0');
+                const ampm = match[ampmIndex].toLowerCase();
 
                 // Convert to 24-hour format
                 if (ampm === 'pm' && hour !== 12) hour += 12;
@@ -226,15 +253,21 @@ function parsePreferredTime(message) {
 
                 targetDate.setHours(hour, minute, 0, 0);
 
-                // Only return if the time is in the future and within working hours
-                if (targetDate > now &&
-                    hour >= WORKING_HOURS_START &&
-                    hour < WORKING_HOURS_END) {
+                logger.info({
+                    parsedTime: targetDate.toISOString(),
+                    parsedTimeLocal: targetDate.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+                    hour, minute, ampm,
+                    isInFuture: targetDate > now
+                }, 'Parsed preferred time');
+
+                // Return the parsed time if it's in the future (working hours check will be done later)
+                if (targetDate > now) {
                     return targetDate;
                 }
             }
         }
 
+        logger.info({ message }, 'No preferred time found in message');
         return null;
     } catch (error) {
         logger.error({ err: error, message }, 'Error parsing preferred time');

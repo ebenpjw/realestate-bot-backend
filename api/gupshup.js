@@ -260,16 +260,18 @@ async function handleInitialBooking({ lead, agentId, senderWaId, userMessage }) 
   }
 }
 
-async function handleRescheduleAppointment({ lead, agentId: _agentId, senderWaId, userMessage }) {
+async function handleRescheduleAppointment({ lead, agentId, senderWaId, userMessage }) {
   try {
     logger.info({ leadId: lead.id }, 'Handling appointment reschedule request');
 
-    // Find existing appointment
+    // Find existing appointment (include both scheduled and rescheduled statuses)
     const { data: existingAppointment } = await supabase
       .from('appointments')
       .select('*')
       .eq('lead_id', lead.id)
-      .eq('status', 'scheduled')
+      .in('status', ['scheduled', 'rescheduled'])
+      .order('created_at', { ascending: false })
+      .limit(1)
       .single();
 
     if (!existingAppointment) {
@@ -278,27 +280,64 @@ async function handleRescheduleAppointment({ lead, agentId: _agentId, senderWaId
       return;
     }
 
-    const result = await appointmentService.rescheduleAppointment({
-      appointmentId: existingAppointment.id,
-      newTimePreference: userMessage,
-      leadName: lead.full_name,
-      leadPhone: lead.phone_number
-    });
+    // Parse the new time from user message using the booking helper
+    const { findMatchingSlot } = require('./bookingHelper');
+    const { exactMatch, alternatives } = await findMatchingSlot(agentId, userMessage);
 
-    await whatsappService.sendMessage({ to: senderWaId, message: result.message });
-    await supabase.from('messages').insert({
-      lead_id: lead.id,
-      sender: 'assistant',
-      message: result.message
-    });
+    if (exactMatch) {
+      // Reschedule to the exact match
+      const updatedAppointment = await appointmentService.rescheduleAppointment({
+        appointmentId: existingAppointment.id,
+        newAppointmentTime: exactMatch.toISOString(),
+        reason: `Rescheduled via WhatsApp: ${userMessage}`
+      });
 
-    logger.info({
-      leadId: lead.id,
-      appointmentId: existingAppointment.id,
-      success: result.success
-    }, 'Reschedule request processed');
+      const successMessage = `Perfect! I've rescheduled your consultation to ${exactMatch.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${exactMatch.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}.\n\nYour Zoom link remains the same: ${existingAppointment.zoom_join_url}\n\nLooking forward to speaking with you soon!`;
+
+      await whatsappService.sendMessage({ to: senderWaId, message: successMessage });
+      await supabase.from('messages').insert({
+        lead_id: lead.id,
+        sender: 'assistant',
+        message: successMessage
+      });
+
+      logger.info({
+        leadId: lead.id,
+        appointmentId: existingAppointment.id,
+        oldTime: existingAppointment.appointment_time,
+        newTime: exactMatch.toISOString()
+      }, 'Appointment rescheduled successfully');
+    } else if (alternatives.length > 0) {
+      // Offer alternative times
+      const topAlternatives = alternatives.slice(0, 3);
+      const alternativeText = topAlternatives.map((slot, index) =>
+        `${index + 1}. ${slot.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${slot.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}`
+      ).join('\n');
+
+      const alternativesMessage = `I couldn't find availability for your exact preferred time, but here are some available slots for rescheduling:\n\n${alternativeText}\n\nWhich one works best for you? Just reply with the number!`;
+
+      await whatsappService.sendMessage({ to: senderWaId, message: alternativesMessage });
+      await supabase.from('messages').insert({
+        lead_id: lead.id,
+        sender: 'assistant',
+        message: alternativesMessage
+      });
+    } else {
+      const noSlotsMessage = "I'm sorry, but I couldn't find any available slots for your preferred time. Let me have our consultant reach out to you directly to find a suitable time. Is that okay?";
+
+      await whatsappService.sendMessage({ to: senderWaId, message: noSlotsMessage });
+      await supabase.from('messages').insert({
+        lead_id: lead.id,
+        sender: 'assistant',
+        message: noSlotsMessage
+      });
+    }
   } catch (err) {
     logger.error({ err, leadId: lead.id }, 'Error in reschedule appointment');
+
+    const errorMessage = "I'm having trouble rescheduling your appointment right now. Let me have our consultant contact you directly to arrange a new time. Sorry for the inconvenience!";
+    await whatsappService.sendMessage({ to: senderWaId, message: errorMessage });
+
     throw err;
   }
 }

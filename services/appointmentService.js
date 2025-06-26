@@ -45,23 +45,49 @@ class AppointmentService {
       const enhancedConsultationNotes = this._buildConsultationNotes(leadDetails, consultationNotes);
       const calendarDescription = this._buildCalendarDescription(leadDetails, leadId);
 
-      // 1. Create Zoom meeting
-      const zoomMeeting = await createZoomMeeting(agentId, {
-        topic: `Property Consultation: ${leadName}`,
-        startTime: appointmentStart.toISOString(),
-        duration: this.APPOINTMENT_DURATION,
-        agenda: enhancedConsultationNotes
-      });
+      // 1. Try to create Zoom meeting (continue if it fails)
+      let zoomMeeting = null;
+      try {
+        zoomMeeting = await createZoomMeeting(agentId, {
+          topic: `Property Consultation: ${leadName}`,
+          startTime: appointmentStart.toISOString(),
+          duration: this.APPOINTMENT_DURATION,
+          agenda: enhancedConsultationNotes
+        });
+        logger.info({ leadId, zoomMeetingId: zoomMeeting.id }, 'Zoom meeting created successfully');
+      } catch (zoomError) {
+        logger.warn({ err: zoomError, leadId, agentId }, 'Failed to create Zoom meeting, continuing without it');
+        // Create a fallback meeting object
+        zoomMeeting = {
+          id: null,
+          joinUrl: 'https://zoom.us/j/placeholder',
+          password: null
+        };
+      }
 
-      // 2. Create Google Calendar event
-      const calendarEvent = await createEvent(agentId, {
-        summary: `🏠 Property Consultation: ${leadName}`,
-        description: `${calendarDescription}\n\n📞 Zoom Meeting: ${zoomMeeting.joinUrl}\n\n📝 Consultation Notes:\n${enhancedConsultationNotes}`,
-        startTimeISO: appointmentStart.toISOString(),
-        endTimeISO: appointmentEnd.toISOString()
-      });
+      // 2. Try to create Google Calendar event (continue if it fails)
+      let calendarEvent = null;
+      try {
+        const eventDescription = zoomMeeting.joinUrl !== 'https://zoom.us/j/placeholder'
+          ? `${calendarDescription}\n\n📞 Zoom Meeting: ${zoomMeeting.joinUrl}\n\n📝 Consultation Notes:\n${enhancedConsultationNotes}`
+          : `${calendarDescription}\n\n📝 Consultation Notes:\n${enhancedConsultationNotes}`;
 
-      // 3. Store appointment in database
+        calendarEvent = await createEvent(agentId, {
+          summary: `🏠 Property Consultation: ${leadName}`,
+          description: eventDescription,
+          startTimeISO: appointmentStart.toISOString(),
+          endTimeISO: appointmentEnd.toISOString()
+        });
+        logger.info({ leadId, calendarEventId: calendarEvent.id }, 'Google Calendar event created successfully');
+      } catch (calendarError) {
+        logger.warn({ err: calendarError, leadId, agentId }, 'Failed to create Google Calendar event, continuing without it');
+        // Create a fallback calendar event object
+        calendarEvent = {
+          id: null
+        };
+      }
+
+      // 3. Store appointment in database (always save, even if external integrations failed)
       const { data: appointment, error } = await supabase
         .from('appointments')
         .insert({
@@ -324,12 +350,23 @@ class AppointmentService {
           consultationNotes
         });
 
+        // Create success message based on available integrations
+        let successMessage = `Perfect! I've booked your consultation for ${exactMatch.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${exactMatch.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}.`;
+
+        if (result.zoomMeeting && result.zoomMeeting.joinUrl !== 'https://zoom.us/j/placeholder') {
+          successMessage += `\n\nZoom Link: ${result.zoomMeeting.joinUrl}`;
+        } else {
+          successMessage += `\n\nOur consultant will contact you with meeting details.`;
+        }
+
+        successMessage += `\n\nI'll send you a reminder before the meeting!`;
+
         return {
           success: true,
           type: 'exact_match',
           appointment: result.appointment,
           zoomMeeting: result.zoomMeeting,
-          message: `Perfect! I've booked your consultation for ${exactMatch.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${exactMatch.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}.\n\nZoom Link: ${result.zoomMeeting.joinUrl}\n\nI'll send you a reminder before the meeting!`
+          message: successMessage
         };
       } else if (alternatives.length > 0) {
         // Offer alternatives
