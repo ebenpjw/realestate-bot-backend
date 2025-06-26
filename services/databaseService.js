@@ -85,7 +85,7 @@ class DatabaseService {
       // Try to find existing lead (optimized query - select only needed fields)
       const { data: existingLead, error: findError } = await this.supabase
         .from('leads')
-        .select('id, phone_number, full_name, source, status, intent, budget, agent_id, created_at, updated_at')
+        .select('id, phone_number, full_name, source, status, intent, budget, assigned_agent_id, created_at, updated_at')
         .eq('phone_number', phoneNumber)
         .limit(1)
         .maybeSingle();

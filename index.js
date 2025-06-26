@@ -204,16 +204,27 @@ app.get('/debug/calendar/:agentId', asyncHandler(async (req, res) => {
 app.get('/debug/agents', asyncHandler(async (req, res) => {
   const supabase = require('./supabaseClient');
 
-  const { data: agents, error } = await supabase
-    .from('agents')
-    .select('*')
-    .limit(5);
+  try {
+    const { data: agents, error } = await supabase
+      .from('agents')
+      .select('id, google_email, google_refresh_token_encrypted')
+      .limit(5);
 
-  if (error) {
-    return res.status(500).json({ error: error.message });
+    if (error) {
+      return res.status(500).json({ error: error.message, details: error });
+    }
+
+    res.json({
+      agents: agents?.map(agent => ({
+        id: agent.id,
+        google_email: agent.google_email,
+        has_google_token: !!agent.google_refresh_token_encrypted
+      })) || [],
+      count: agents?.length || 0
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
-
-  res.json({ agents, count: agents?.length || 0 });
 }));
 
 // 404 handler for undefined routes
