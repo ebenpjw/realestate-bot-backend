@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS leads (
     phone_number VARCHAR(20) NOT NULL,
     full_name VARCHAR(255),
     source VARCHAR(100) DEFAULT 'WA Direct',
-    status VARCHAR(50) DEFAULT 'new' CHECK (status IN ('new', 'qualified', 'booked', 'needs_human_handoff', 'converted', 'lost')),
+    status VARCHAR(50) DEFAULT 'new' CHECK (status IN ('new', 'qualified', 'booked', 'booking_alternatives_offered', 'appointment_cancelled', 'needs_human_handoff', 'converted', 'lost')),
     assigned_agent_id UUID REFERENCES agents(id),
     intent VARCHAR(100),
     budget VARCHAR(255),

@@ -299,7 +299,7 @@ class AppointmentService {
       // 4. Update lead status
       await supabase
         .from('leads')
-        .update({ status: 'cancelled_appointment' })
+        .update({ status: 'appointment_cancelled' })
         .eq('id', appointment.lead_id);
 
       // 5. Notify lead if requested
