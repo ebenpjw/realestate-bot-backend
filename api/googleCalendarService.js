@@ -114,10 +114,8 @@ async function checkAvailability(agentId, startTimeISO, endTimeISO) {
 
         logger.info({
             agentId,
-            response: response.data,
             calendars: Object.keys(response.data.calendars || {}),
-            primaryCalendarExists: !!(response.data.calendars && response.data.calendars.primary),
-            busySlots: response.data.calendars?.primary?.busy || []
+            primaryCalendarExists: !!(response.data.calendars && response.data.calendars.primary)
         }, 'Google Calendar freebusy response');
 
         // Handle case where calendar data might be missing
@@ -130,12 +128,9 @@ async function checkAvailability(agentId, startTimeISO, endTimeISO) {
         logger.info({
             agentId,
             busySlotsCount: busySlots.length,
-            busySlotDetails: busySlots.map(slot => ({
-                start: slot.start,
-                end: slot.end,
-                startTime: new Date(slot.start).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
-                endTime: new Date(slot.end).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
-            }))
+            busySlots: busySlots.map(slot =>
+                `${new Date(slot.start).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })} - ${new Date(slot.end).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })}`
+            )
         }, 'Checked calendar for busy slots.');
         return busySlots;
 

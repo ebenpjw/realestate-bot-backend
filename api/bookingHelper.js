@@ -5,7 +5,6 @@ const supabase = require('../supabaseClient');
 const logger = require('../logger');
 
 const SLOT_DURATION_MINUTES = 60; // 1 hour consultations
-const SINGAPORE_OFFSET = 8 * 60 * 60 * 1000; // GMT+8 in milliseconds
 
 /**
  * Get current time in Singapore timezone
@@ -13,26 +12,8 @@ const SINGAPORE_OFFSET = 8 * 60 * 60 * 1000; // GMT+8 in milliseconds
  */
 function getSingaporeTime() {
     const now = new Date();
-    // Use proper timezone conversion
+    // Convert to Singapore time and return as Date object
     return new Date(now.toLocaleString("en-US", {timeZone: "Asia/Singapore"}));
-}
-
-/**
- * Convert UTC time to Singapore time
- * @param {Date} utcDate - UTC date
- * @returns {Date} Singapore time
- */
-function toSingaporeTime(utcDate) {
-    return new Date(utcDate.toLocaleString("en-US", {timeZone: "Asia/Singapore"}));
-}
-
-/**
- * Convert Singapore time to UTC (approximate)
- * @param {Date} singaporeDate - Singapore time
- * @returns {Date} UTC time
- */
-function toUTC(singaporeDate) {
-    return new Date(singaporeDate.getTime() - SINGAPORE_OFFSET);
 }
 
 /**
@@ -115,17 +96,11 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
             daysToSearch
         }, 'Finding available slots with agent working hours');
 
-        // Get current time and convert to Singapore timezone properly
-        const now = new Date();
-
-        // Get Singapore time using proper timezone conversion
-        const singaporeTimeString = now.toLocaleString("en-US", {timeZone: "Asia/Singapore"});
-        const singaporeTime = new Date(singaporeTimeString);
+        // Get current time in Singapore timezone
+        const singaporeTime = getSingaporeTime();
 
         logger.info({
             agentId,
-            currentTimeUTC: now.toISOString(),
-            singaporeTimeString,
             currentTimeSingapore: singaporeTime.toISOString(),
             currentHourSingapore: singaporeTime.getHours(),
             currentDaySingapore: singaporeTime.getDay(),
@@ -136,9 +111,9 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
         const searchStart = new Date(singaporeTime);
 
         // If preferred time is provided and it's in the future, start search from that day
-        if (preferredTime && preferredTime > now) {
-            const preferredSingaporeTime = toSingaporeTime(preferredTime);
-            searchStart.setTime(preferredSingaporeTime.getTime());
+        if (preferredTime && preferredTime > singaporeTime) {
+            // Preferred time is already in Singapore timezone
+            searchStart.setTime(preferredTime.getTime());
             searchStart.setHours(workingHours.start, 0, 0, 0);
         } else {
             // Start search from next available hour (based on Singapore time)
@@ -215,10 +190,10 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
 
         logger.info({
             agentId,
-            searchStartSingapore: searchStart.toISOString(),
-            searchEndSingapore: searchEnd.toISOString(),
-            searchStartLocal: searchStart.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
-            searchEndLocal: searchEnd.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+            searchStart: searchStart.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+            searchEnd: searchEnd.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+            searchStartISO: searchStart.toISOString(),
+            searchEndISO: searchEnd.toISOString()
         }, 'Calculated search time range (Singapore time)');
 
         // 1. Get all busy periods from Google Calendar (Singapore time)
@@ -282,12 +257,7 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
                     logger.info({
                         agentId,
                         slotTime: slot.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
-                        slotStart: new Date(slotStart).toISOString(),
-                        slotEnd: new Date(slotEnd).toISOString(),
-                        busyStart: busy.start,
-                        busyEnd: busy.end,
-                        busyStartLocal: new Date(busy.start).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
-                        busyEndLocal: new Date(busy.end).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+                        busyPeriod: `${new Date(busy.start).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })} - ${new Date(busy.end).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })}`
                     }, 'Slot overlaps with busy period - filtering out');
                 }
 
@@ -328,7 +298,7 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
 function parsePreferredTime(message) {
     try {
         // Use Singapore timezone for consistency
-        const now = new Date();
+        const now = getSingaporeTime();
         const lowerMessage = message.toLowerCase();
 
         logger.info({ message, lowerMessage }, 'Parsing preferred time from message');
