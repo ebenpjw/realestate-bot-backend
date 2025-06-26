@@ -209,6 +209,14 @@ router.get('/zoom', (req, res) => {
       redirectUri: config.ZOOM_REDIRECT_URI
     }, 'Zoom OAuth URL generated with enhanced security');
 
+    // Also log to console for Railway debugging
+    console.log('🔍 ZOOM OAUTH DEBUG:', {
+      agentId,
+      clientId: config.ZOOM_CLIENT_ID,
+      redirectUri: config.ZOOM_REDIRECT_URI,
+      fullAuthUrl: zoomAuthUrl
+    });
+
     res.redirect(zoomAuthUrl);
   } catch (error) {
     logger.error({ err: error, agentId: req.query.agentId }, 'Error initiating Zoom OAuth');
@@ -219,8 +227,17 @@ router.get('/zoom', (req, res) => {
 router.get('/zoom/callback', async (req, res, next) => {
   try {
     logger.info({ query: req.query }, 'Zoom OAuth callback received');
+    console.log('🔍 ZOOM CALLBACK DEBUG:', req.query);
 
-    const { code, state } = req.query;
+    const { code, state, error: oauthError, error_description } = req.query;
+
+    // Check for OAuth errors from Zoom
+    if (oauthError) {
+      console.log('❌ ZOOM OAUTH ERROR:', { error: oauthError, error_description });
+      logger.error({ error: oauthError, error_description }, 'Zoom OAuth error received');
+      return res.status(400).send(`Zoom OAuth Error: ${oauthError} - ${error_description || 'No description provided'}`);
+    }
+
     if (!code || !state) {
       logger.error({ code: !!code, state: !!state }, 'Missing authorization code or state parameter');
       return res.status(400).send('Missing authorization code or state parameter.');
