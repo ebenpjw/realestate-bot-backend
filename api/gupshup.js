@@ -13,15 +13,28 @@ const appointmentService = require('../services/appointmentService');
 const VALID_LEAD_FIELDS = {
   'intent': (value) => {
     if (typeof value !== 'string') return false;
-    const validIntents = ['own_stay', 'investment', 'hybrid', 'own stay', 'ownstay', 'own-stay', 'buy', 'purchase', 'invest'];
-    return validIntents.includes(value.toLowerCase().trim());
+    const normalizedValue = value.toLowerCase().trim();
+    const validIntents = [
+      'own_stay', 'investment', 'hybrid', 'own stay', 'ownstay', 'own-stay',
+      'buy', 'purchase', 'invest', 'owning', 'living', 'residence', 'home'
+    ];
+    return validIntents.includes(normalizedValue) || normalizedValue.includes('own') || normalizedValue.includes('stay');
   },
   'budget': (value) => {
     if (typeof value !== 'string') return false;
+    const trimmedValue = value.trim();
     // Allow budget strings like "2m", "2 million", "$2M", "around 2m", etc.
-    return value.length <= 100 && value.trim().length > 0;
+    // Must be non-empty and reasonable length
+    return trimmedValue.length > 0 && trimmedValue.length <= 200;
   },
-  'status': (value) => typeof value === 'string' && ['new', 'qualified', 'booked', 'booking_alternatives_offered', 'appointment_cancelled', 'needs_human_handoff', 'converted', 'lost'].includes(value),
+  'status': (value) => {
+    if (typeof value !== 'string') return false;
+    const validStatuses = [
+      'new', 'qualified', 'booked', 'booking_alternatives_offered',
+      'appointment_cancelled', 'needs_human_handoff', 'converted', 'lost'
+    ];
+    return validStatuses.includes(value.toLowerCase().trim());
+  },
   'location_preference': (value) => typeof value === 'string' && value.length <= 255 && value.trim().length > 0,
   'property_type': (value) => typeof value === 'string' && value.length <= 100 && value.trim().length > 0,
   'timeline': (value) => typeof value === 'string' && value.length <= 100 && value.trim().length > 0,
@@ -36,33 +49,59 @@ const VALID_LEAD_FIELDS = {
 function validateLeadUpdates(updates) {
   const validatedUpdates = {};
 
+  logger.debug({
+    updates,
+    availableFields: Object.keys(VALID_LEAD_FIELDS)
+  }, 'Validating lead updates');
+
   for (const [field, value] of Object.entries(updates)) {
     if (VALID_LEAD_FIELDS[field]) {
       try {
+        // Handle null/undefined values
+        if (value === null || value === undefined) {
+          logger.debug({ field, value }, 'Skipping null/undefined value for lead field');
+          continue;
+        }
+
         if (VALID_LEAD_FIELDS[field](value)) {
           // Special handling for specific fields
           if (field === 'intent') {
-            validatedUpdates[field] = value.toLowerCase();
+            validatedUpdates[field] = value.toLowerCase().trim();
           } else if (field === 'booking_alternatives' && Array.isArray(value)) {
             validatedUpdates[field] = JSON.stringify(value);
+          } else if (typeof value === 'string') {
+            validatedUpdates[field] = value.trim();
           } else {
             validatedUpdates[field] = value;
           }
+
+          logger.debug({ field, originalValue: value, validatedValue: validatedUpdates[field] }, 'Lead field validated successfully');
         } else {
           logger.warn({
             field,
             value,
             valueType: typeof value,
-            validationFunction: VALID_LEAD_FIELDS[field].toString()
+            valueLength: typeof value === 'string' ? value.length : 'N/A',
+            validationRule: field === 'intent' ? 'Must be one of: own_stay, investment, hybrid, own stay, ownstay, own-stay, buy, purchase, invest' : 'See validation function'
           }, 'Invalid value for lead field, skipping update');
         }
       } catch (error) {
         logger.error({ err: error, field, value }, 'Error validating lead field');
       }
     } else {
-      logger.warn({ field, value }, 'Unknown lead field, skipping update');
+      logger.warn({
+        field,
+        value,
+        availableFields: Object.keys(VALID_LEAD_FIELDS)
+      }, 'Unknown lead field, skipping update');
     }
   }
+
+  logger.info({
+    originalFieldCount: Object.keys(updates).length,
+    validatedFieldCount: Object.keys(validatedUpdates).length,
+    validatedFields: Object.keys(validatedUpdates)
+  }, 'Lead validation completed');
 
   return validatedUpdates;
 }
