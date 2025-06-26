@@ -272,8 +272,26 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
             const isOverlapping = busySlots.some(busy => {
                 const busyStart = new Date(busy.start).getTime();
                 const busyEnd = new Date(busy.end).getTime();
-                // Check for any overlap
-                return slotStart < busyEnd && slotEnd > busyStart;
+
+                // Check for any overlap - slot overlaps if:
+                // 1. Slot starts before busy period ends AND
+                // 2. Slot ends after busy period starts
+                const hasOverlap = slotStart < busyEnd && slotEnd > busyStart;
+
+                if (hasOverlap) {
+                    logger.info({
+                        agentId,
+                        slotTime: slot.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+                        slotStart: new Date(slotStart).toISOString(),
+                        slotEnd: new Date(slotEnd).toISOString(),
+                        busyStart: busy.start,
+                        busyEnd: busy.end,
+                        busyStartLocal: new Date(busy.start).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+                        busyEndLocal: new Date(busy.end).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+                    }, 'Slot overlaps with busy period - filtering out');
+                }
+
+                return hasOverlap;
             });
 
             return !isOverlapping;

@@ -94,11 +94,14 @@ class AIService {
       // Validate response structure
       const validatedResponse = this._validateAIResponse(parsedResponse);
       
-      logger.info({ 
-        leadId: lead.id, 
+      logger.info({
+        leadId: lead.id,
         action: validatedResponse.action,
         messageCount: validatedResponse.messages.length,
-        hasUpdates: Object.keys(validatedResponse.lead_updates || {}).length > 0
+        hasUpdates: Object.keys(validatedResponse.lead_updates || {}).length > 0,
+        leadStatus: lead.status,
+        bookingStatus: this._getBookingStatus(lead.status),
+        userMessage: validatedResponse.user_message
       }, 'AI response generated successfully');
 
       return validatedResponse;
@@ -146,8 +149,9 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
     <rule id="4" name="Smart Booking">If the lead agrees to a call, use 'initiate_booking' action. Pay attention to time preferences like "tomorrow at 3pm", "Monday morning", "this evening", etc.</rule>
     <rule id="5" name="Handle Booking Responses">After booking attempts, respond appropriately to exact matches, alternative suggestions, or no availability scenarios.</rule>
     <rule id="6" name="Appointment Management">If they want to reschedule or cancel existing appointments, use 'reschedule_appointment' or 'cancel_appointment' actions. Check booking_status first.</rule>
-    <rule id="7" name="Alternative Selection">If booking_status shows alternatives were offered, use 'select_alternative' action when they make a choice (e.g., "option 1", "the Monday slot", "3pm works").</rule>
+    <rule id="7" name="Alternative Selection">If booking_status shows alternatives were offered, use 'select_alternative' action when they make a choice (e.g., "option 1", "the Monday slot", "3pm works"). NEVER use 'initiate_booking' when alternatives are already offered.</rule>
     <rule id="8" name="Booking Context">Always check booking_status before suggesting actions. Don't offer to book if already booked, don't reschedule if no appointment exists.</rule>
+    <rule id="9" name="No Duplicate Actions">If booking_status is 'booking_alternatives_offered', ONLY use 'select_alternative' action. Do NOT use 'initiate_booking' again.</rule>
   </conversation_flow_rules>
 
   <tools>

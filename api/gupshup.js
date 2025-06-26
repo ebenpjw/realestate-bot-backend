@@ -233,6 +233,18 @@ async function handleAppointmentAction({ action, lead, senderWaId, userMessage }
 
     switch (action) {
       case 'initiate_booking':
+        // Prevent duplicate booking attempts when alternatives are already offered
+        if (lead.status === 'booking_alternatives_offered') {
+          logger.warn({
+            leadId: lead.id,
+            currentStatus: lead.status,
+            action
+          }, 'Ignoring initiate_booking - alternatives already offered, should use select_alternative');
+
+          const reminderMessage = "I've already provided you with available time slots. Please choose one by replying with the number (e.g., '1', '2', '3').";
+          await whatsappService.sendMessage({ to: senderWaId, message: reminderMessage });
+          return;
+        }
         await handleInitialBooking({ lead, agentId, senderWaId, userMessage });
         break;
 
