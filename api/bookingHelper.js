@@ -5,6 +5,35 @@ const supabase = require('../supabaseClient');
 const logger = require('../logger');
 
 const SLOT_DURATION_MINUTES = 60; // 1 hour consultations
+const SINGAPORE_OFFSET = 8 * 60 * 60 * 1000; // GMT+8 in milliseconds
+
+/**
+ * Get current time in Singapore timezone
+ * @returns {Date} Current time in Singapore
+ */
+function getSingaporeTime() {
+    const now = new Date();
+    // Use proper timezone conversion
+    return new Date(now.toLocaleString("en-US", {timeZone: "Asia/Singapore"}));
+}
+
+/**
+ * Convert UTC time to Singapore time
+ * @param {Date} utcDate - UTC date
+ * @returns {Date} Singapore time
+ */
+function toSingaporeTime(utcDate) {
+    return new Date(utcDate.toLocaleString("en-US", {timeZone: "Asia/Singapore"}));
+}
+
+/**
+ * Convert Singapore time to UTC (approximate)
+ * @param {Date} singaporeDate - Singapore time
+ * @returns {Date} UTC time
+ */
+function toUTC(singaporeDate) {
+    return new Date(singaporeDate.getTime() - SINGAPORE_OFFSET);
+}
 
 /**
  * Get agent's working hours from database
@@ -63,46 +92,113 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
             daysToSearch
         }, 'Finding available slots with agent working hours');
 
+        // Get current time and convert to Singapore timezone properly
         const now = new Date();
-        const searchStart = new Date(now);
+
+        // Get Singapore time using proper timezone conversion
+        const singaporeTimeString = now.toLocaleString("en-US", {timeZone: "Asia/Singapore"});
+        const singaporeTime = new Date(singaporeTimeString);
 
         logger.info({
             agentId,
-            currentTime: now.toISOString(),
-            currentHour: now.getHours(),
-            currentDay: now.getDay(),
-            timezone: 'Asia/Singapore'
+            currentTimeUTC: now.toISOString(),
+            singaporeTimeString,
+            currentTimeSingapore: singaporeTime.toISOString(),
+            currentHourSingapore: singaporeTime.getHours(),
+            currentDaySingapore: singaporeTime.getDay(),
+            timezone: workingHours.timezone
         }, 'Current time information for slot calculation');
+
+        // Calculate search start time in Singapore timezone
+        const searchStart = new Date(singaporeTime);
 
         // If preferred time is provided and it's in the future, start search from that day
         if (preferredTime && preferredTime > now) {
-            searchStart.setTime(preferredTime.getTime());
+            const preferredSingaporeTime = toSingaporeTime(preferredTime);
+            searchStart.setTime(preferredSingaporeTime.getTime());
             searchStart.setHours(workingHours.start, 0, 0, 0);
         } else {
-            // Start search from next available hour (not current time)
-            const nextHour = now.getHours() + 1;
+            // Start search from next available hour (based on Singapore time)
+            const currentHourSingapore = singaporeTime.getHours();
+            const currentDaySingapore = singaporeTime.getDay();
+            const nextHour = currentHourSingapore + 1;
 
-            if (nextHour >= workingHours.end) {
-                // If next hour is past working hours, start from next day
-                searchStart.setDate(now.getDate() + 1);
-                searchStart.setHours(workingHours.start, 0, 0, 0);
-            } else {
-                // Start from next hour today
+            logger.info({
+                agentId,
+                currentHourSingapore,
+                nextHour,
+                workingHoursEnd: workingHours.end,
+                currentDaySingapore,
+                isWeekend: currentDaySingapore === 0 || currentDaySingapore === 6,
+                isWorkingDay: workingHours.days.includes(currentDaySingapore)
+            }, 'Determining search start time logic');
+
+            // Check if we need to move to next working day
+            if (nextHour >= workingHours.end || currentDaySingapore === 0 || currentDaySingapore === 6) {
+                // If next hour is past working hours or it's weekend, start from next working day
+                const nextWorkingDay = new Date(singaporeTime);
+                nextWorkingDay.setDate(singaporeTime.getDate() + 1);
+
+                // Skip weekends
+                while (nextWorkingDay.getDay() === 0 || nextWorkingDay.getDay() === 6) {
+                    nextWorkingDay.setDate(nextWorkingDay.getDate() + 1);
+                }
+
+                nextWorkingDay.setHours(workingHours.start, 0, 0, 0);
+                searchStart.setTime(nextWorkingDay.getTime());
+
+                logger.info({
+                    agentId,
+                    reason: 'Next working day',
+                    nextWorkingDay: nextWorkingDay.toISOString(),
+                    searchStartAfterSet: searchStart.toISOString()
+                }, 'Set search start to next working day');
+            } else if (workingHours.days.includes(currentDaySingapore) && nextHour < workingHours.end) {
+                // Start from next hour today if within working hours
                 searchStart.setHours(nextHour, 0, 0, 0);
+
+                logger.info({
+                    agentId,
+                    reason: 'Next hour today',
+                    nextHour,
+                    searchStartAfterSet: searchStart.toISOString()
+                }, 'Set search start to next hour today');
+            } else {
+                // Start from beginning of working hours tomorrow
+                const nextWorkingDay = new Date(singaporeTime);
+                nextWorkingDay.setDate(singaporeTime.getDate() + 1);
+
+                // Skip weekends
+                while (nextWorkingDay.getDay() === 0 || nextWorkingDay.getDay() === 6) {
+                    nextWorkingDay.setDate(nextWorkingDay.getDate() + 1);
+                }
+
+                nextWorkingDay.setHours(workingHours.start, 0, 0, 0);
+                searchStart.setTime(nextWorkingDay.getTime());
+
+                logger.info({
+                    agentId,
+                    reason: 'Beginning of working hours tomorrow',
+                    nextWorkingDay: nextWorkingDay.toISOString(),
+                    searchStartAfterSet: searchStart.toISOString()
+                }, 'Set search start to beginning of working hours tomorrow');
             }
         }
 
-        logger.info({
-            agentId,
-            searchStartTime: searchStart.toISOString(),
-            searchStartLocal: searchStart.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
-        }, 'Calculated search start time');
-
+        // Calculate search end time (also in Singapore time)
         const searchEnd = new Date(searchStart);
         searchEnd.setDate(searchStart.getDate() + daysToSearch);
         searchEnd.setHours(workingHours.end, 0, 0, 0);
 
-        // 1. Get all busy periods from Google Calendar
+        logger.info({
+            agentId,
+            searchStartSingapore: searchStart.toISOString(),
+            searchEndSingapore: searchEnd.toISOString(),
+            searchStartLocal: searchStart.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+            searchEndLocal: searchEnd.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+        }, 'Calculated search time range (Singapore time)');
+
+        // 1. Get all busy periods from Google Calendar (Singapore time)
         logger.info({
             agentId,
             searchStart: searchStart.toISOString(),
@@ -117,7 +213,7 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
             busySlots: busySlots.map(slot => ({ start: slot.start, end: slot.end }))
         }, 'Retrieved busy slots from calendar');
 
-        // 2. Generate all potential slots within working hours
+        // 2. Generate all potential slots within working hours (in Singapore time)
         const potentialSlots = [];
         const currentSlotTime = new Date(searchStart);
 
@@ -127,6 +223,7 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
 
             // Check if it's within working hours and working days
             if (workingHours.days.includes(day) && hour >= workingHours.start && hour < workingHours.end) {
+                // Keep in Singapore time for consistency
                 potentialSlots.push(new Date(currentSlotTime));
             }
 
