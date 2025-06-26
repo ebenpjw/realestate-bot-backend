@@ -19,8 +19,10 @@ async function getAgentWithToken(agentId) {
         hasData: !!agent,
         hasError: !!error,
         errorCode: error?.code,
-        errorMessage: error?.message
-    }, 'Agent lookup result');
+        errorMessage: error?.message,
+        agentEmail: agent?.google_email,
+        hasRefreshToken: !!agent?.google_refresh_token_encrypted
+    }, 'Agent lookup result - AGENT ID: ' + agentId);
 
     if (error || !agent) {
         logger.error({ err: error, agentId }, 'Could not find agent or their Google credentials.');

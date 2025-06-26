@@ -200,6 +200,22 @@ app.get('/debug/calendar/:agentId', asyncHandler(async (req, res) => {
   res.json(testResult);
 }));
 
+// Debug endpoint to list agents
+app.get('/debug/agents', asyncHandler(async (req, res) => {
+  const supabase = require('./supabaseClient');
+
+  const { data: agents, error } = await supabase
+    .from('agents')
+    .select('id, name, google_email, phone_number')
+    .limit(10);
+
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  res.json({ agents });
+}));
+
 // 404 handler for undefined routes
 app.use(notFoundHandler);
 
