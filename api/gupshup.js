@@ -330,6 +330,15 @@ async function handleRescheduleAppointment({ lead, agentId, senderWaId, userMess
     if (!existingAppointment) {
       const noAppointmentMessage = "I couldn't find an existing appointment to reschedule. Would you like to book a new consultation instead?";
       await whatsappService.sendMessage({ to: senderWaId, message: noAppointmentMessage });
+
+      // Store the message in conversation history
+      await supabase.from('messages').insert({
+        lead_id: lead.id,
+        sender: 'assistant',
+        message: noAppointmentMessage
+      });
+
+      logger.warn({ leadId: lead.id }, 'Reschedule attempted but no existing appointment found');
       return;
     }
 

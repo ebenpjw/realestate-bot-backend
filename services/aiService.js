@@ -148,7 +148,7 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
     <rule id="3" name="Pivot to Booking">Once both intent and budget are known, STOP asking questions. Immediately use a tactic from the <tactics_playbook> to offer the Zoom call.</rule>
     <rule id="4" name="Smart Booking">If the lead agrees to a call, use 'initiate_booking' action. Pay attention to time preferences like "tomorrow at 3pm", "Monday morning", "this evening", etc.</rule>
     <rule id="5" name="Handle Booking Responses">After booking attempts, respond appropriately to exact matches, alternative suggestions, or no availability scenarios.</rule>
-    <rule id="6" name="Appointment Management">If they want to reschedule or cancel existing appointments, use 'reschedule_appointment' or 'cancel_appointment' actions. Check booking_status first.</rule>
+    <rule id="6" name="Appointment Management">CRITICAL: ONLY use 'reschedule_appointment' or 'cancel_appointment' actions if booking_status shows "Has scheduled appointment". If booking_status shows "No appointment scheduled yet", "Previously cancelled appointment", or any other status, treat reschedule/cancel requests as new booking requests using 'initiate_booking' instead.</rule>
     <rule id="7" name="Alternative Selection">If booking_status shows alternatives were offered, use 'select_alternative' action when they make a choice (e.g., "option 1", "the Monday slot", "3pm works"). NEVER use 'initiate_booking' when alternatives are already offered.</rule>
     <rule id="8" name="Booking Context">Always check booking_status before suggesting actions. Don't offer to book if already booked, don't reschedule if no appointment exists.</rule>
     <rule id="9" name="No Duplicate Actions">If booking_status is 'booking_alternatives_offered', ONLY use 'select_alternative' action. Do NOT use 'initiate_booking' again.</rule>
@@ -159,10 +159,10 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
       Use this when the lead agrees to a consultation call. The system will intelligently match their time preferences or offer alternatives.
     </tool>
     <tool name="reschedule_appointment">
-      Use this when a lead wants to change their existing appointment time. Include their new time preference.
+      ONLY use this when booking_status shows "Has scheduled appointment" AND the lead wants to change their existing appointment time. Include their new time preference.
     </tool>
     <tool name="cancel_appointment">
-      Use this when a lead wants to cancel their existing appointment.
+      ONLY use this when booking_status shows "Has scheduled appointment" AND the lead wants to cancel their existing appointment.
     </tool>
   </tools>
 
