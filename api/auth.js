@@ -213,6 +213,9 @@ router.get('/zoom', (req, res) => {
     console.log('🔍 ZOOM OAUTH DEBUG:', {
       agentId,
       clientId: config.ZOOM_CLIENT_ID,
+      clientIdLength: config.ZOOM_CLIENT_ID?.length,
+      clientIdFirst4: config.ZOOM_CLIENT_ID?.substring(0, 4),
+      clientIdLast4: config.ZOOM_CLIENT_ID?.substring(config.ZOOM_CLIENT_ID.length - 4),
       redirectUri: config.ZOOM_REDIRECT_URI,
       fullAuthUrl: zoomAuthUrl
     });
