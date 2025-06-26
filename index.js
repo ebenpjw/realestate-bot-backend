@@ -206,14 +206,14 @@ app.get('/debug/agents', asyncHandler(async (req, res) => {
 
   const { data: agents, error } = await supabase
     .from('agents')
-    .select('id, google_email, phone_number')
-    .limit(10);
+    .select('*')
+    .limit(5);
 
   if (error) {
     return res.status(500).json({ error: error.message });
   }
 
-  res.json({ agents });
+  res.json({ agents, count: agents?.length || 0 });
 }));
 
 // 404 handler for undefined routes
