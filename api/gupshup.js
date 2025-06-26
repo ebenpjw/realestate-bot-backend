@@ -82,7 +82,9 @@ function validateLeadUpdates(updates) {
             value,
             valueType: typeof value,
             valueLength: typeof value === 'string' ? value.length : 'N/A',
-            validationRule: field === 'intent' ? 'Must be one of: own_stay, investment, hybrid, own stay, ownstay, own-stay, buy, purchase, invest' : 'See validation function'
+            validationRule: field === 'intent' ? 'Must be one of: own_stay, investment, hybrid, own stay, ownstay, own-stay, buy, purchase, invest' :
+                           field === 'status' ? 'Must be one of: new, qualified, booked, booking_alternatives_offered, appointment_cancelled, needs_human_handoff, converted, lost' :
+                           'See validation function for ' + field
           }, 'Invalid value for lead field, skipping update');
         }
       } catch (error) {
