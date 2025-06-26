@@ -82,8 +82,8 @@ router.post('/simulate-new-lead', async (req, res, next) => {
     logger.info({ full_name, phone_number }, '[SIMULATION] Creating new lead.');
 
     const { data: lead, error: insertError } = await supabase.from('leads').insert({
-        full_name: full_name,
-        phone_number: phone_number,
+        full_name,
+        phone_number,
         source: 'New Lead Simulation',
         status: 'new'
       }).select().single();
@@ -103,13 +103,13 @@ router.post('/simulate-new-lead', async (req, res, next) => {
     logger.info({ templateId, phone_number }, `Sending template message.`);
     await whatsappService.sendTemplateMessage({
       to: phone_number,
-      templateId: templateId,
-      params: params
+      templateId,
+      params
     });
 
     res.status(200).json({
       message: `Successfully created lead and sent template message using ID '${templateId}' to ${full_name}.`,
-      lead: lead
+      lead
     });
   } catch (err) {
     next(err); // Pass error to the centralized handler

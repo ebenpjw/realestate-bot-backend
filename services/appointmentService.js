@@ -22,7 +22,7 @@ class AppointmentService {
     agentId,
     appointmentTime,
     leadName,
-    leadPhone,
+    leadPhone: _leadPhone,
     consultationNotes = ''
   }) {
     try {

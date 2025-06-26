@@ -25,9 +25,16 @@ class DatabaseService {
       }
     };
 
-    // Use connection pooling for Railway (serverless-like environment)
+    // Enhanced connection pooling for Railway (serverless-like environment)
     if (config.NODE_ENV === 'production') {
       supabaseConfig.db.connectionString = process.env.DATABASE_URL;
+      // Add connection pool settings for better performance
+      supabaseConfig.global.fetch = (url, options = {}) => {
+        return fetch(url, {
+          ...options,
+          keepalive: true, // Keep connections alive for better performance
+        });
+      };
     }
 
     this.supabase = createClient(config.SUPABASE_URL, config.SUPABASE_KEY, supabaseConfig);
@@ -75,10 +82,10 @@ class DatabaseService {
         }
       }
 
-      // Try to find existing lead
+      // Try to find existing lead (optimized query - select only needed fields)
       const { data: existingLead, error: findError } = await this.supabase
         .from('leads')
-        .select('*')
+        .select('id, phone_number, full_name, source, status, intent, budget, agent_id, created_at, updated_at')
         .eq('phone_number', phoneNumber)
         .limit(1)
         .maybeSingle();
@@ -360,11 +367,48 @@ class DatabaseService {
   }
 
   /**
+   * Batch insert messages for better performance
+   * @param {Array} messages - Array of message objects
+   * @returns {Promise<Object>} Insert result
+   */
+  async batchInsertMessages(messages) {
+    try {
+      if (!Array.isArray(messages) || messages.length === 0) {
+        throw new ValidationError('Messages array is required and cannot be empty');
+      }
+
+      // Validate each message
+      messages.forEach((message, index) => {
+        if (!message.lead_id || !message.sender || !message.message) {
+          throw new ValidationError(`Invalid message at index ${index}: lead_id, sender, and message are required`);
+        }
+      });
+
+      // Batch insert with optimized query
+      const { data, error } = await this.supabase
+        .from('messages')
+        .insert(messages)
+        .select('id, lead_id, sender, created_at');
+
+      if (error) {
+        throw new ExternalServiceError('Supabase', `Batch message insert failed: ${error.message}`, error);
+      }
+
+      logger.info({ messageCount: messages.length }, 'Batch inserted messages successfully');
+      return { data, count: data?.length || 0 };
+
+    } catch (error) {
+      logger.error({ err: error, messageCount: messages.length }, 'Batch message insert failed');
+      throw error;
+    }
+  }
+
+  /**
    * Health check for database service
    */
   async healthCheck() {
     try {
-      const { data, error } = await this.supabase
+      const { error } = await this.supabase
         .from('leads')
         .select('count')
         .limit(1);

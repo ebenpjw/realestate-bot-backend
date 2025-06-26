@@ -229,7 +229,7 @@ async function handleInitialBooking({ lead, agentId, senderWaId, userMessage }) 
   }
 }
 
-async function handleRescheduleAppointment({ lead, agentId, senderWaId, userMessage }) {
+async function handleRescheduleAppointment({ lead, agentId: _agentId, senderWaId, userMessage }) {
   try {
     logger.info({ leadId: lead.id }, 'Handling appointment reschedule request');
 

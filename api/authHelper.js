@@ -8,8 +8,11 @@ const algorithm = 'aes-256-gcm';
 const encryptionKey = Buffer.from(config.REFRESH_TOKEN_ENCRYPTION_KEY, 'hex');
 
 if (encryptionKey.length !== 32) {
-    logger.error({ keyLength: encryptionKey.length }, 'SECURITY ALERT: REFRESH_TOKEN_ENCRYPTION_KEY must be a 32-byte hex string (64 characters).');
-    if (config.NODE_ENV === 'production') process.exit(1);
+    const errorMessage = 'SECURITY ALERT: REFRESH_TOKEN_ENCRYPTION_KEY must be a 32-byte hex string (64 characters).';
+    logger.error({ keyLength: encryptionKey.length }, errorMessage);
+    if (config.NODE_ENV === 'production') {
+        throw new Error(errorMessage);
+    }
 }
 
 function encrypt(text) {

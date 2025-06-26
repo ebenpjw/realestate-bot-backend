@@ -82,24 +82,57 @@ router.get('/webhook', (req, res) => {
     }
 });
 
-// Lead receiving endpoint (handles POST requests from Meta)
+// Lead receiving endpoint (handles POST requests from Meta) - Enhanced for 2025
 router.post('/webhook', (req, res) => {
-    // --- Enforce Signature Verification ---
+    // META 2025: Enhanced signature verification with timing attack protection
     const signature = req.headers['x-hub-signature-256'];
+    const timestamp = req.headers['x-hub-timestamp'];
+
     if (config.NODE_ENV === 'production') {
         if (!signature) {
-            logger.error('Missing x-hub-signature-256 header from Meta.');
-            return res.status(403).send('Invalid signature.');
+            logger.error({ ip: req.ip, userAgent: req.get('User-Agent') }, 'Missing x-hub-signature-256 header from Meta');
+            return res.status(403).json({ error: 'Missing signature' });
         }
 
-        const hash = crypto.createHmac('sha256', config.META_APP_SECRET) // IMPORTANT: You need a META_APP_SECRET env var
-                         .update(JSON.stringify(req.body))
-                         .digest('hex');
+        // META 2025: Validate timestamp to prevent replay attacks
+        if (timestamp) {
+            const requestTime = parseInt(timestamp) * 1000; // Convert to milliseconds
+            const currentTime = Date.now();
+            const timeDiff = Math.abs(currentTime - requestTime);
+            const maxTimeDiff = 5 * 60 * 1000; // 5 minutes
 
-        if (`sha256=${hash}` !== signature) {
-            logger.error('Invalid Meta signature.');
-            return res.status(403).send('Invalid signature.');
+            if (timeDiff > maxTimeDiff) {
+                logger.error({
+                    ip: req.ip,
+                    timeDiff,
+                    maxTimeDiff
+                }, 'Meta webhook timestamp too old - possible replay attack');
+                return res.status(403).json({ error: 'Request too old' });
+            }
         }
+
+        // META 2025: Enhanced signature verification with timing-safe comparison
+        const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
+        const expectedHash = crypto.createHmac('sha256', config.META_APP_SECRET)
+                                  .update(rawBody)
+                                  .digest('hex');
+        const expectedSignature = `sha256=${expectedHash}`;
+
+        // Use timing-safe comparison to prevent timing attacks
+        const signatureBuffer = Buffer.from(signature);
+        const expectedBuffer = Buffer.from(expectedSignature);
+
+        if (signatureBuffer.length !== expectedBuffer.length ||
+            !crypto.timingSafeEqual(signatureBuffer, expectedBuffer)) {
+            logger.error({
+                ip: req.ip,
+                signature: `${signature.substring(0, 10)}...`,
+                userAgent: req.get('User-Agent')
+            }, 'Invalid Meta webhook signature');
+            return res.status(403).json({ error: 'Invalid signature' });
+        }
+
+        logger.debug({ ip: req.ip }, 'Meta webhook signature verified successfully');
     }
     
     logger.debug({ body: req.body }, 'Incoming Meta webhook');

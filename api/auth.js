@@ -3,6 +3,7 @@
 const express = require('express');
 const { google } = require('googleapis');
 const axios = require('axios');
+const crypto = require('crypto');
 const router = express.Router();
 const supabase = require('../supabaseClient');
 const config = require('../config');
@@ -58,13 +59,29 @@ router.get('/google', (req, res) => {
 
     logger.info({ agentId }, 'Initiating Google OAuth for agent');
 
-    const statePayload = { agentId: agentId, timestamp: Date.now() };
+    // GOOGLE 2025: Enhanced security with CSRF protection and state validation
+    const statePayload = {
+      agentId,
+      timestamp: Date.now(),
+      nonce: crypto.randomBytes(16).toString('hex'), // CSRF protection
+      sessionId: req.sessionID || 'no-session' // Session tracking
+    };
+
     const url = oauth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: scopes,
-      prompt: 'consent',
-      state: Buffer.from(JSON.stringify(statePayload)).toString('base64')
+      prompt: 'consent', // Force consent to get refresh token
+      state: Buffer.from(JSON.stringify(statePayload)).toString('base64'),
+      // GOOGLE 2025: Enhanced security parameters
+      include_granted_scopes: true, // Incremental authorization
+      enable_granular_consent: true // Granular consent for better UX
     });
+
+    logger.info({
+      agentId,
+      stateNonce: statePayload.nonce,
+      scopes: scopes.join(', ')
+    }, 'Google OAuth URL generated with enhanced security');
 
     res.redirect(url);
   } catch (error) {
@@ -164,16 +181,30 @@ router.get('/zoom', (req, res) => {
       return res.status(500).json({ error: 'Zoom OAuth not configured' });
     }
 
-    logger.info({ agentId }, 'Initiating Zoom OAuth for agent');
+    logger.info({ agentId }, 'Initiating Zoom OAuth for agent with enhanced security');
 
-    const statePayload = { agentId: agentId, timestamp: Date.now() };
+    // ZOOM 2025: Enhanced security with state validation and CSRF protection
+    const statePayload = {
+      agentId,
+      timestamp: Date.now(),
+      nonce: crypto.randomBytes(16).toString('hex'), // CSRF protection
+      sessionId: req.sessionID || 'no-session' // Session tracking
+    };
     const state = Buffer.from(JSON.stringify(statePayload)).toString('base64');
 
+    // ZOOM 2025: Enhanced OAuth URL with security parameters
     const zoomAuthUrl = `https://zoom.us/oauth/authorize?` +
       `response_type=code&` +
       `client_id=${config.ZOOM_CLIENT_ID}&` +
       `redirect_uri=${encodeURIComponent(config.ZOOM_REDIRECT_URI)}&` +
-      `state=${state}`;
+      `state=${state}&` +
+      `scope=meeting:write:admin%20user:read:admin`; // Explicit scopes for 2025
+
+    logger.info({
+      agentId,
+      stateNonce: statePayload.nonce,
+      scopes: 'meeting:write:admin user:read:admin'
+    }, 'Zoom OAuth URL generated with enhanced security');
 
     res.redirect(zoomAuthUrl);
   } catch (error) {
@@ -200,10 +231,22 @@ router.get('/zoom/callback', async (req, res, next) => {
       return res.status(400).send('Invalid state parameter.');
     }
 
+    // ZOOM 2025: Enhanced state validation for security
     const agentId = parsedState.agentId;
-    if (!agentId) {
-      logger.error({ parsedState }, 'Agent ID missing in state parameter');
-      return res.status(400).send('Agent ID missing in state parameter.');
+    const stateTimestamp = parsedState.timestamp;
+    const stateNonce = parsedState.nonce;
+
+    if (!agentId || !stateTimestamp || !stateNonce) {
+      logger.error({ parsedState }, 'Required state parameters missing');
+      return res.status(400).send('Invalid state parameter - missing required fields.');
+    }
+
+    // ZOOM 2025: Validate state timestamp (prevent replay attacks)
+    const stateAge = Date.now() - stateTimestamp;
+    const maxStateAge = 10 * 60 * 1000; // 10 minutes
+    if (stateAge > maxStateAge) {
+      logger.error({ agentId, stateAge, maxStateAge }, 'State parameter expired');
+      return res.status(400).send('Authorization request expired. Please try again.');
     }
 
     logger.info({

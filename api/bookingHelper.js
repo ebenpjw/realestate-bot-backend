@@ -4,7 +4,7 @@ const { checkAvailability } = require('./googleCalendarService');
 const logger = require('../logger');
 
 const SLOT_DURATION_MINUTES = 60; // 1 hour consultations
-const SLOTS_PER_HOUR = 60 / SLOT_DURATION_MINUTES;
+// const SLOTS_PER_HOUR = 60 / SLOT_DURATION_MINUTES; // Unused variable
 const WORKING_HOURS_START = 8; // 8 AM
 const WORKING_HOURS_END = 22; // 10 PM
 const WORKING_DAYS = [0, 1, 2, 3, 4, 5, 6]; // All days (Sunday=0 to Saturday=6)
@@ -44,7 +44,7 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
 
         // 2. Generate all potential slots within working hours
         const potentialSlots = [];
-        let currentSlotTime = new Date(searchStart);
+        const currentSlotTime = new Date(searchStart);
 
         while (currentSlotTime < searchEnd) {
             const day = currentSlotTime.getDay();

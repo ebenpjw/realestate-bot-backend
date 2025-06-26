@@ -85,11 +85,11 @@ if (require.main === module) {
       if (result) {
         console.log(`✅ Assigned ${result.updatedLeads.length} leads to agent: ${result.agent.full_name}`);
       }
-      process.exit(0);
+      return true;
     })
     .catch((error) => {
       console.error('❌ Assignment failed:', error.message);
-      process.exit(1);
+      throw error;
     });
 }
 

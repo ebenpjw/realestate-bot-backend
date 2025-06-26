@@ -7,8 +7,9 @@ const result = dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 if (result.error) {
   if (process.env.NODE_ENV !== 'production') {
-    console.error("⚠️ FATAL: Could not find .env file. Please ensure it exists in the project root.", result.error);
-    process.exit(1);
+    const errorMessage = "⚠️ FATAL: Could not find .env file. Please ensure it exists in the project root.";
+    console.error(errorMessage, result.error);
+    throw new Error(errorMessage);
   } else {
     console.log("ℹ️ No .env file found - using environment variables from Railway");
   }
@@ -135,8 +136,9 @@ if (configErrors.length > 0) {
   configErrors.forEach(error => console.error(`   - ${error}`));
 
   if (process.env.NODE_ENV === 'production') {
+    const errorMessage = 'Configuration errors in production environment';
     console.error('Exiting due to configuration errors in production');
-    process.exit(1);
+    throw new Error(errorMessage);
   } else {
     console.warn('⚠️  Continuing in development mode despite configuration errors');
   }

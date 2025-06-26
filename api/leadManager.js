@@ -8,7 +8,7 @@ async function findOrCreateLead({ phoneNumber, fullName, source }) {
     throw err;
   }
 
-  let { data: lead, error: leadError } = await supabase
+  const { data: lead, error: leadError } = await supabase
     .from('leads')
     .select('*')
     .eq('phone_number', phoneNumber)
@@ -38,7 +38,7 @@ async function findOrCreateLead({ phoneNumber, fullName, source }) {
   const newLeadData = {
     full_name: fullName,
     phone_number: phoneNumber,
-    source: source,
+    source,
     status: 'new'
   };
 
@@ -62,7 +62,7 @@ async function findOrCreateLead({ phoneNumber, fullName, source }) {
   if (insertError) {
     if (insertError.code === '23505') { 
         logger.warn({ phoneNumber }, `Race condition: A lead with this phone number was just created. Fetching it.`);
-        let { data: existingLead, error: retryError } = await supabase.from('leads').select('*').eq('phone_number', phoneNumber).single();
+        const { data: existingLead, error: retryError } = await supabase.from('leads').select('*').eq('phone_number', phoneNumber).single();
         if (retryError) {
             logger.error({ err: retryError, phoneNumber }, 'Failed to fetch lead after race condition.');
             throw new Error(`Failed to fetch lead after race condition: ${retryError.message}`);

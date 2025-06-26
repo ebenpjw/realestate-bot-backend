@@ -73,7 +73,7 @@ const formatErrorResponse = (error, includeStack = false) => {
 };
 
 // Main error handling middleware
-const errorHandler = (error, req, res, next) => {
+const errorHandler = (error, req, res, _next) => {
   // Ensure error has required properties
   let err = error;
   if (!(error instanceof AppError)) {
@@ -141,9 +141,9 @@ const handleUnhandledRejection = () => {
       stack: reason?.stack,
       promise
     }, 'Unhandled Promise Rejection');
-    
-    // Graceful shutdown
-    process.exit(1);
+
+    // Graceful shutdown - throw error instead of process.exit
+    throw new Error(`Unhandled Promise Rejection: ${reason?.message || reason}`);
   });
 };
 
@@ -156,9 +156,9 @@ const handleUncaughtException = () => {
         stack: error.stack
       }
     }, 'Uncaught Exception');
-    
-    // Graceful shutdown
-    process.exit(1);
+
+    // Graceful shutdown - throw error instead of process.exit
+    throw new Error(`Uncaught Exception: ${error.message}`);
   });
 };
 

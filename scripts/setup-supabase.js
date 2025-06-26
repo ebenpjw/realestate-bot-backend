@@ -1,9 +1,7 @@
-#!/usr/bin/env node
-
 /**
  * Supabase Database Setup Script
  * Real Estate WhatsApp Bot - Production Setup
- * 
+ *
  * This script helps you set up your Supabase database with the complete schema
  * for your real estate WhatsApp bot.
  */
@@ -29,7 +27,7 @@ function log(message, color = 'reset') {
 }
 
 function logHeader(message) {
-  log('\n' + '='.repeat(60), 'cyan');
+  log(`\n${'='.repeat(60)}`, 'cyan');
   log(message, 'bright');
   log('='.repeat(60), 'cyan');
 }
@@ -63,7 +61,7 @@ async function setupSupabase() {
     log('  SUPABASE_URL=https://your-project.supabase.co', 'yellow');
     log('  SUPABASE_KEY=your-supabase-anon-key', 'yellow');
     logInfo('You can find these in your Supabase dashboard under Settings > API');
-    process.exit(1);
+    throw new Error('Missing Supabase credentials');
   }
   
   logInfo(`Connecting to Supabase project: ${supabaseUrl}`);
@@ -74,7 +72,7 @@ async function setupSupabase() {
   try {
     // Test connection
     logInfo('Testing database connection...');
-    const { data, error } = await supabase.from('leads').select('count').limit(1);
+    const { error } = await supabase.from('leads').select('count').limit(1);
     
     if (error && error.code !== 'PGRST116') { // PGRST116 = table doesn't exist (which is fine)
       throw error;
@@ -87,7 +85,7 @@ async function setupSupabase() {
     
     if (!fs.existsSync(migrationPath)) {
       logError(`Migration file not found: ${migrationPath}`);
-      process.exit(1);
+      throw new Error(`Migration file not found: ${migrationPath}`);
     }
     
     logInfo('Reading migration file...');
@@ -97,7 +95,7 @@ async function setupSupabase() {
     logWarning('This will update your database schema. Make sure you have a backup!');
     
     // Execute migration
-    const { data: migrationResult, error: migrationError } = await supabase.rpc('exec_sql', {
+    const { error: migrationError } = await supabase.rpc('exec_sql', {
       sql: migrationSQL
     });
     
@@ -117,7 +115,7 @@ async function setupSupabase() {
         const statement = statements[i];
         if (statement.trim()) {
           try {
-            await supabase.rpc('exec_sql', { sql: statement + ';' });
+            await supabase.rpc('exec_sql', { sql: `${statement};` });
             log(`  Statement ${i + 1}/${statements.length} executed`, 'green');
           } catch (stmtError) {
             logWarning(`Statement ${i + 1} failed (might be expected): ${stmtError.message}`);
@@ -135,7 +133,7 @@ async function setupSupabase() {
     
     for (const table of expectedTables) {
       try {
-        const { data, error } = await supabase.from(table).select('count').limit(1);
+        const { error } = await supabase.from(table).select('count').limit(1);
         if (!error) {
           logSuccess(`Table '${table}' is ready`);
         } else {
@@ -177,7 +175,7 @@ async function setupSupabase() {
     logError(`Setup failed: ${error.message}`);
     logInfo('Please check your Supabase credentials and try again.');
     logInfo('You can also run the migration manually in your Supabase SQL editor.');
-    process.exit(1);
+    throw error;
   }
 }
 

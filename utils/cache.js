@@ -38,11 +38,11 @@ Object.entries(caches).forEach(([name, cache]) => {
     logger.debug({ cache: name, key, size: JSON.stringify(value).length }, 'Cache set');
   });
   
-  cache.on('del', (key, value) => {
+  cache.on('del', (key, _value) => {
     logger.debug({ cache: name, key }, 'Cache delete');
   });
-  
-  cache.on('expired', (key, value) => {
+
+  cache.on('expired', (key, _value) => {
     logger.debug({ cache: name, key }, 'Cache expired');
   });
 });
@@ -189,6 +189,65 @@ class CacheManager {
     } catch (error) {
       logger.error({ error: error.message, cacheType }, 'Cache stats failed');
       return {};
+    }
+  }
+
+  /**
+   * Invalidate cache entries by pattern
+   * @param {string} cacheType - Type of cache
+   * @param {string} pattern - Pattern to match keys (supports wildcards)
+   */
+  static invalidateByPattern(cacheType, pattern) {
+    try {
+      const cache = caches[cacheType];
+      if (!cache) {
+        throw new Error(`Invalid cache type: ${cacheType}`);
+      }
+
+      const keys = cache.keys();
+      const regex = new RegExp(pattern.replace(/\*/g, '.*'));
+      let deletedCount = 0;
+
+      keys.forEach(key => {
+        if (regex.test(key)) {
+          cache.del(key);
+          deletedCount++;
+        }
+      });
+
+      logger.debug({ cacheType, pattern, deletedCount }, 'Cache invalidation by pattern completed');
+      return deletedCount;
+    } catch (error) {
+      logger.error({ error: error.message, cacheType, pattern }, 'Cache invalidation by pattern failed');
+      return 0;
+    }
+  }
+
+  /**
+   * Get cache performance metrics
+   * @param {string} cacheType - Type of cache
+   * @returns {Object} Performance metrics
+   */
+  static getPerformanceMetrics(cacheType) {
+    try {
+      const cache = caches[cacheType];
+      if (!cache) {
+        throw new Error(`Invalid cache type: ${cacheType}`);
+      }
+
+      const stats = cache.getStats();
+      return {
+        hits: stats.hits,
+        misses: stats.misses,
+        keys: stats.keys,
+        ksize: stats.ksize,
+        vsize: stats.vsize,
+        hitRate: stats.hits / (stats.hits + stats.misses) || 0,
+        memoryUsage: `${(stats.vsize / 1024 / 1024).toFixed(2)} MB`
+      };
+    } catch (error) {
+      logger.error({ error: error.message, cacheType }, 'Failed to get cache performance metrics');
+      return null;
     }
   }
 

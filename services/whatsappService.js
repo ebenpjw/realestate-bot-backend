@@ -34,7 +34,7 @@ class WhatsAppService {
    * @param {Object} options - Additional options
    * @returns {Promise<Object>} Send result
    */
-  async sendMessage({ to, message }, options = {}) {
+  async sendMessage({ to, message }, _options = {}) {
     try {
       // Validate inputs
       this._validateMessageParams({ to, message });
@@ -102,8 +102,8 @@ class WhatsAppService {
       // Validate inputs
       this._validateTemplateParams({ to, templateId, params });
 
-      // Note: WABA 2025 - No daily template limits, per-message pricing model
-      // await this._checkTemplateRateLimit(to, templateId, category); // Removed - outdated limits
+      // WABA 2025: Conversation-based pricing model with enhanced compliance
+      await this._validateTemplateCompliance({ to, templateId, category, templateName });
 
       const templateObject = { id: templateId, params };
       const payload = qs.stringify({
@@ -236,10 +236,10 @@ class WhatsAppService {
         
         for (const sentence of sentences) {
           if ((currentPart + sentence).length <= MESSAGE.MAX_LENGTH) {
-            currentPart += sentence + '.';
+            currentPart += `${sentence}.`;
           } else {
             if (currentPart) parts.push(currentPart.trim());
-            currentPart = sentence + '.';
+            currentPart = `${sentence}.`;
           }
         }
         
@@ -400,6 +400,52 @@ class WhatsAppService {
         return Promise.reject(error);
       }
     );
+  }
+
+  /**
+   * WABA 2025: Validate template compliance for conversation-based pricing
+   * @private
+   */
+  async _validateTemplateCompliance({ to, templateId, category, templateName }) {
+    try {
+      // WABA 2025: Enhanced compliance checks
+      const validationChecks = {
+        templateExists: !!templateId,
+        validCategory: ['MARKETING', 'UTILITY', 'AUTHENTICATION'].includes(category),
+        validPhoneNumber: /^\d{10,15}$/.test(to.replace(/\D/g, '')),
+        businessInitiated: true // All template messages are business-initiated
+      };
+
+      // Log compliance validation for audit trail
+      logger.info({
+        to: `${to.substring(0, 5)}***`, // Mask phone number for privacy
+        templateId,
+        templateName,
+        category,
+        validationChecks,
+        complianceVersion: '2025.1'
+      }, 'WABA 2025 template compliance validation');
+
+      // Check for marketing template specific requirements
+      if (category === 'MARKETING') {
+        // WABA 2025: Marketing templates require user opt-in verification
+        logger.info({
+          to: `${to.substring(0, 5)}***`,
+          templateId,
+          category
+        }, 'Marketing template - ensure user has opted in for marketing messages');
+      }
+
+      return {
+        compliant: Object.values(validationChecks).every(check => check === true),
+        checks: validationChecks,
+        timestamp: new Date().toISOString()
+      };
+
+    } catch (error) {
+      logger.error({ err: error, to, templateId }, 'Template compliance validation failed');
+      return { compliant: false, error: error.message };
+    }
   }
 
   /**

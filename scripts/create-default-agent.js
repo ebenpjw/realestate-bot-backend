@@ -79,11 +79,11 @@ if (require.main === module) {
       } else {
         console.log('⚠️ No active agent available for lead assignment');
       }
-      process.exit(0);
+      return true;
     })
     .catch((error) => {
       console.error('❌ Setup failed:', error.message);
-      process.exit(1);
+      throw error;
     });
 }
 

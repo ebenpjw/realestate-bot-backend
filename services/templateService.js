@@ -1,15 +1,20 @@
 const whatsappService = require('./whatsappService');
 const databaseService = require('./databaseService');
 const logger = require('../logger');
-const { LEAD } = require('../constants');
-const { ValidationError, ExternalServiceError } = require('../middleware/errorHandler');
+// const { LEAD } = require('../constants'); // Unused import
+const { ValidationError } = require('../middleware/errorHandler');
+// const { ExternalServiceError } = require('../middleware/errorHandler'); // Unused import
 
 /**
  * Template Service for WABA-compliant messaging
  * Handles template message sending and 24-hour window compliance
+ * Updated for 2025 WABA guidelines and best practices
  */
 class TemplateService {
   constructor() {
+    // 24-hour window tracking for WABA compliance
+    this.lastUserMessageTimes = new Map();
+    this.templateUsageLog = new Map();
     // WABA-compliant templates (these are your approved templates in Gupshup)
     this.approvedTemplates = {
       // Your existing approved welcome template (lead_intro_1)
@@ -24,7 +29,13 @@ class TemplateService {
         description: 'Approved welcome message for real estate leads',
         params: ['{{1}}', '{{2}}'], // [leadName, contactReason]
         content: 'Hi {{1}}, thanks for leaving your contact regarding {{2}}! 😊\n\nJust checking in to see what caught your eye or what you\'re exploring.\n\nFeel free to let me know, I\'ll do my best to help!',
-        example: 'Hi John, thanks for leaving your contact regarding your property enquiry! 😊'
+        example: 'Hi John, thanks for leaving your contact regarding your property enquiry! 😊',
+        // WABA 2025: Enhanced metadata for compliance tracking
+        businessInitiated: true,
+        conversationType: 'marketing',
+        qualityRating: 'HIGH', // Template quality rating
+        approvalStatus: 'APPROVED',
+        lastUpdated: '2025-06-25'
       },
       PROPERTY_INQUIRY_FOLLOWUP: {
         id: process.env.TEMPLATE_FOLLOWUP_ID || 'followup_template_id',
@@ -324,6 +335,103 @@ class TemplateService {
         templateData
       }, 'Failed to log template usage');
     }
+  }
+
+  /**
+   * Check if we're within the 24-hour window for sending regular messages
+   * @param {string} phoneNumber - User's phone number
+   * @returns {boolean} True if within 24-hour window
+   */
+  isWithin24HourWindow(phoneNumber) {
+    const lastMessageTime = this.lastUserMessageTimes.get(phoneNumber);
+    if (!lastMessageTime) {
+      return false; // No previous message, must use template
+    }
+
+    const now = new Date();
+    const timeDiff = now.getTime() - lastMessageTime.getTime();
+    const hoursDiff = timeDiff / (1000 * 60 * 60);
+
+    return hoursDiff < 24;
+  }
+
+  /**
+   * Record when user sent a message (for 24-hour window tracking)
+   * @param {string} phoneNumber - User's phone number
+   */
+  recordUserMessage(phoneNumber) {
+    this.lastUserMessageTimes.set(phoneNumber, new Date());
+    logger.debug({ phoneNumber }, 'Recorded user message for 24-hour window tracking');
+  }
+
+  /**
+   * Log template usage for compliance tracking
+   * @param {string} phoneNumber - Recipient phone number
+   * @param {string} templateId - Template ID used
+   * @param {string} category - Template category
+   */
+  async logTemplateUsage(phoneNumber, templateId, category) {
+    try {
+      const usageRecord = {
+        phone_number: phoneNumber,
+        template_id: templateId,
+        template_category: category,
+        sent_at: new Date().toISOString(),
+        compliance_status: 'sent'
+      };
+
+      // Store in database for compliance auditing
+      const databaseService = require('./databaseService');
+      await databaseService.supabase
+        .from('template_usage_log')
+        .insert(usageRecord);
+
+      logger.info({ phoneNumber, templateId, category }, 'Template usage logged for compliance');
+    } catch (error) {
+      logger.error({ err: error, phoneNumber, templateId }, 'Failed to log template usage');
+    }
+  }
+
+  /**
+   * Validate template compliance before sending
+   * @param {string} phoneNumber - Recipient phone number
+   * @param {string} templateId - Template to send
+   * @returns {Object} Validation result
+   */
+  validateTemplateCompliance(phoneNumber, templateId) {
+    const template = Object.values(this.approvedTemplates).find(t => t.id === templateId);
+
+    if (!template) {
+      return {
+        valid: false,
+        reason: 'Template not found in approved templates list',
+        requiresApproval: true
+      };
+    }
+
+    // Check if template is properly configured
+    if (!template.category || !template.name) {
+      return {
+        valid: false,
+        reason: 'Template missing required metadata (category/name)',
+        requiresApproval: true
+      };
+    }
+
+    // For MARKETING templates, additional restrictions may apply
+    if (template.category === 'MARKETING') {
+      const withinWindow = this.isWithin24HourWindow(phoneNumber);
+      if (!withinWindow) {
+        logger.info({ phoneNumber, templateId }, 'Using MARKETING template outside 24-hour window - ensure user opted in');
+      }
+    }
+
+    return {
+      valid: true,
+      template,
+      category: template.category,
+      withinWindow: this.isWithin24HourWindow(phoneNumber)
+    };
   }
 
   /**

@@ -40,7 +40,7 @@ async function getAuthenticatedClient(agentId) {
     if (!agent || !agent.decrypted_refresh_token) return { authClient: null, agent: null };
 
     const redirectUri = config.NODE_ENV === 'production' ? config.PRODUCTION_REDIRECT_URI : config.GOOGLE_REDIRECT_URI;
-    
+
     const oauth2Client = new google.auth.OAuth2(
         config.GOOGLE_CLIENT_ID,
         config.GOOGLE_CLIENT_SECRET,
@@ -49,6 +49,29 @@ async function getAuthenticatedClient(agentId) {
 
     oauth2Client.setCredentials({
         refresh_token: agent.decrypted_refresh_token
+    });
+
+    // GOOGLE 2025: Enhanced token management with automatic refresh
+    oauth2Client.on('tokens', async (tokens) => {
+        if (tokens.refresh_token) {
+            // Store new refresh token if provided
+            logger.info({ agentId }, 'New Google refresh token received, updating database');
+            try {
+                const { encrypt } = require('./authHelper');
+                const encryptedToken = encrypt(tokens.refresh_token);
+
+                await supabase.from('agents').update({
+                    google_refresh_token_encrypted: encryptedToken.encryptedData,
+                    google_token_iv: encryptedToken.iv,
+                    google_token_tag: encryptedToken.tag,
+                    google_token_updated_at: new Date().toISOString()
+                }).eq('id', agentId);
+
+                logger.info({ agentId }, 'Google refresh token updated successfully');
+            } catch (error) {
+                logger.error({ err: error, agentId }, 'Failed to update Google refresh token');
+            }
+        }
     });
 
     return { authClient: oauth2Client, agent };

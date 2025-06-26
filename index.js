@@ -5,7 +5,7 @@ const pinoHttp = require('pino-http');
 // Import configuration and utilities
 const config = require('./config');
 const logger = require('./logger');
-const { HTTP_STATUS, ENV } = require('./constants');
+const { HTTP_STATUS } = require('./constants');
 const CacheManager = require('./utils/cache');
 
 // Import middleware
@@ -55,7 +55,7 @@ app.use(pinoHttp({
     if (res.statusCode >= 500 || err) return 'error';
     return 'info';
   },
-  customSuccessMessage: (req, res) => {
+  customSuccessMessage: (req, _res) => {
     return `${req.method} ${req.url} completed`;
   },
   customErrorMessage: (req, res, err) => {

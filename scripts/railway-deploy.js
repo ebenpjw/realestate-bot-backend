@@ -1,12 +1,9 @@
-#!/usr/bin/env node
-
 /**
  * Railway Deployment Helper Script
  * Ensures proper environment setup before deployment
  */
 
 const fs = require('fs');
-const path = require('path');
 
 console.log('🚀 Railway Deployment Helper');
 console.log('============================');
@@ -26,7 +23,7 @@ const requiredEnvVars = [
 ];
 
 console.log('\n🔍 Checking environment variables...');
-let missingVars = [];
+const missingVars = [];
 
 requiredEnvVars.forEach(varName => {
   if (!process.env[varName]) {
