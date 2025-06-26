@@ -49,25 +49,48 @@ async function getAgentWorkingHours(agentId) {
             .single();
 
         if (error || !agent) {
-            logger.warn({ agentId, error }, 'Could not fetch agent working hours, using defaults');
+            logger.warn({ agentId, error }, 'Could not fetch agent working hours, using extended defaults');
             return {
-                start: 9,
-                end: 18,
-                days: [1, 2, 3, 4, 5], // Monday to Friday
+                start: 8,
+                end: 23, // 11pm
+                days: [1, 2, 3, 4, 5, 6, 7], // All days of the week
                 timezone: 'Asia/Singapore'
             };
         }
 
+        // If agent has working hours but they're restrictive, use extended defaults
+        // This allows agents to have extended hours unless they specifically set restrictions
+        const agentHours = agent.working_hours;
+
+        // Use extended defaults if agent doesn't have specific working hours configured
+        // or if their hours are the old restrictive defaults (9-18, Mon-Fri)
+        const isRestrictiveDefaults = agentHours &&
+            agentHours.start === 9 &&
+            agentHours.end === 18 &&
+            agentHours.days &&
+            agentHours.days.length === 5 &&
+            agentHours.days.every(day => [1,2,3,4,5].includes(day));
+
+        if (!agentHours || isRestrictiveDefaults) {
+            logger.info({ agentId, agentHours }, 'Using extended default working hours instead of restrictive settings');
+            return {
+                start: 8,
+                end: 23, // 11pm
+                days: [1, 2, 3, 4, 5, 6, 7], // All days of the week
+                timezone: agent.timezone || 'Asia/Singapore'
+            };
+        }
+
         return {
-            ...agent.working_hours,
+            ...agentHours,
             timezone: agent.timezone || 'Asia/Singapore'
         };
     } catch (error) {
         logger.error({ err: error, agentId }, 'Error fetching agent working hours');
         return {
-            start: 9,
-            end: 18,
-            days: [1, 2, 3, 4, 5],
+            start: 8,
+            end: 23, // 11pm
+            days: [1, 2, 3, 4, 5, 6, 7], // All days of the week
             timezone: 'Asia/Singapore'
         };
     }
@@ -272,7 +295,7 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
             searchDays: daysToSearch
         }, 'Found available consultation slots.');
 
-        return availableSlots.slice(0, 5); // Return up to 5 available slots
+        return availableSlots.slice(0, 10); // Return up to 10 available slots to include afternoon times
     } catch (error) {
         logger.error({ err: error, agentId }, 'Error finding available slots');
         return [];
@@ -373,6 +396,112 @@ function parsePreferredTime(message) {
 }
 
 /**
+ * Check if a specific time slot is available
+ * @param {string} agentId - Agent ID
+ * @param {Date} requestedTime - The specific time to check
+ * @returns {Promise<boolean>} True if the time is available
+ */
+async function isTimeSlotAvailable(agentId, requestedTime) {
+    try {
+        const workingHours = await getAgentWorkingHours(agentId);
+
+        // Check if time is within working hours
+        const hour = requestedTime.getHours();
+        const day = requestedTime.getDay();
+
+        if (!workingHours.days.includes(day) || hour < workingHours.start || hour >= workingHours.end) {
+            logger.info({
+                agentId,
+                requestedTime: requestedTime.toISOString(),
+                hour, day, workingHours
+            }, 'Requested time is outside working hours');
+            return false;
+        }
+
+        // Check for calendar conflicts
+        const slotStart = requestedTime.toISOString();
+        const slotEnd = new Date(requestedTime.getTime() + 60 * 60 * 1000).toISOString(); // 1 hour later
+
+        const busySlots = await checkAvailability(agentId, slotStart, slotEnd);
+
+        // Check if there are any overlapping busy periods
+        const hasConflict = busySlots.some(busy => {
+            const busyStart = new Date(busy.start).getTime();
+            const busyEnd = new Date(busy.end).getTime();
+            const requestedStart = requestedTime.getTime();
+            const requestedEnd = requestedStart + 60 * 60 * 1000; // 1 hour
+
+            // Check for any overlap
+            return requestedStart < busyEnd && requestedEnd > busyStart;
+        });
+
+        logger.info({
+            agentId,
+            requestedTime: requestedTime.toISOString(),
+            hasConflict,
+            busySlotsCount: busySlots.length
+        }, 'Checked specific time slot availability');
+
+        return !hasConflict;
+    } catch (error) {
+        logger.error({ err: error, agentId, requestedTime }, 'Error checking time slot availability');
+        return false;
+    }
+}
+
+/**
+ * Find nearby available slots around a specific time
+ * @param {string} agentId - Agent ID
+ * @param {Date} requestedTime - The requested time
+ * @param {number} hoursRange - How many hours before/after to search (default: 4)
+ * @returns {Promise<Date[]>} Array of nearby available slots
+ */
+async function findNearbyAvailableSlots(agentId, requestedTime, hoursRange = 4) {
+    try {
+        const workingHours = await getAgentWorkingHours(agentId);
+        const nearbySlots = [];
+
+        // Generate slots before and after the requested time
+        for (let hourOffset = -hoursRange; hourOffset <= hoursRange; hourOffset++) {
+            if (hourOffset === 0) continue; // Skip the exact requested time
+
+            const candidateTime = new Date(requestedTime);
+            candidateTime.setHours(requestedTime.getHours() + hourOffset);
+
+            // Check if within working hours
+            const hour = candidateTime.getHours();
+            const day = candidateTime.getDay();
+
+            if (workingHours.days.includes(day) && hour >= workingHours.start && hour < workingHours.end) {
+                const isAvailable = await isTimeSlotAvailable(agentId, candidateTime);
+                if (isAvailable) {
+                    nearbySlots.push(candidateTime);
+                }
+            }
+        }
+
+        // Sort by proximity to requested time
+        nearbySlots.sort((a, b) => {
+            const diffA = Math.abs(a.getTime() - requestedTime.getTime());
+            const diffB = Math.abs(b.getTime() - requestedTime.getTime());
+            return diffA - diffB;
+        });
+
+        logger.info({
+            agentId,
+            requestedTime: requestedTime.toISOString(),
+            nearbyCount: nearbySlots.length,
+            nearbyTimes: nearbySlots.slice(0, 3).map(slot => slot.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }))
+        }, 'Found nearby available slots');
+
+        return nearbySlots;
+    } catch (error) {
+        logger.error({ err: error, agentId, requestedTime }, 'Error finding nearby slots');
+        return [];
+    }
+}
+
+/**
  * Find the best matching slot for user's preference
  * @param {string} agentId - Agent ID
  * @param {string} userMessage - User's message with time preference
@@ -381,26 +510,53 @@ function parsePreferredTime(message) {
 async function findMatchingSlot(agentId, userMessage) {
     try {
         const preferredTime = parsePreferredTime(userMessage);
-        const availableSlots = await findNextAvailableSlots(agentId, preferredTime);
 
         if (!preferredTime) {
             // No specific time mentioned, return next available slots
+            const availableSlots = await findNextAvailableSlots(agentId, null);
             return {
                 exactMatch: null,
-                alternatives: availableSlots
+                alternatives: availableSlots.slice(0, 5) // Reasonable default for general availability
             };
         }
 
-        // Check if preferred time is available (within 30 minutes tolerance)
-        const exactMatch = availableSlots.find(slot => {
-            const timeDiff = Math.abs(slot.getTime() - preferredTime.getTime());
-            return timeDiff <= 30 * 60 * 1000; // 30 minutes tolerance
-        });
+        logger.info({
+            agentId,
+            preferredTime: preferredTime.toISOString(),
+            preferredTimeLocal: preferredTime.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+        }, 'Checking if preferred time is available');
 
-        return {
-            exactMatch: exactMatch || null,
-            alternatives: availableSlots.filter(slot => slot !== exactMatch)
-        };
+        // Directly check if the preferred time is available
+        const isAvailable = await isTimeSlotAvailable(agentId, preferredTime);
+
+        if (isAvailable) {
+            logger.info({ agentId, preferredTime: preferredTime.toISOString() }, 'Preferred time is available - exact match found');
+
+            return {
+                exactMatch: preferredTime,
+                alternatives: [] // No alternatives needed when exact match is found
+            };
+        } else {
+            logger.info({ agentId, preferredTime: preferredTime.toISOString() }, 'Preferred time not available - finding nearby alternatives');
+
+            // Find nearby alternatives around the requested time
+            const nearbySlots = await findNearbyAvailableSlots(agentId, preferredTime);
+
+            if (nearbySlots.length === 0) {
+                // If no nearby slots, fall back to general availability
+                logger.info({ agentId }, 'No nearby slots found, falling back to general availability');
+                const generalSlots = await findNextAvailableSlots(agentId, null);
+                return {
+                    exactMatch: null,
+                    alternatives: generalSlots.slice(0, 5)
+                };
+            }
+
+            return {
+                exactMatch: null,
+                alternatives: nearbySlots.slice(0, 5) // Limit to 5 closest alternatives
+            };
+        }
     } catch (error) {
         logger.error({ err: error, agentId, userMessage }, 'Error finding matching slot');
         return {
@@ -414,5 +570,7 @@ module.exports = {
     getAgentWorkingHours,
     findNextAvailableSlots,
     parsePreferredTime,
-    findMatchingSlot
+    findMatchingSlot,
+    isTimeSlotAvailable,
+    findNearbyAvailableSlots
 };
