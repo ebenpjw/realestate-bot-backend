@@ -70,14 +70,14 @@ app.get('/health', asyncHandler(async (req, res) => {
 
   try {
     // Import services dynamically to avoid circular dependencies
-    const aiService = require('./services/aiService');
+    const botService = require('./services/botService');
     const whatsappService = require('./services/whatsappService');
     const databaseService = require('./services/databaseService');
     const templateService = require('./services/templateService');
 
     // Run health checks in parallel
-    const [aiHealth, whatsappHealth, dbHealth, templateHealth] = await Promise.allSettled([
-      aiService.healthCheck(),
+    const [botHealth, whatsappHealth, dbHealth, templateHealth] = await Promise.allSettled([
+      botService.healthCheck(),
       whatsappService.healthCheck(),
       databaseService.healthCheck(),
       templateService.healthCheck()
@@ -96,7 +96,7 @@ app.get('/health', asyncHandler(async (req, res) => {
         pid: process.pid
       },
       services: {
-        ai: aiHealth.status === 'fulfilled' ? aiHealth.value : { status: 'unhealthy', error: aiHealth.reason?.message },
+        bot: botHealth.status === 'fulfilled' ? botHealth.value : { status: 'unhealthy', error: botHealth.reason?.message },
         whatsapp: whatsappHealth.status === 'fulfilled' ? whatsappHealth.value : { status: 'unhealthy', error: whatsappHealth.reason?.message },
         database: dbHealth.status === 'fulfilled' ? dbHealth.value : { status: 'unhealthy', error: dbHealth.reason?.message },
         templates: templateHealth.status === 'fulfilled' ? templateHealth.value : { status: 'unhealthy', error: templateHealth.reason?.message }

@@ -71,12 +71,12 @@ describe('Application Integration Tests', () => {
   });
 
   describe('Services Loading', () => {
-    test('AI Service should initialize without errors', () => {
-      const aiService = require('../services/aiService');
-      
-      expect(aiService).toBeDefined();
-      expect(typeof aiService.generateResponse).toBe('function');
-      expect(typeof aiService.healthCheck).toBe('function');
+    test('Bot Service should initialize without errors', () => {
+      const botService = require('../services/botService');
+
+      expect(botService).toBeDefined();
+      expect(typeof botService.processMessage).toBe('function');
+      expect(typeof botService.healthCheck).toBe('function');
     });
 
     test('WhatsApp Service should initialize without errors', () => {
@@ -180,13 +180,13 @@ describe('Application Integration Tests', () => {
   });
 
   describe('Service Integration', () => {
-    test('AI Service should integrate properly with WhatsApp Service', () => {
-      const aiService = require('../services/aiService');
+    test('Bot Service should integrate properly with WhatsApp Service', () => {
+      const botService = require('../services/botService');
       const whatsappService = require('../services/whatsappService');
 
-      expect(aiService).toBeDefined();
+      expect(botService).toBeDefined();
       expect(whatsappService).toBeDefined();
-      expect(typeof aiService.generateResponse).toBe('function');
+      expect(typeof botService.processMessage).toBe('function');
       expect(typeof whatsappService.sendMessage).toBe('function');
     });
   });
