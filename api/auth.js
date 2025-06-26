@@ -203,7 +203,10 @@ router.get('/zoom', (req, res) => {
     logger.info({
       agentId,
       stateNonce: statePayload.nonce,
-      scopes: 'meeting:write:meeting user:read:user'
+      scopes: 'meeting:write:meeting user:read:user',
+      fullAuthUrl: zoomAuthUrl, // Log the complete URL for debugging
+      clientId: config.ZOOM_CLIENT_ID,
+      redirectUri: config.ZOOM_REDIRECT_URI
     }, 'Zoom OAuth URL generated with enhanced security');
 
     res.redirect(zoomAuthUrl);
