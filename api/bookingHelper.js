@@ -1,13 +1,48 @@
 // api/bookingHelper.js
 
 const { checkAvailability } = require('./googleCalendarService');
+const supabase = require('../supabaseClient');
 const logger = require('../logger');
 
 const SLOT_DURATION_MINUTES = 60; // 1 hour consultations
-// const SLOTS_PER_HOUR = 60 / SLOT_DURATION_MINUTES; // Unused variable
-const WORKING_HOURS_START = 8; // 8 AM
-const WORKING_HOURS_END = 22; // 10 PM
-const WORKING_DAYS = [0, 1, 2, 3, 4, 5, 6]; // All days (Sunday=0 to Saturday=6)
+
+/**
+ * Get agent's working hours from database
+ * @param {string} agentId - The agent's ID
+ * @returns {Promise<Object>} Working hours configuration
+ */
+async function getAgentWorkingHours(agentId) {
+    try {
+        const { data: agent, error } = await supabase
+            .from('agents')
+            .select('working_hours, timezone')
+            .eq('id', agentId)
+            .single();
+
+        if (error || !agent) {
+            logger.warn({ agentId, error }, 'Could not fetch agent working hours, using defaults');
+            return {
+                start: 9,
+                end: 18,
+                days: [1, 2, 3, 4, 5], // Monday to Friday
+                timezone: 'Asia/Singapore'
+            };
+        }
+
+        return {
+            ...agent.working_hours,
+            timezone: agent.timezone || 'Asia/Singapore'
+        };
+    } catch (error) {
+        logger.error({ err: error, agentId }, 'Error fetching agent working hours');
+        return {
+            start: 9,
+            end: 18,
+            days: [1, 2, 3, 4, 5],
+            timezone: 'Asia/Singapore'
+        };
+    }
+}
 
 /**
  * Finds the next available 1-hour consultation slots in an agent's calendar.
@@ -18,26 +53,36 @@ const WORKING_DAYS = [0, 1, 2, 3, 4, 5, 6]; // All days (Sunday=0 to Saturday=6)
  */
 async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearch = 14) {
     try {
+        // Get agent's actual working hours from database
+        const workingHours = await getAgentWorkingHours(agentId);
+
+        logger.info({
+            agentId,
+            workingHours,
+            preferredTime: preferredTime?.toISOString(),
+            daysToSearch
+        }, 'Finding available slots with agent working hours');
+
         const now = new Date();
         const searchStart = new Date(now);
 
         // If preferred time is provided and it's in the future, start search from that day
         if (preferredTime && preferredTime > now) {
             searchStart.setTime(preferredTime.getTime());
-            searchStart.setHours(WORKING_HOURS_START, 0, 0, 0);
+            searchStart.setHours(workingHours.start, 0, 0, 0);
         } else {
             // Start search from current time (no advance booking required)
             searchStart.setTime(now.getTime());
             // If current time is past working hours, start from next day
-            if (now.getHours() >= WORKING_HOURS_END) {
+            if (now.getHours() >= workingHours.end) {
                 searchStart.setDate(now.getDate() + 1);
-                searchStart.setHours(WORKING_HOURS_START, 0, 0, 0);
+                searchStart.setHours(workingHours.start, 0, 0, 0);
             }
         }
 
         const searchEnd = new Date(searchStart);
         searchEnd.setDate(searchStart.getDate() + daysToSearch);
-        searchEnd.setHours(WORKING_HOURS_END, 0, 0, 0);
+        searchEnd.setHours(workingHours.end, 0, 0, 0);
 
         // 1. Get all busy periods from Google Calendar
         const busySlots = await checkAvailability(agentId, searchStart.toISOString(), searchEnd.toISOString());
@@ -50,8 +95,8 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
             const day = currentSlotTime.getDay();
             const hour = currentSlotTime.getHours();
 
-            // Check if it's within working hours (8am to 10pm) and working days (all days)
-            if (WORKING_DAYS.includes(day) && hour >= WORKING_HOURS_START && hour < WORKING_HOURS_END) {
+            // Check if it's within working hours and working days
+            if (workingHours.days.includes(day) && hour >= workingHours.start && hour < workingHours.end) {
                 potentialSlots.push(new Date(currentSlotTime));
             }
 
@@ -59,7 +104,7 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
 
             // If we cross into the next day, reset time to working hours start
             if (currentSlotTime.getDate() !== new Date(currentSlotTime - SLOT_DURATION_MINUTES * 60 * 1000).getDate()) {
-                currentSlotTime.setHours(WORKING_HOURS_START, 0, 0, 0);
+                currentSlotTime.setHours(workingHours.start, 0, 0, 0);
             }
         }
 
@@ -210,6 +255,7 @@ async function findMatchingSlot(agentId, userMessage) {
 }
 
 module.exports = {
+    getAgentWorkingHours,
     findNextAvailableSlots,
     parsePreferredTime,
     findMatchingSlot
