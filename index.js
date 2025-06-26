@@ -23,6 +23,7 @@ const gupshupRouter = require('./api/gupshup');
 const metaRouter = require('./api/meta');
 const testRouter = require('./api/test');
 const authRouter = require('./api/auth');
+const { testCalendarIntegration } = require('./api/googleCalendarService');
 
 // Initialize Express app
 const app = express();
@@ -186,6 +187,18 @@ app.use('/api/gupshup', gupshupRouter);
 app.use('/api/meta', metaRouter);
 app.use('/api/test', testRouter);
 app.use('/api/auth', authRouter);
+
+// Debug endpoint for Google Calendar integration
+app.get('/debug/calendar/:agentId', asyncHandler(async (req, res) => {
+  const { agentId } = req.params;
+
+  if (!agentId) {
+    return res.status(400).json({ error: 'Agent ID is required' });
+  }
+
+  const testResult = await testCalendarIntegration(agentId);
+  res.json(testResult);
+}));
 
 // 404 handler for undefined routes
 app.use(notFoundHandler);

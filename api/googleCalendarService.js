@@ -112,26 +112,36 @@ async function checkAvailability(agentId, startTimeISO, endTimeISO) {
             },
         });
 
+        // Enhanced logging for debugging calendar issues
         logger.info({
             agentId,
             calendars: Object.keys(response.data.calendars || {}),
-            primaryCalendarExists: !!(response.data.calendars && response.data.calendars.primary)
-        }, 'Google Calendar freebusy response');
+            primaryCalendarExists: !!(response.data.calendars && response.data.calendars.primary),
+            fullResponse: JSON.stringify(response.data, null, 2),
+            requestTimeRange: `${startTimeISO} to ${endTimeISO}`
+        }, 'Google Calendar freebusy response - DETAILED DEBUG');
 
         // Handle case where calendar data might be missing
         if (!response.data.calendars || !response.data.calendars.primary) {
-            logger.warn({ agentId }, 'No primary calendar found in response, assuming no busy slots');
+            logger.warn({
+                agentId,
+                responseData: JSON.stringify(response.data, null, 2)
+            }, 'No primary calendar found in response, assuming no busy slots');
             return [];
         }
 
         const busySlots = response.data.calendars.primary.busy || [];
+
+        // Enhanced logging for busy slots
         logger.info({
             agentId,
             busySlotsCount: busySlots.length,
             busySlots: busySlots.map(slot =>
                 `${new Date(slot.start).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })} - ${new Date(slot.end).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })}`
-            )
-        }, 'Checked calendar for busy slots.');
+            ),
+            rawBusySlots: JSON.stringify(busySlots, null, 2),
+            searchTimeRange: `${new Date(startTimeISO).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })} - ${new Date(endTimeISO).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })}`
+        }, 'Checked calendar for busy slots - DETAILED DEBUG');
         return busySlots;
 
     } catch (error) {
@@ -151,45 +161,155 @@ async function checkAvailability(agentId, startTimeISO, endTimeISO) {
 }
 
 async function createEvent(agentId, eventDetails) {
-    const { authClient, agent } = await getAuthenticatedClient(agentId);
-    if (!authClient || !agent) {
-        throw new Error('Could not authenticate or retrieve agent details to create Google Calendar event.');
+    try {
+        logger.info({
+            agentId,
+            eventDetails: {
+                summary: eventDetails.summary,
+                startTime: eventDetails.startTimeISO,
+                endTime: eventDetails.endTimeISO
+            }
+        }, 'Starting Google Calendar event creation');
+
+        const { authClient, agent } = await getAuthenticatedClient(agentId);
+        if (!authClient || !agent) {
+            const error = 'Could not authenticate or retrieve agent details to create Google Calendar event.';
+            logger.error({ agentId }, error);
+            throw new Error(error);
+        }
+
+        logger.info({
+            agentId,
+            agentEmail: agent.google_email,
+            hasAuthClient: !!authClient
+        }, 'Authentication successful for calendar event creation');
+
+        const calendar = google.calendar({ version: 'v3', auth: authClient });
+
+        const event = {
+            summary: eventDetails.summary,
+            description: eventDetails.description,
+            start: {
+                dateTime: eventDetails.startTimeISO,
+                timeZone: 'Asia/Singapore',
+            },
+            end: {
+                dateTime: eventDetails.endTimeISO,
+                timeZone: 'Asia/Singapore',
+            },
+            attendees: [
+                { email: agent.google_email } // Only add the agent to the event
+            ],
+            // No conferenceData - we only use Zoom meetings, not Google Meet
+            reminders: {
+                useDefault: true,
+            },
+        };
+
+        logger.info({
+            agentId,
+            eventPayload: JSON.stringify(event, null, 2)
+        }, 'Attempting to create Google Calendar event with payload');
+
+        const response = await calendar.events.insert({
+            calendarId: 'primary',
+            resource: event,
+            // No conferenceDataVersion needed since we're not using Google Meet
+        });
+
+        logger.info({
+            agentId,
+            eventId: response.data.id,
+            eventLink: response.data.htmlLink
+        }, 'Successfully created calendar event for agent.');
+
+        return response.data;
+    } catch (error) {
+        logger.error({
+            err: error,
+            agentId,
+            eventDetails,
+            errorMessage: error.message,
+            errorCode: error.code,
+            errorStatus: error.status
+        }, 'Failed to create Google Calendar event - DETAILED ERROR');
+        throw error;
     }
+}
 
-    const calendar = google.calendar({ version: 'v3', auth: authClient });
-    
-    const event = {
-        summary: eventDetails.summary,
-        description: eventDetails.description,
-        start: {
-            dateTime: eventDetails.startTimeISO,
-            timeZone: 'Asia/Singapore',
-        },
-        end: {
-            dateTime: eventDetails.endTimeISO,
-            timeZone: 'Asia/Singapore',
-        },
-        attendees: [
-            { email: agent.google_email } // Only add the agent to the event
-        ],
-        // No conferenceData - we only use Zoom meetings, not Google Meet
-        reminders: {
-            useDefault: true,
-        },
-    };
+/**
+ * Test function to debug Google Calendar integration
+ * @param {string} agentId - Agent ID to test
+ * @returns {Promise<Object>} Test results
+ */
+async function testCalendarIntegration(agentId) {
+    try {
+        logger.info({ agentId }, 'Starting Google Calendar integration test');
 
-    const response = await calendar.events.insert({
-        calendarId: 'primary',
-        resource: event,
-        // No conferenceDataVersion needed since we're not using Google Meet
-    });
+        // Test 1: Check authentication
+        const { authClient, agent } = await getAuthenticatedClient(agentId);
+        if (!authClient || !agent) {
+            return {
+                success: false,
+                error: 'Authentication failed',
+                details: { hasAuthClient: !!authClient, hasAgent: !!agent }
+            };
+        }
 
-    logger.info({ agentId, eventId: response.data.id }, 'Successfully created calendar event for agent.');
-    return response.data;
+        // Test 2: List calendars
+        const calendar = google.calendar({ version: 'v3', auth: authClient });
+        const calendarList = await calendar.calendarList.list();
+
+        // Test 3: Check today's events
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+
+        const events = await calendar.events.list({
+            calendarId: 'primary',
+            timeMin: today.toISOString(),
+            timeMax: tomorrow.toISOString(),
+            singleEvents: true,
+            orderBy: 'startTime',
+        });
+
+        // Test 4: Check freebusy for today
+        const busySlots = await checkAvailability(agentId, today.toISOString(), tomorrow.toISOString());
+
+        return {
+            success: true,
+            agent: {
+                id: agent.id,
+                email: agent.google_email
+            },
+            calendars: calendarList.data.items?.map(cal => ({
+                id: cal.id,
+                summary: cal.summary,
+                primary: cal.primary
+            })) || [],
+            todaysEvents: events.data.items?.map(event => ({
+                summary: event.summary,
+                start: event.start?.dateTime || event.start?.date,
+                end: event.end?.dateTime || event.end?.date
+            })) || [],
+            busySlots: busySlots
+        };
+    } catch (error) {
+        logger.error({ err: error, agentId }, 'Google Calendar integration test failed');
+        return {
+            success: false,
+            error: error.message,
+            details: {
+                code: error.code,
+                status: error.status
+            }
+        };
+    }
 }
 
 module.exports = {
     getAuthenticatedClient,
     checkAvailability,
     createEvent,
+    testCalendarIntegration,
 };
