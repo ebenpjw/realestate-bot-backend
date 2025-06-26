@@ -4,6 +4,7 @@ const supabase = require('../supabaseClient');
 const logger = require('../logger');
 const { createEvent } = require('../api/googleCalendarService');
 const { createZoomMeeting, updateZoomMeeting, deleteZoomMeeting } = require('../api/zoomService');
+const { createZoomMeetingForUser, updateZoomMeetingForUser, deleteZoomMeetingForUser } = require('../api/zoomServerService');
 const { findMatchingSlot } = require('../api/bookingHelper');
 const whatsappService = require('./whatsappService');
 
@@ -45,16 +46,40 @@ class AppointmentService {
       const enhancedConsultationNotes = this._buildConsultationNotes(leadDetails, consultationNotes);
       const calendarDescription = this._buildCalendarDescription(leadDetails, leadId);
 
-      // 1. Try to create Zoom meeting (continue if it fails)
+      // Get agent information for Zoom integration
+      const { data: agent, error: agentError } = await supabase
+        .from('agents')
+        .select('id, full_name, zoom_email')
+        .eq('id', agentId)
+        .single();
+
+      if (agentError) {
+        logger.warn({ err: agentError, agentId }, 'Could not fetch agent details, continuing without Zoom integration');
+      }
+
+      // 1. Try to create Zoom meeting using Server-to-Server OAuth (continue if it fails)
       let zoomMeeting = null;
       try {
-        zoomMeeting = await createZoomMeeting(agentId, {
-          topic: `Property Consultation: ${leadName}`,
-          startTime: appointmentStart.toISOString(),
-          duration: this.APPOINTMENT_DURATION,
-          agenda: enhancedConsultationNotes
-        });
-        logger.info({ leadId, zoomMeetingId: zoomMeeting.id }, 'Zoom meeting created successfully');
+        if (agent && agent.zoom_email) {
+          // Use new Server-to-Server OAuth service
+          zoomMeeting = await createZoomMeetingForUser(agent.zoom_email, {
+            topic: `Property Consultation: ${leadName}`,
+            startTime: appointmentStart.toISOString(),
+            duration: this.APPOINTMENT_DURATION,
+            agenda: enhancedConsultationNotes
+          });
+          logger.info({ leadId, zoomMeetingId: zoomMeeting.id, hostEmail: agent.zoom_email }, 'Zoom meeting created successfully with Server-to-Server OAuth');
+        } else {
+          // Fallback to old OAuth method if zoom_email is not set
+          logger.info({ agentId }, 'No zoom_email found for agent, trying legacy OAuth method');
+          zoomMeeting = await createZoomMeeting(agentId, {
+            topic: `Property Consultation: ${leadName}`,
+            startTime: appointmentStart.toISOString(),
+            duration: this.APPOINTMENT_DURATION,
+            agenda: enhancedConsultationNotes
+          });
+          logger.info({ leadId, zoomMeetingId: zoomMeeting.id }, 'Zoom meeting created successfully with legacy OAuth');
+        }
       } catch (zoomError) {
         logger.warn({ err: zoomError, leadId, agentId }, 'Failed to create Zoom meeting, continuing without it');
         // Create a fallback meeting object
@@ -238,10 +263,10 @@ class AppointmentService {
     notifyLead = true
   }) {
     try {
-      // 1. Get existing appointment
+      // 1. Get existing appointment with agent details
       const { data: appointment, error: fetchError } = await supabase
         .from('appointments')
-        .select('*, leads(full_name, phone_number)')
+        .select('*, leads(full_name, phone_number), agents(zoom_email)')
         .eq('id', appointmentId)
         .single();
 
@@ -249,9 +274,21 @@ class AppointmentService {
         throw new Error('Appointment not found');
       }
 
-      // 2. Cancel Zoom meeting
+      // 2. Cancel Zoom meeting using appropriate service
       if (appointment.zoom_meeting_id) {
-        await deleteZoomMeeting(appointment.agent_id, appointment.zoom_meeting_id);
+        try {
+          if (appointment.agents && appointment.agents.zoom_email) {
+            // Use Server-to-Server OAuth service
+            await deleteZoomMeetingForUser(appointment.agents.zoom_email, appointment.zoom_meeting_id);
+            logger.info({ appointmentId, zoomMeetingId: appointment.zoom_meeting_id }, 'Zoom meeting cancelled with Server-to-Server OAuth');
+          } else {
+            // Fallback to legacy OAuth method
+            await deleteZoomMeeting(appointment.agent_id, appointment.zoom_meeting_id);
+            logger.info({ appointmentId, zoomMeetingId: appointment.zoom_meeting_id }, 'Zoom meeting cancelled with legacy OAuth');
+          }
+        } catch (zoomError) {
+          logger.warn({ err: zoomError, appointmentId }, 'Failed to cancel Zoom meeting, continuing with appointment cancellation');
+        }
       }
 
       // 3. Update appointment status

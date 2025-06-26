@@ -15,6 +15,9 @@ process.env.META_VERIFY_TOKEN = 'test-meta-verify';
 process.env.META_APP_SECRET = 'test-meta-secret';
 process.env.GOOGLE_CLIENT_ID = 'test-google-client-id';
 process.env.GOOGLE_CLIENT_SECRET = 'test-google-client-secret';
+process.env.ZOOM_CLIENT_ID = 'test-zoom-client-id';
+process.env.ZOOM_CLIENT_SECRET = 'test-zoom-client-secret';
+process.env.ZOOM_REDIRECT_URI = 'https://test.example.com/callback';
 
 describe('Application Integration Tests', () => {
   let app;

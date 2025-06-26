@@ -1,0 +1,112 @@
+<svg width="1824" height="176" viewBox="0 0 1824 176" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Gradient -->
+  <defs>
+    <linearGradient id="coverGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#2563eb;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#1d4ed8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e40af;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <rect width="1824" height="176" fill="url(#coverGradient)"/>
+  
+  <!-- Left Side - App Icon and Title -->
+  <g transform="translate(40, 20)">
+    <!-- App Icon Background -->
+    <circle cx="68" cy="68" r="60" fill="#ffffff" opacity="0.1"/>
+    <circle cx="68" cy="68" r="50" fill="#ffffff"/>
+    
+    <!-- House Icon in App Icon -->
+    <g transform="translate(35, 35)">
+      <!-- House Base -->
+      <rect x="8" y="25" width="50" height="30" fill="#2563eb" rx="2"/>
+      <!-- House Roof -->
+      <polygon points="4,25 33,10 62,25" fill="#2563eb"/>
+      <!-- Door -->
+      <rect x="25" y="40" width="10" height="15" fill="#ffffff" rx="1"/>
+      <!-- Windows -->
+      <rect x="15" y="32" width="6" height="6" fill="#ffffff" rx="1"/>
+      <rect x="45" y="32" width="6" height="6" fill="#ffffff" rx="1"/>
+    </g>
+    
+    <!-- AI Bot Indicator -->
+    <circle cx="100" cy="100" r="15" fill="#10b981"/>
+    <circle cx="96" cy="96" r="2" fill="#ffffff"/>
+    <circle cx="104" cy="96" r="2" fill="#ffffff"/>
+    <path d="M 92 105 Q 100 108 108 105" stroke="#ffffff" stroke-width="1.5" fill="none"/>
+  </g>
+  
+  <!-- Title and Description -->
+  <g transform="translate(180, 30)">
+    <text x="0" y="30" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="#ffffff">
+      Real Estate AI Assistant
+    </text>
+    <text x="0" y="60" font-family="Arial, sans-serif" font-size="18" fill="#e5e7eb">
+      Automate property consultations with AI-powered WhatsApp integration
+    </text>
+    <text x="0" y="85" font-family="Arial, sans-serif" font-size="16" fill="#cbd5e1">
+      Schedule Zoom meetings • Qualify leads • Integrate calendars • WABA compliant
+    </text>
+    <text x="0" y="110" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#10b981">
+      by Marketing with Doro
+    </text>
+  </g>
+  
+  <!-- Right Side - Workflow Illustration -->
+  <g transform="translate(1200, 20)">
+    <!-- WhatsApp Icon -->
+    <g transform="translate(0, 20)">
+      <circle cx="30" cy="30" r="25" fill="#25d366"/>
+      <text x="30" y="38" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#ffffff">WA</text>
+    </g>
+    
+    <!-- Arrow 1 -->
+    <g transform="translate(70, 45)">
+      <line x1="0" y1="5" x2="40" y2="5" stroke="#ffffff" stroke-width="3" marker-end="url(#arrowhead)"/>
+    </g>
+    
+    <!-- AI Processing -->
+    <g transform="translate(120, 20)">
+      <rect x="0" y="0" width="60" height="60" fill="#ffffff" rx="8" opacity="0.9"/>
+      <text x="30" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#2563eb">AI</text>
+      <text x="30" y="40" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#6b7280">Processing</text>
+      <text x="30" y="52" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#6b7280">Leads</text>
+    </g>
+    
+    <!-- Arrow 2 -->
+    <g transform="translate(190, 45)">
+      <line x1="0" y1="5" x2="40" y2="5" stroke="#ffffff" stroke-width="3" marker-end="url(#arrowhead)"/>
+    </g>
+    
+    <!-- Calendar Integration -->
+    <g transform="translate(240, 20)">
+      <rect x="0" y="0" width="60" height="60" fill="#ffffff" rx="8" opacity="0.9"/>
+      <text x="30" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#2563eb">📅</text>
+      <text x="30" y="40" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#6b7280">Calendar</text>
+      <text x="30" y="52" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#6b7280">Check</text>
+    </g>
+    
+    <!-- Arrow 3 -->
+    <g transform="translate(310, 45)">
+      <line x1="0" y1="5" x2="40" y2="5" stroke="#ffffff" stroke-width="3" marker-end="url(#arrowhead)"/>
+    </g>
+    
+    <!-- Zoom Meeting -->
+    <g transform="translate(360, 20)">
+      <rect x="0" y="0" width="60" height="60" fill="#2d8cff" rx="8"/>
+      <text x="30" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#ffffff">📹</text>
+      <text x="30" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#ffffff">Zoom</text>
+      <text x="30" y="55" text-anchor="middle" font-family="Arial, sans-serif" font-size="9" fill="#ffffff">Meeting</text>
+    </g>
+  </g>
+  
+  <!-- Arrow marker definition -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ffffff"/>
+    </marker>
+  </defs>
+  
+  <!-- Bottom accent line -->
+  <rect x="0" y="170" width="1824" height="6" fill="#10b981"/>
+</svg>

@@ -1,0 +1,163 @@
+<svg width="1200" height="780" viewBox="0 0 1200 780" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1200" height="780" fill="#f8fafc"/>
+  
+  <!-- Title -->
+  <text x="600" y="60" text-anchor="middle" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#1e293b">
+    Smart Calendar Integration
+  </text>
+  
+  <!-- Calendar Interface -->
+  <g transform="translate(200, 120)">
+    <!-- Calendar Container -->
+    <rect x="0" y="0" width="800" height="500" fill="#ffffff" rx="12" stroke="#e5e7eb" stroke-width="2"/>
+    
+    <!-- Calendar Header -->
+    <rect x="0" y="0" width="800" height="60" fill="#2563eb" rx="12 12 0 0"/>
+    <text x="40" y="38" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#ffffff">
+      Agent Availability - December 2024
+    </text>
+    
+    <!-- Navigation Arrows -->
+    <text x="720" y="38" font-family="Arial, sans-serif" font-size="20" fill="#ffffff">‹ ›</text>
+    
+    <!-- Days of Week Header -->
+    <g transform="translate(0, 60)">
+      <rect x="0" y="0" width="800" height="40" fill="#f1f5f9"/>
+      <text x="57" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#64748b">MON</text>
+      <text x="171" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#64748b">TUE</text>
+      <text x="285" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#64748b">WED</text>
+      <text x="399" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#64748b">THU</text>
+      <text x="513" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#64748b">FRI</text>
+      <text x="627" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#64748b">SAT</text>
+      <text x="741" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#64748b">SUN</text>
+    </g>
+    
+    <!-- Calendar Grid -->
+    <g transform="translate(0, 100)">
+      <!-- Week 1 -->
+      <g transform="translate(0, 0)">
+        <rect x="0" y="0" width="114" height="80" fill="#ffffff" stroke="#e5e7eb"/>
+        <text x="57" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#64748b">25</text>
+        
+        <rect x="114" y="0" width="114" height="80" fill="#ffffff" stroke="#e5e7eb"/>
+        <text x="171" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#1f2937">26</text>
+        <rect x="124" y="35" width="94" height="15" fill="#10b981" rx="3"/>
+        <text x="171" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#ffffff">Available 9-11 AM</text>
+        
+        <rect x="228" y="0" width="114" height="80" fill="#ffffff" stroke="#e5e7eb"/>
+        <text x="285" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#1f2937">27</text>
+        <rect x="238" y="35" width="94" height="15" fill="#ef4444" rx="3"/>
+        <text x="285" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#ffffff">Booked 2-4 PM</text>
+        
+        <rect x="342" y="0" width="114" height="80" fill="#ffffff" stroke="#e5e7eb"/>
+        <text x="399" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#1f2937">28</text>
+        <rect x="352" y="35" width="94" height="15" fill="#10b981" rx="3"/>
+        <text x="399" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#ffffff">Available 10-12 PM</text>
+        <rect x="352" y="55" width="94" height="15" fill="#10b981" rx="3"/>
+        <text x="399" y="65" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#ffffff">Available 3-5 PM</text>
+        
+        <rect x="456" y="0" width="114" height="80" fill="#ffffff" stroke="#e5e7eb"/>
+        <text x="513" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#1f2937">29</text>
+        <rect x="466" y="35" width="94" height="15" fill="#10b981" rx="3"/>
+        <text x="513" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#ffffff">Available 9-11 AM</text>
+        
+        <rect x="570" y="0" width="114" height="80" fill="#ffffff" stroke="#e5e7eb"/>
+        <text x="627" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#64748b">30</text>
+        
+        <rect x="684" y="0" width="116" height="80" fill="#ffffff" stroke="#e5e7eb"/>
+        <text x="741" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#64748b">1</text>
+      </g>
+      
+      <!-- Week 2 -->
+      <g transform="translate(0, 80)">
+        <rect x="0" y="0" width="114" height="80" fill="#ffffff" stroke="#e5e7eb"/>
+        <text x="57" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#1f2937">2</text>
+        <rect x="10" y="35" width="94" height="15" fill="#f59e0b" rx="3"/>
+        <text x="57" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#ffffff">Suggested Slot</text>
+        <rect x="10" y="55" width="94" height="15" fill="#10b981" rx="3"/>
+        <text x="57" y="65" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#ffffff">Available 2-4 PM</text>
+        
+        <rect x="114" y="0" width="114" height="80" fill="#ffffff" stroke="#e5e7eb"/>
+        <text x="171" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#1f2937">3</text>
+        <rect x="124" y="35" width="94" height="15" fill="#10b981" rx="3"/>
+        <text x="171" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#ffffff">Available 10-12 PM</text>
+        
+        <rect x="228" y="0" width="114" height="80" fill="#ffffff" stroke="#e5e7eb"/>
+        <text x="285" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#1f2937">4</text>
+        <rect x="238" y="35" width="94" height="15" fill="#ef4444" rx="3"/>
+        <text x="285" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#ffffff">Fully Booked</text>
+        
+        <rect x="342" y="0" width="114" height="80" fill="#ffffff" stroke="#e5e7eb"/>
+        <text x="399" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#1f2937">5</text>
+        <rect x="352" y="35" width="94" height="15" fill="#f59e0b" rx="3"/>
+        <text x="399" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#ffffff">Suggested Slot</text>
+        
+        <rect x="456" y="0" width="114" height="80" fill="#ffffff" stroke="#e5e7eb"/>
+        <text x="513" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#1f2937">6</text>
+        <rect x="466" y="35" width="94" height="15" fill="#10b981" rx="3"/>
+        <text x="513" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" fill="#ffffff">Available All Day</text>
+        
+        <rect x="570" y="0" width="114" height="80" fill="#ffffff" stroke="#e5e7eb"/>
+        <text x="627" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#64748b">7</text>
+        
+        <rect x="684" y="0" width="116" height="80" fill="#ffffff" stroke="#e5e7eb"/>
+        <text x="741" y="25" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#64748b">8</text>
+      </g>
+    </g>
+  </g>
+  
+  <!-- Legend -->
+  <g transform="translate(100, 650)">
+    <text x="0" y="0" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#1e293b">
+      Legend:
+    </text>
+    
+    <g transform="translate(100, -10)">
+      <rect x="0" y="0" width="20" height="15" fill="#10b981" rx="3"/>
+      <text x="30" y="12" font-family="Arial, sans-serif" font-size="14" fill="#374151">Available</text>
+      
+      <rect x="120" y="0" width="20" height="15" fill="#f59e0b" rx="3"/>
+      <text x="150" y="12" font-family="Arial, sans-serif" font-size="14" fill="#374151">AI Suggested</text>
+      
+      <rect x="260" y="0" width="20" height="15" fill="#ef4444" rx="3"/>
+      <text x="290" y="12" font-family="Arial, sans-serif" font-size="14" fill="#374151">Booked</text>
+    </g>
+  </g>
+  
+  <!-- Features -->
+  <g transform="translate(850, 200)">
+    <text x="0" y="0" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#1e293b">
+      Smart Features:
+    </text>
+    
+    <g transform="translate(0, 40)">
+      <circle cx="8" cy="8" r="6" fill="#2563eb"/>
+      <text x="6" y="12" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#ffffff">AI</text>
+      <text x="25" y="12" font-family="Arial, sans-serif" font-size="14" fill="#374151">Real-time availability</text>
+    </g>
+    
+    <g transform="translate(0, 70)">
+      <circle cx="8" cy="8" r="6" fill="#2563eb"/>
+      <text x="6" y="12" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#ffffff">AI</text>
+      <text x="25" y="12" font-family="Arial, sans-serif" font-size="14" fill="#374151">Optimal time suggestions</text>
+    </g>
+    
+    <g transform="translate(0, 100)">
+      <circle cx="8" cy="8" r="6" fill="#2563eb"/>
+      <text x="6" y="12" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#ffffff">AI</text>
+      <text x="25" y="12" font-family="Arial, sans-serif" font-size="14" fill="#374151">Timezone handling</text>
+    </g>
+    
+    <g transform="translate(0, 130)">
+      <circle cx="8" cy="8" r="6" fill="#2563eb"/>
+      <text x="6" y="12" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#ffffff">AI</text>
+      <text x="25" y="12" font-family="Arial, sans-serif" font-size="14" fill="#374151">Buffer time management</text>
+    </g>
+  </g>
+  
+  <!-- Bottom Branding -->
+  <text x="600" y="740" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="600" fill="#6b7280">
+    Google Calendar Integration by Marketing with Doro
+  </text>
+</svg>

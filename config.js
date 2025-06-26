@@ -79,6 +79,7 @@ const config = {
   ZOOM_CLIENT_ID: process.env.ZOOM_CLIENT_ID,
   ZOOM_CLIENT_SECRET: process.env.ZOOM_CLIENT_SECRET,
   ZOOM_REDIRECT_URI: process.env.ZOOM_REDIRECT_URI,
+  ZOOM_ACCOUNT_ID: process.env.ZOOM_ACCOUNT_ID, // For Server-to-Server OAuth
   ZOOM_TIMEOUT: parseInteger(process.env.ZOOM_TIMEOUT, 15000),
 
   // Security & Encryption
@@ -108,7 +109,8 @@ const requiredConfig = {
   GOOGLE_CLIENT_ID: 'Google OAuth required for calendar integration',
   GOOGLE_CLIENT_SECRET: 'Google OAuth required for calendar integration',
   ZOOM_CLIENT_ID: 'Zoom OAuth required for meeting integration',
-  ZOOM_CLIENT_SECRET: 'Zoom OAuth required for meeting integration'
+  ZOOM_CLIENT_SECRET: 'Zoom OAuth required for meeting integration',
+  ZOOM_ACCOUNT_ID: 'Zoom Account ID required for Server-to-Server OAuth'
 };
 
 // Validate required configuration

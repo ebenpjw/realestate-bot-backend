@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zoom App Assets - Image Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8fafc;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #1e293b;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .asset-section {
+            margin-bottom: 40px;
+            padding: 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+        }
+        .asset-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2563eb;
+            margin-bottom: 10px;
+        }
+        .requirements {
+            background-color: #fef3c7;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        .preview {
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 10px;
+            margin: 15px 0;
+            background-color: #f9fafb;
+        }
+        .download-btn {
+            background-color: #2563eb;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .download-btn:hover {
+            background-color: #1d4ed8;
+        }
+        .instructions {
+            background-color: #dbeafe;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #1e40af;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Zoom Marketplace App Assets</h1>
+        <p style="text-align: center; color: #6b7280; margin-bottom: 30px;">
+            <strong>Marketing with Doro</strong> - Real Estate AI Assistant
+        </p>
+
+        <div class="instructions">
+            <h3>📋 How to Use These Assets:</h3>
+            <ol>
+                <li><strong>Right-click</strong> on each SVG image below</li>
+                <li>Select <strong>"Save image as..."</strong> or <strong>"Save as..."</strong></li>
+                <li>Change the file extension from <code>.svg</code> to <code>.png</code></li>
+                <li>Upload the PNG files to your Zoom Marketplace app</li>
+            </ol>
+            <p><strong>Alternative:</strong> Use an online SVG to PNG converter like <a href="https://convertio.co/svg-png/" target="_blank">convertio.co</a> for exact dimensions.</p>
+        </div>
+
+        <!-- App Icon -->
+        <div class="asset-section">
+            <div class="asset-title">📱 App Icon</div>
+            <div class="requirements">
+                <strong>Requirements:</strong> 160x160 pixels, JPG/JPEG/PNG format, max 1MB
+            </div>
+            <div class="preview">
+                <img src="app-icon-160x160.svg" alt="App Icon" style="width: 160px; height: 160px; border: 1px solid #ccc;">
+            </div>
+            <button class="download-btn" onclick="downloadSVG('app-icon-160x160.svg', 'real-estate-ai-app-icon-160x160.png')">
+                💾 Download App Icon
+            </button>
+        </div>
+
+        <!-- Cover Image -->
+        <div class="asset-section">
+            <div class="asset-title">🖼️ Cover Image</div>
+            <div class="requirements">
+                <strong>Requirements:</strong> 1824x176 pixels, JPG/JPEG/PNG format, max 2MB
+            </div>
+            <div class="preview">
+                <img src="cover-image-1824x176.svg" alt="Cover Image" style="width: 100%; max-width: 600px; border: 1px solid #ccc;">
+            </div>
+            <button class="download-btn" onclick="downloadSVG('cover-image-1824x176.svg', 'real-estate-ai-cover-1824x176.png')">
+                💾 Download Cover Image
+            </button>
+        </div>
+
+        <!-- Gallery Images -->
+        <div class="asset-section">
+            <div class="asset-title">🖼️ App Gallery Images</div>
+            <div class="requirements">
+                <strong>Requirements:</strong> 1200x780 pixels each, JPG/JPEG/PNG format, max 40MB total
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <h4>1. WhatsApp Integration</h4>
+                <div class="preview">
+                    <img src="gallery-image-1-whatsapp-1200x780.svg" alt="WhatsApp Integration" style="width: 100%; max-width: 500px; border: 1px solid #ccc;">
+                </div>
+                <button class="download-btn" onclick="downloadSVG('gallery-image-1-whatsapp-1200x780.svg', 'gallery-1-whatsapp-integration-1200x780.png')">
+                    💾 Download WhatsApp Gallery
+                </button>
+            </div>
+
+            <div style="margin: 20px 0;">
+                <h4>2. Calendar Integration</h4>
+                <div class="preview">
+                    <img src="gallery-image-2-calendar-1200x780.svg" alt="Calendar Integration" style="width: 100%; max-width: 500px; border: 1px solid #ccc;">
+                </div>
+                <button class="download-btn" onclick="downloadSVG('gallery-image-2-calendar-1200x780.svg', 'gallery-2-calendar-integration-1200x780.png')">
+                    💾 Download Calendar Gallery
+                </button>
+            </div>
+
+            <div style="margin: 20px 0;">
+                <h4>3. Zoom Meeting Creation</h4>
+                <div class="preview">
+                    <img src="gallery-image-3-zoom-creation-1200x780.svg" alt="Zoom Creation" style="width: 100%; max-width: 500px; border: 1px solid #ccc;">
+                </div>
+                <button class="download-btn" onclick="downloadSVG('gallery-image-3-zoom-creation-1200x780.svg', 'gallery-3-zoom-creation-1200x780.png')">
+                    💾 Download Zoom Gallery
+                </button>
+            </div>
+        </div>
+
+        <!-- App Information -->
+        <div class="asset-section">
+            <div class="asset-title">📝 App Information (Copy & Paste)</div>
+            
+            <div style="margin: 15px 0;">
+                <h4>Short Description:</h4>
+                <textarea readonly style="width: 100%; height: 60px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">AI-powered real estate assistant that schedules property consultations via Zoom meetings.</textarea>
+            </div>
+
+            <div style="margin: 15px 0;">
+                <h4>Long Description:</h4>
+                <textarea readonly style="width: 100%; height: 200px; padding: 10px; border: 1px solid #ccc; border-radius: 4px;">Our Real Estate AI Assistant streamlines property consultation booking by automatically scheduling Zoom meetings between potential buyers and real estate agents. The bot handles initial inquiries, qualifies leads, and seamlessly integrates with agents' calendars to book convenient consultation times.
+
+Key Features:
+• Automated lead qualification through WhatsApp integration
+• Smart Google Calendar integration for availability checking
+• Instant Zoom meeting creation with professional settings
+• WABA-compliant messaging for international reach
+• Secure token management and encryption
+• Real-time lead tracking and management
+
+Perfect for real estate agencies looking to automate their initial client interactions while maintaining a personal touch through scheduled video consultations. The system ensures compliance with WhatsApp Business API regulations while providing a seamless experience for both agents and potential clients.</textarea>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function downloadSVG(svgFile, pngName) {
+            // Create a temporary link to download the SVG
+            const link = document.createElement('a');
+            link.href = svgFile;
+            link.download = pngName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            alert('SVG downloaded! Please convert to PNG format before uploading to Zoom Marketplace.');
+        }
+    </script>
+</body>
+</html>
