@@ -18,7 +18,7 @@
     "validate": "npm run lint",
     "build": "echo 'Build complete - Ready for deployment' && npm run validate",
     "railway:build": "npm run build",
-    "railway:start": "NODE_ENV=production npm start",
+    "railway:start": "NODE_ENV=production node scripts/railway-deploy.js && npm start",
     "health-check": "curl -f http://localhost:8080/health || exit 1",
     "db:migrate": "echo 'Run Supabase migrations manually'",
     "deploy-check": "node scripts/railway-deploy.js",

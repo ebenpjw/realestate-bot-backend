@@ -1,79 +1,85 @@
 /**
- * Railway Deployment Helper Script
- * Ensures proper environment setup before deployment
+ * Railway Deployment Setup Script
+ * Initializes database and creates default agent
  */
 
-const fs = require('fs');
+const logger = require('../logger');
 
-console.log('🚀 Railway Deployment Helper');
-console.log('============================');
+async function railwayDeploy() {
+  try {
+    logger.info('🚀 Starting Railway deployment setup...');
 
-// Check if we're in production
-if (process.env.NODE_ENV !== 'production') {
-  console.log('⚠️  Warning: NODE_ENV is not set to production');
-}
+    // Check critical environment variables
+    const requiredEnvVars = [
+      'SUPABASE_URL',
+      'SUPABASE_KEY',
+      'DATABASE_URL',
+      'GUPSHUP_API_KEY',
+      'OPENAI_API_KEY'
+    ];
 
-// Verify critical environment variables
-const requiredEnvVars = [
-  'SUPABASE_URL',
-  'SUPABASE_KEY',
-  'GUPSHUP_API_KEY',
-  'OPENAI_API_KEY',
-  'META_VERIFY_TOKEN'
-];
+    logger.info('🔍 Checking environment variables...');
+    const missingVars = [];
 
-console.log('\n🔍 Checking environment variables...');
-const missingVars = [];
+    requiredEnvVars.forEach(varName => {
+      if (!process.env[varName]) {
+        missingVars.push(varName);
+        logger.warn(`❌ Missing: ${varName}`);
+      } else {
+        logger.info(`✅ Found: ${varName}`);
+      }
+    });
 
-requiredEnvVars.forEach(varName => {
-  if (!process.env[varName]) {
-    missingVars.push(varName);
-    console.log(`❌ Missing: ${varName}`);
-  } else {
-    console.log(`✅ Found: ${varName}`);
+    if (missingVars.length > 0) {
+      logger.error({ missingVars }, 'Missing required environment variables');
+      throw new Error(`Missing environment variables: ${missingVars.join(', ')}`);
+    }
+
+    // 1. Setup Supabase database
+    logger.info('📊 Setting up Supabase database...');
+    const { setupSupabase } = require('./setup-supabase');
+    await setupSupabase();
+
+    // 2. Create default agent
+    logger.info('👤 Creating default agent...');
+    const { createDefaultAgent } = require('./create-default-agent');
+    const agent = await createDefaultAgent();
+
+    // 3. Assign agents to existing leads (only if agent was created/found)
+    if (agent) {
+      logger.info('🔗 Assigning agents to leads...');
+      const { assignAgentsToLeads } = require('./assign-agents-to-leads');
+      await assignAgentsToLeads();
+    } else {
+      logger.warn('⚠️ Skipping lead assignment - no active agent available');
+    }
+
+    logger.info('✅ Railway deployment setup completed successfully!');
+    return true;
+
+  } catch (error) {
+    logger.error({ err: error }, '❌ Railway deployment setup failed');
+    // Don't throw error to prevent deployment failure
+    logger.warn('⚠️ Continuing deployment despite setup issues...');
+    return false;
   }
-});
-
-if (missingVars.length > 0) {
-  console.log(`\n⚠️  Warning: ${missingVars.length} environment variables are missing`);
-  console.log('Make sure to set these in Railway dashboard:');
-  missingVars.forEach(varName => {
-    console.log(`   - ${varName}`);
-  });
-} else {
-  console.log('\n✅ All required environment variables are set');
 }
 
-// Check package.json
-console.log('\n📦 Checking package.json...');
-try {
-  const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-  
-  if (packageJson.scripts && packageJson.scripts.start) {
-    console.log('✅ Start script found');
-  } else {
-    console.log('❌ No start script found in package.json');
-  }
-  
-  if (packageJson.engines && packageJson.engines.node) {
-    console.log(`✅ Node.js version specified: ${packageJson.engines.node}`);
-  } else {
-    console.log('⚠️  No Node.js version specified in engines');
-  }
-  
-} catch (error) {
-  console.log('❌ Error reading package.json:', error.message);
+// Run if called directly
+if (require.main === module) {
+  railwayDeploy()
+    .then((success) => {
+      if (success) {
+        console.log('✅ Railway deployment setup completed');
+      } else {
+        console.log('⚠️ Railway deployment setup had issues but continuing...');
+      }
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error('❌ Railway deployment setup failed:', error.message);
+      process.exit(1);
+    });
 }
 
-// Check for lock file
-console.log('\n🔒 Checking lock files...');
-if (fs.existsSync('package-lock.json')) {
-  console.log('✅ package-lock.json found');
-} else if (fs.existsSync('yarn.lock')) {
-  console.log('✅ yarn.lock found');
-} else {
-  console.log('⚠️  No lock file found - this might cause dependency issues');
-}
-
-console.log('\n🎯 Deployment readiness check complete!');
-console.log('If you see any ❌ or ⚠️  above, please address them before deploying.');
+module.exports = { railwayDeploy };

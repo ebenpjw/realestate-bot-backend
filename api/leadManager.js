@@ -44,7 +44,7 @@ async function findOrCreateLead({ phoneNumber, fullName, source }) {
 
   // Assign to default agent if available
   if (defaultAgent && !agentError) {
-    newLeadData.agent_id = defaultAgent.id;
+    newLeadData.assigned_agent_id = defaultAgent.id;
     logger.info({
       agentId: defaultAgent.id,
       agentName: defaultAgent.full_name

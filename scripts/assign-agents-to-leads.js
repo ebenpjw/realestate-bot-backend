@@ -30,7 +30,7 @@ async function assignAgentsToLeads() {
     const { data: unassignedLeads, error: leadError } = await supabase
       .from('leads')
       .select('id, phone_number, full_name')
-      .is('agent_id', null);
+      .is('assigned_agent_id', null);
 
     if (leadError) {
       logger.error({ err: leadError }, 'Error fetching unassigned leads');
@@ -52,8 +52,8 @@ async function assignAgentsToLeads() {
     // Update all unassigned leads
     const { data: updatedLeads, error: updateError } = await supabase
       .from('leads')
-      .update({ agent_id: defaultAgent.id })
-      .is('agent_id', null)
+      .update({ assigned_agent_id: defaultAgent.id })
+      .is('assigned_agent_id', null)
       .select('id, phone_number, full_name');
 
     if (updateError) {
