@@ -58,11 +58,23 @@ if (!config.SUPABASE_URL || !config.SUPABASE_KEY) {
   throw new Error('Missing required Supabase configuration');
 }
 
+// Validate that we're using the service role key, not anon key
+const isServiceRoleKey = config.SUPABASE_KEY.includes('service_role') ||
+                        config.SUPABASE_KEY.startsWith('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6');
+
+if (!isServiceRoleKey) {
+  logger.warn({
+    keyPrefix: config.SUPABASE_KEY?.substring(0, 20) + '...',
+    keyLength: config.SUPABASE_KEY?.length
+  }, 'WARNING: Supabase key may not be service_role key - this could cause RLS issues');
+}
+
 // Log configuration details (without exposing sensitive data)
 logger.info({
   supabaseUrl: config.SUPABASE_URL,
   keyLength: config.SUPABASE_KEY?.length,
   keyPrefix: config.SUPABASE_KEY?.substring(0, 20) + '...',
+  keyType: isServiceRoleKey ? 'service_role' : 'anon/unknown',
   environment: config.NODE_ENV,
   connectionPooling: config.NODE_ENV === 'production'
 }, 'Initializing Supabase client');
