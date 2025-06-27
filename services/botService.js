@@ -74,10 +74,7 @@ class BotService {
       const { error: messageError } = await supabase.from('messages').insert({
         lead_id: lead.id,
         sender: 'lead',
-        topic: 'conversation',
-        message: userText,
-        extension: '',
-        event: 'message_received'
+        message: userText
       });
 
       if (messageError) {
@@ -104,10 +101,7 @@ class BotService {
         const { error: assistantMessageError } = await supabase.from('messages').insert({
           lead_id: lead.id,
           sender: 'assistant',
-          topic: 'conversation',
-          message: response.message,
-          extension: '',
-          event: 'message_sent'
+          message: response.message
         });
 
         if (assistantMessageError) {
@@ -133,10 +127,7 @@ class BotService {
           await supabase.from('messages').insert({
             lead_id: lead.id,
             sender: 'assistant',
-            topic: 'conversation',
-            message: fallbackMessage,
-            extension: '',
-            event: 'error_fallback'
+            message: fallbackMessage
           });
         }
       } catch (fallbackErr) {
