@@ -334,7 +334,7 @@ function parsePreferredTime(message) {
             if (match) {
                 logger.info({ match: match[0], fullMatch: match }, 'Found time pattern match');
 
-                const targetDate = new Date(now);
+                // Create date in Singapore timezone properly
                 let hour = parseInt(match[hourIndex]);
                 const minute = parseInt(match[minuteIndex] || '0');
                 const ampm = match[ampmIndex].toLowerCase();
@@ -343,9 +343,21 @@ function parsePreferredTime(message) {
                 if (ampm === 'pm' && hour !== 12) hour += 12;
                 if (ampm === 'am' && hour === 12) hour = 0;
 
+                // Get current Singapore date components
+                const singaporeNow = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Singapore' });
+                const [datePart, timePart] = singaporeNow.split(', ');
+                const [year, month, day] = datePart.split('-').map(Number);
+
+                let targetYear = year;
+                let targetMonth = month;
+                let targetDay = day;
+
                 // Handle day references
                 if (lowerMessage.includes('tomorrow')) {
-                    targetDate.setDate(now.getDate() + 1);
+                    const tomorrow = new Date(year, month - 1, day + 1);
+                    targetYear = tomorrow.getFullYear();
+                    targetMonth = tomorrow.getMonth() + 1;
+                    targetDay = tomorrow.getDate();
                 } else if (lowerMessage.includes('today')) {
                     // Keep current date
                 } else {
@@ -353,15 +365,21 @@ function parsePreferredTime(message) {
                     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
                     const dayMatch = lowerMessage.match(/(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
                     if (dayMatch) {
-                        const targetDay = dayNames.indexOf(dayMatch[1].toLowerCase());
-                        const currentDay = now.getDay();
-                        let daysToAdd = targetDay - currentDay;
+                        const targetDayOfWeek = dayNames.indexOf(dayMatch[1].toLowerCase());
+                        const currentDayOfWeek = new Date(year, month - 1, day).getDay();
+                        let daysToAdd = targetDayOfWeek - currentDayOfWeek;
                         if (daysToAdd <= 0) daysToAdd += 7; // Next week if day has passed
-                        targetDate.setDate(now.getDate() + daysToAdd);
+
+                        const targetDate = new Date(year, month - 1, day + daysToAdd);
+                        targetYear = targetDate.getFullYear();
+                        targetMonth = targetDate.getMonth() + 1;
+                        targetDay = targetDate.getDate();
                     }
                 }
 
-                targetDate.setHours(hour, minute, 0, 0);
+                // Create the target date in Singapore timezone by constructing ISO string
+                const singaporeISOString = `${targetYear}-${targetMonth.toString().padStart(2, '0')}-${targetDay.toString().padStart(2, '0')}T${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00.000+08:00`;
+                const targetDate = new Date(singaporeISOString);
 
                 logger.info({
                     parsedTime: targetDate.toISOString(),
