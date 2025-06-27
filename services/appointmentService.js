@@ -4,6 +4,7 @@ const supabase = require('../supabaseClient');
 const logger = require('../logger');
 const { createEvent } = require('../api/googleCalendarService');
 const { createZoomMeetingForUser, deleteZoomMeetingForUser } = require('../api/zoomServerService');
+const { formatForDatabase } = require('../utils/timezone');
 const { findMatchingSlot } = require('../api/bookingHelper');
 const whatsappService = require('./whatsappService');
 
@@ -123,7 +124,7 @@ class AppointmentService {
           calendar_event_id: calendarEvent.id,
           consultation_notes: enhancedConsultationNotes,
           status: 'scheduled',
-          created_at: new Date().toISOString()
+          created_at: formatForDatabase()
         })
         .select()
         .single();
