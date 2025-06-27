@@ -286,7 +286,7 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
     <rule id="7" name="Dynamic Alternative Handling">CRITICAL: Always check the current booking_status in <lead_data>:
       - If booking_status is "No appointment scheduled yet" or "qualified": Use 'initiate_booking' for ANY time request
       - If booking_status is "booking_alternatives_offered": You have TWO options:
-        * If they select from offered alternatives (e.g., "option 1", "the Monday slot"), use 'select_alternative' action
+        * If they select from offered alternatives (e.g., "1", "2", "3", "option 1", "the Monday slot", "first one", "second", "third"), use 'select_alternative' action
         * If they request a NEW time not in the alternatives (e.g., "how about 6pm?", "tomorrow at 2pm"), use 'initiate_booking' action to check their new preferred time dynamically</rule>
     <rule id="8" name="Ignore Old Conversation">If the current booking_status shows "qualified" or "No appointment scheduled yet", IGNORE any previous mentions of time slots in the conversation history. Always use 'initiate_booking' to check new time requests fresh.</rule>
     <rule id="9" name="Flexible Booking">NEVER force users to pick only from pre-offered alternatives. If they suggest a new time, always check it dynamically using 'initiate_booking' action.</rule>
@@ -669,21 +669,36 @@ Respond with appropriate messages and actions based on the conversation context.
         return "I don't have any alternative slots stored. Let me find some available times for you.";
       }
 
-      // Parse user selection (e.g., "1", "option 2", "the first one")
-      const selectionMatch = userMessage.toLowerCase().match(/(\d+)|first|second|third/);
+      // Parse user selection (e.g., "1", "3", "option 2", "the first one")
+      const lowerMessage = userMessage.toLowerCase().trim();
       let selectedIndex = -1;
 
-      if (selectionMatch) {
-        if (selectionMatch[1]) {
-          selectedIndex = parseInt(selectionMatch[1]) - 1;
-        } else if (selectionMatch[0].includes('first')) {
-          selectedIndex = 0;
-        } else if (selectionMatch[0].includes('second')) {
-          selectedIndex = 1;
-        } else if (selectionMatch[0].includes('third')) {
-          selectedIndex = 2;
+      // Check for direct number selection (1, 2, 3)
+      const numberMatch = lowerMessage.match(/^(\d+)$/);
+      if (numberMatch) {
+        selectedIndex = parseInt(numberMatch[1]) - 1;
+      } else {
+        // Check for other selection patterns
+        const selectionMatch = lowerMessage.match(/(?:option\s*)?(\d+)|first|second|third|1st|2nd|3rd/);
+        if (selectionMatch) {
+          if (selectionMatch[1]) {
+            selectedIndex = parseInt(selectionMatch[1]) - 1;
+          } else if (selectionMatch[0].includes('first') || selectionMatch[0].includes('1st')) {
+            selectedIndex = 0;
+          } else if (selectionMatch[0].includes('second') || selectionMatch[0].includes('2nd')) {
+            selectedIndex = 1;
+          } else if (selectionMatch[0].includes('third') || selectionMatch[0].includes('3rd')) {
+            selectedIndex = 2;
+          }
         }
       }
+
+      logger.info({
+        userMessage,
+        lowerMessage,
+        selectedIndex,
+        storedAlternativesCount: storedAlternatives.length
+      }, 'Parsing alternative selection');
 
       if (selectedIndex >= 0 && selectedIndex < storedAlternatives.length) {
         const selectedSlot = new Date(storedAlternatives[selectedIndex]);

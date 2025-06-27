@@ -8,14 +8,18 @@ const SLOT_DURATION_MINUTES = 60; // 1 hour consultations
 
 /**
  * Get current time in Singapore timezone
- * @returns {Date} Current time in Singapore (properly adjusted for UTC storage)
+ * @returns {Date} Current time in Singapore timezone
  */
 function getSingaporeTime() {
-    const now = new Date();
-    // Get Singapore time offset (UTC+8 = 8 hours = 8 * 60 * 60 * 1000 ms)
-    const singaporeOffset = 8 * 60 * 60 * 1000;
-    // Return UTC time adjusted for Singapore timezone
-    return new Date(now.getTime() + singaporeOffset - (now.getTimezoneOffset() * 60 * 1000));
+    // Create a proper Singapore time Date object
+    const singaporeTimeString = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Singapore' });
+    const [datePart, timePart] = singaporeTimeString.split(', ');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hour, minute, second] = timePart.split(':').map(Number);
+
+    // Create ISO string with Singapore timezone offset
+    const singaporeISOString = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}T${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:${second.toString().padStart(2, '0')}.000+08:00`;
+    return new Date(singaporeISOString);
 }
 
 /**
