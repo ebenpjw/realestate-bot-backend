@@ -33,9 +33,9 @@ router.post('/simulate-inbound', async (req, res, next) => {
 
     // For simulation, we'll call the bot service but intercept the WhatsApp sending
     await botService.processMessage({
-      senderWaId: phoneNumber,
+      senderWaId,
       userText,
-      senderName: fullName
+      senderName
     });
 
     // Get the latest response from the database to show what was generated

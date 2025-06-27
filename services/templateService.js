@@ -1,9 +1,7 @@
 const whatsappService = require('./whatsappService');
 const databaseService = require('./databaseService');
 const logger = require('../logger');
-// const { LEAD } = require('../constants'); // Unused import
 const { ValidationError } = require('../middleware/errorHandler');
-// const { ExternalServiceError } = require('../middleware/errorHandler'); // Unused import
 
 /**
  * Template Service for WABA-compliant messaging
@@ -364,33 +362,7 @@ class TemplateService {
     logger.debug({ phoneNumber }, 'Recorded user message for 24-hour window tracking');
   }
 
-  /**
-   * Log template usage for compliance tracking
-   * @param {string} phoneNumber - Recipient phone number
-   * @param {string} templateId - Template ID used
-   * @param {string} category - Template category
-   */
-  async logTemplateUsage(phoneNumber, templateId, category) {
-    try {
-      const usageRecord = {
-        phone_number: phoneNumber,
-        template_id: templateId,
-        template_category: category,
-        sent_at: new Date().toISOString(),
-        compliance_status: 'sent'
-      };
 
-      // Store in database for compliance auditing
-      const databaseService = require('./databaseService');
-      await databaseService.supabase
-        .from('template_usage_log')
-        .insert(usageRecord);
-
-      logger.info({ phoneNumber, templateId, category }, 'Template usage logged for compliance');
-    } catch (error) {
-      logger.error({ err: error, phoneNumber, templateId }, 'Failed to log template usage');
-    }
-  }
 
   /**
    * Validate template compliance before sending

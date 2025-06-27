@@ -126,16 +126,7 @@ class WhatsAppService {
 
       const success = response.data?.status === 'submitted';
 
-      if (success) {
-        // Log successful template usage for compliance
-        await this._logTemplateUsage({
-          to,
-          templateId,
-          templateName,
-          category,
-          messageId: response.data?.messageId
-        });
-      }
+      // Note: Template usage logging is handled by TemplateService to avoid duplication
 
       logger.info({
         to,
@@ -448,58 +439,9 @@ class WhatsAppService {
     }
   }
 
-  /**
-   * DEPRECATED: Check template rate limits for WABA compliance
-   * NOTE: As of June 2025, WABA uses per-message pricing with no daily limits
-   * @private
-   * @deprecated WABA 2025 removed daily template limits
-   */
-  async _checkTemplateRateLimit(phoneNumber, templateId, category) {
-    // WABA 2025 Update: No daily template limits exist
-    // Per-message pricing model allows unlimited messages
-    // Only per-user marketing limits based on engagement apply
-    logger.debug({
-      phoneNumber,
-      templateId,
-      category
-    }, 'Template rate limit check skipped - WABA 2025 has no daily limits');
-  }
 
-  /**
-   * Log template usage for compliance tracking
-   * @private
-   */
-  async _logTemplateUsage({ to, templateId, templateName, category, messageId }) {
-    try {
-      const databaseService = require('./databaseService');
 
-      await databaseService.supabase
-        .from('template_usage_log')
-        .insert({
-          phone_number: to,
-          template_id: templateId,
-          template_name: templateName,
-          template_category: category,
-          message_id: messageId,
-          whatsapp_message_id: messageId,
-          sent_at: new Date().toISOString()
-        });
 
-      logger.debug({
-        templateName,
-        category,
-        phoneNumber: to
-      }, 'Template usage logged for WABA compliance');
-
-    } catch (error) {
-      // Don't fail the main operation if logging fails
-      logger.warn({
-        err: error,
-        templateName,
-        phoneNumber: to
-      }, 'Failed to log template usage');
-    }
-  }
 
   /**
    * Health check for WhatsApp service

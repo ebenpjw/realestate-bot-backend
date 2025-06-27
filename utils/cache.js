@@ -1,267 +1,230 @@
+// utils/cache.js
+// Purpose: Centralized cache management using node-cache
+// Provides multiple cache instances with different TTL settings
+
 const NodeCache = require('node-cache');
 const logger = require('../logger');
-const { CACHE } = require('../constants');
+const config = require('../config');
 
-// Create cache instances for different use cases
-const caches = {
-  // Short-term cache for frequently accessed data
-  short: new NodeCache({
-    stdTTL: CACHE.TTL.SHORT,
-    checkperiod: 60, // Check for expired keys every 60 seconds
-    useClones: false, // Better performance, but be careful with object mutations
-    deleteOnExpire: true,
-    maxKeys: 1000
-  }),
-  
-  // Medium-term cache for less frequently changing data
-  medium: new NodeCache({
-    stdTTL: CACHE.TTL.MEDIUM,
-    checkperiod: 120,
-    useClones: false,
-    deleteOnExpire: true,
-    maxKeys: 500
-  }),
-  
-  // Long-term cache for rarely changing data
-  long: new NodeCache({
-    stdTTL: CACHE.TTL.LONG,
-    checkperiod: 300,
-    useClones: false,
-    deleteOnExpire: true,
-    maxKeys: 100
-  })
-};
-
-// Cache event listeners for monitoring
-Object.entries(caches).forEach(([name, cache]) => {
-  cache.on('set', (key, value) => {
-    logger.debug({ cache: name, key, size: JSON.stringify(value).length }, 'Cache set');
-  });
-  
-  cache.on('del', (key, _value) => {
-    logger.debug({ cache: name, key }, 'Cache delete');
-  });
-
-  cache.on('expired', (key, _value) => {
-    logger.debug({ cache: name, key }, 'Cache expired');
-  });
-});
-
-// Cache utility functions
 class CacheManager {
-  /**
-   * Get value from cache with fallback
-   * @param {string} cacheType - Type of cache (short, medium, long)
-   * @param {string} key - Cache key
-   * @param {Function} fallbackFn - Function to call if cache miss
-   * @param {number} customTTL - Custom TTL for this key
-   * @returns {Promise<any>} Cached or fresh value
-   */
-  static async getOrSet(cacheType, key, fallbackFn, customTTL = null) {
-    try {
-      const cache = caches[cacheType];
-      if (!cache) {
-        throw new Error(`Invalid cache type: ${cacheType}`);
-      }
+  constructor() {
+    // Create different cache instances for different TTL requirements
+    this.caches = {
+      short: new NodeCache({ 
+        stdTTL: 300,    // 5 minutes
+        checkperiod: 60, // Check for expired keys every 60 seconds
+        useClones: false // Better performance, but be careful with object mutations
+      }),
+      medium: new NodeCache({ 
+        stdTTL: 1800,   // 30 minutes
+        checkperiod: 120,
+        useClones: false
+      }),
+      long: new NodeCache({ 
+        stdTTL: 3600,   // 1 hour
+        checkperiod: 300,
+        useClones: false
+      })
+    };
 
-      // Try to get from cache first
-      const cachedValue = cache.get(key);
-      if (cachedValue !== undefined) {
-        logger.debug({ cacheType, key }, 'Cache hit');
-        return cachedValue;
-      }
+    // Set up event listeners for monitoring
+    Object.entries(this.caches).forEach(([name, cache]) => {
+      cache.on('set', (key, value) => {
+        logger.debug({ cacheType: name, key, size: JSON.stringify(value).length }, 'Cache set');
+      });
 
-      // Cache miss - get fresh value
-      logger.debug({ cacheType, key }, 'Cache miss - fetching fresh value');
-      const freshValue = await fallbackFn();
-      
-      // Store in cache
-      if (customTTL) {
-        cache.set(key, freshValue, customTTL);
-      } else {
-        cache.set(key, freshValue);
-      }
-      
-      return freshValue;
-    } catch (error) {
-      logger.error({ error: error.message, cacheType, key }, 'Cache operation failed');
-      // If cache fails, still try to get fresh value
-      return await fallbackFn();
-    }
-  }
+      cache.on('del', (key, value) => {
+        logger.debug({ cacheType: name, key }, 'Cache deleted');
+      });
 
-  /**
-   * Set value in cache
-   * @param {string} cacheType - Type of cache
-   * @param {string} key - Cache key
-   * @param {any} value - Value to cache
-   * @param {number} ttl - Time to live in seconds
-   */
-  static set(cacheType, key, value, ttl = null) {
-    try {
-      const cache = caches[cacheType];
-      if (!cache) {
-        throw new Error(`Invalid cache type: ${cacheType}`);
-      }
+      cache.on('expired', (key, value) => {
+        logger.debug({ cacheType: name, key }, 'Cache expired');
+      });
+    });
 
-      if (ttl) {
-        cache.set(key, value, ttl);
-      } else {
-        cache.set(key, value);
-      }
-      
-      logger.debug({ cacheType, key, ttl }, 'Value cached');
-    } catch (error) {
-      logger.error({ error: error.message, cacheType, key }, 'Cache set failed');
-    }
+    logger.info('CacheManager initialized with short, medium, and long TTL instances');
   }
 
   /**
    * Get value from cache
-   * @param {string} cacheType - Type of cache
+   * @param {string} cacheType - Type of cache (short, medium, long)
    * @param {string} key - Cache key
-   * @returns {any} Cached value or undefined
+   * @returns {*} Cached value or undefined
    */
-  static get(cacheType, key) {
-    try {
-      const cache = caches[cacheType];
-      if (!cache) {
-        throw new Error(`Invalid cache type: ${cacheType}`);
-      }
+  get(cacheType, key) {
+    if (!config.ENABLE_CACHING) {
+      return undefined;
+    }
 
-      return cache.get(key);
+    if (!this.caches[cacheType]) {
+      logger.warn({ cacheType }, 'Invalid cache type requested');
+      return undefined;
+    }
+
+    try {
+      const value = this.caches[cacheType].get(key);
+      if (value !== undefined) {
+        logger.debug({ cacheType, key }, 'Cache hit');
+      }
+      return value;
     } catch (error) {
-      logger.error({ error: error.message, cacheType, key }, 'Cache get failed');
+      logger.error({ err: error, cacheType, key }, 'Cache get error');
       return undefined;
     }
   }
 
   /**
-   * Delete value from cache
-   * @param {string} cacheType - Type of cache
+   * Set value in cache
+   * @param {string} cacheType - Type of cache (short, medium, long)
    * @param {string} key - Cache key
+   * @param {*} value - Value to cache
+   * @param {number} [ttl] - Custom TTL in seconds (optional)
+   * @returns {boolean} Success status
    */
-  static delete(cacheType, key) {
-    try {
-      const cache = caches[cacheType];
-      if (!cache) {
-        throw new Error(`Invalid cache type: ${cacheType}`);
-      }
+  set(cacheType, key, value, ttl) {
+    if (!config.ENABLE_CACHING) {
+      return false;
+    }
 
-      cache.del(key);
-      logger.debug({ cacheType, key }, 'Cache key deleted');
+    if (!this.caches[cacheType]) {
+      logger.warn({ cacheType }, 'Invalid cache type requested');
+      return false;
+    }
+
+    try {
+      const success = this.caches[cacheType].set(key, value, ttl);
+      if (success) {
+        logger.debug({ cacheType, key, ttl }, 'Cache set successful');
+      }
+      return success;
     } catch (error) {
-      logger.error({ error: error.message, cacheType, key }, 'Cache delete failed');
+      logger.error({ err: error, cacheType, key }, 'Cache set error');
+      return false;
     }
   }
 
   /**
-   * Clear entire cache
-   * @param {string} cacheType - Type of cache to clear
+   * Delete value from cache
+   * @param {string} cacheType - Type of cache (short, medium, long)
+   * @param {string} key - Cache key
+   * @returns {number} Number of deleted entries
    */
-  static clear(cacheType) {
-    try {
-      const cache = caches[cacheType];
-      if (!cache) {
-        throw new Error(`Invalid cache type: ${cacheType}`);
-      }
-
-      cache.flushAll();
-      logger.info({ cacheType }, 'Cache cleared');
-    } catch (error) {
-      logger.error({ error: error.message, cacheType }, 'Cache clear failed');
+  delete(cacheType, key) {
+    if (!this.caches[cacheType]) {
+      logger.warn({ cacheType }, 'Invalid cache type requested');
+      return 0;
     }
-  }
 
-  /**
-   * Get cache statistics
-   * @param {string} cacheType - Type of cache
-   * @returns {object} Cache statistics
-   */
-  static getStats(cacheType) {
     try {
-      const cache = caches[cacheType];
-      if (!cache) {
-        throw new Error(`Invalid cache type: ${cacheType}`);
-      }
-
-      return cache.getStats();
+      const deleted = this.caches[cacheType].del(key);
+      logger.debug({ cacheType, key, deleted }, 'Cache delete operation');
+      return deleted;
     } catch (error) {
-      logger.error({ error: error.message, cacheType }, 'Cache stats failed');
-      return {};
-    }
-  }
-
-  /**
-   * Invalidate cache entries by pattern
-   * @param {string} cacheType - Type of cache
-   * @param {string} pattern - Pattern to match keys (supports wildcards)
-   */
-  static invalidateByPattern(cacheType, pattern) {
-    try {
-      const cache = caches[cacheType];
-      if (!cache) {
-        throw new Error(`Invalid cache type: ${cacheType}`);
-      }
-
-      const keys = cache.keys();
-      const regex = new RegExp(pattern.replace(/\*/g, '.*'));
-      let deletedCount = 0;
-
-      keys.forEach(key => {
-        if (regex.test(key)) {
-          cache.del(key);
-          deletedCount++;
-        }
-      });
-
-      logger.debug({ cacheType, pattern, deletedCount }, 'Cache invalidation by pattern completed');
-      return deletedCount;
-    } catch (error) {
-      logger.error({ error: error.message, cacheType, pattern }, 'Cache invalidation by pattern failed');
+      logger.error({ err: error, cacheType, key }, 'Cache delete error');
       return 0;
     }
   }
 
   /**
-   * Get cache performance metrics
-   * @param {string} cacheType - Type of cache
-   * @returns {Object} Performance metrics
+   * Get or set pattern - get from cache, or compute and cache if not found
+   * @param {string} cacheType - Type of cache (short, medium, long)
+   * @param {string} key - Cache key
+   * @param {Function} computeFn - Function to compute value if not in cache
+   * @param {number} [ttl] - Custom TTL in seconds (optional)
+   * @returns {Promise<*>} Cached or computed value
    */
-  static getPerformanceMetrics(cacheType) {
-    try {
-      const cache = caches[cacheType];
-      if (!cache) {
-        throw new Error(`Invalid cache type: ${cacheType}`);
-      }
+  async getOrSet(cacheType, key, computeFn, ttl) {
+    // Try to get from cache first
+    const cachedValue = this.get(cacheType, key);
+    if (cachedValue !== undefined) {
+      return cachedValue;
+    }
 
-      const stats = cache.getStats();
-      return {
-        hits: stats.hits,
-        misses: stats.misses,
-        keys: stats.keys,
-        ksize: stats.ksize,
-        vsize: stats.vsize,
-        hitRate: stats.hits / (stats.hits + stats.misses) || 0,
-        memoryUsage: `${(stats.vsize / 1024 / 1024).toFixed(2)} MB`
-      };
+    try {
+      // Compute the value
+      const computedValue = await computeFn();
+      
+      // Cache the computed value
+      this.set(cacheType, key, computedValue, ttl);
+      
+      return computedValue;
     } catch (error) {
-      logger.error({ error: error.message, cacheType }, 'Failed to get cache performance metrics');
-      return null;
+      logger.error({ err: error, cacheType, key }, 'Cache getOrSet compute function error');
+      throw error;
     }
   }
 
   /**
-   * Get all cache statistics
-   * @returns {object} All cache statistics
+   * Clear all caches
    */
-  static getAllStats() {
-    const stats = {};
-    Object.keys(caches).forEach(cacheType => {
-      stats[cacheType] = this.getStats(cacheType);
+  clearAll() {
+    Object.entries(this.caches).forEach(([name, cache]) => {
+      cache.flushAll();
+      logger.info({ cacheType: name }, 'Cache cleared');
     });
+  }
+
+  /**
+   * Get cache statistics
+   * @returns {Object} Statistics for all cache types
+   */
+  getAllStats() {
+    const stats = {};
+    
+    Object.entries(this.caches).forEach(([name, cache]) => {
+      stats[name] = {
+        keys: cache.keys().length,
+        hits: cache.getStats().hits,
+        misses: cache.getStats().misses,
+        ksize: cache.getStats().ksize,
+        vsize: cache.getStats().vsize
+      };
+    });
+
     return stats;
+  }
+
+  /**
+   * Health check for cache system
+   * @returns {Object} Health status
+   */
+  healthCheck() {
+    try {
+      const testKey = 'health_check_test';
+      const testValue = { timestamp: Date.now() };
+
+      // Test each cache type
+      const results = {};
+      Object.keys(this.caches).forEach(cacheType => {
+        try {
+          this.set(cacheType, testKey, testValue, 1); // 1 second TTL
+          const retrieved = this.get(cacheType, testKey);
+          this.delete(cacheType, testKey);
+          
+          results[cacheType] = retrieved !== undefined ? 'healthy' : 'unhealthy';
+        } catch (error) {
+          results[cacheType] = 'unhealthy';
+        }
+      });
+
+      const allHealthy = Object.values(results).every(status => status === 'healthy');
+
+      return {
+        status: allHealthy ? 'healthy' : 'unhealthy',
+        service: 'Cache Manager',
+        cacheTypes: results,
+        enabled: config.ENABLE_CACHING
+      };
+    } catch (error) {
+      return {
+        status: 'unhealthy',
+        service: 'Cache Manager',
+        error: error.message,
+        enabled: config.ENABLE_CACHING
+      };
+    }
   }
 }
 
-module.exports = CacheManager;
+// Export singleton instance
+module.exports = new CacheManager();
