@@ -11,15 +11,10 @@ const SLOT_DURATION_MINUTES = 60; // 1 hour consultations
  * @returns {Date} Current time in Singapore timezone
  */
 function getSingaporeTime() {
-    // Create a proper Singapore time Date object
-    const singaporeTimeString = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Singapore' });
-    const [datePart, timePart] = singaporeTimeString.split(', ');
-    const [year, month, day] = datePart.split('-').map(Number);
-    const [hour, minute, second] = timePart.split(':').map(Number);
-
-    // Create ISO string with Singapore timezone offset
-    const singaporeISOString = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}T${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:${second.toString().padStart(2, '0')}.000+08:00`;
-    return new Date(singaporeISOString);
+    // Get current UTC time and convert to Singapore time (UTC+8)
+    const now = new Date();
+    const singaporeTime = new Date(now.getTime() + (8 * 60 * 60 * 1000)); // Add 8 hours for Singapore timezone
+    return singaporeTime;
 }
 
 /**
@@ -347,54 +342,50 @@ function parsePreferredTime(message) {
                 if (ampm === 'pm' && hour !== 12) hour += 12;
                 if (ampm === 'am' && hour === 12) hour = 0;
 
-                // Get current Singapore date components
-                const singaporeNow = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Singapore' });
-                const [datePart, timePart] = singaporeNow.split(', ');
-                const [year, month, day] = datePart.split('-').map(Number);
+                // Create target date based on current Singapore time
+                const singaporeNow = getSingaporeTime();
+                let targetDate = new Date(singaporeNow);
 
-                let targetYear = year;
-                let targetMonth = month;
-                let targetDay = day;
+                // Set the target time
+                targetDate.setHours(hour, minute, 0, 0);
 
                 // Handle day references
                 if (lowerMessage.includes('tomorrow')) {
-                    const tomorrow = new Date(year, month - 1, day + 1);
-                    targetYear = tomorrow.getFullYear();
-                    targetMonth = tomorrow.getMonth() + 1;
-                    targetDay = tomorrow.getDate();
+                    targetDate.setDate(targetDate.getDate() + 1);
                 } else if (lowerMessage.includes('today')) {
-                    // Keep current date
+                    // Keep current date - already set above
                 } else {
                     // Handle day names (Monday, Tuesday, etc.)
                     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
                     const dayMatch = lowerMessage.match(/(monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i);
                     if (dayMatch) {
                         const targetDayOfWeek = dayNames.indexOf(dayMatch[1].toLowerCase());
-                        const currentDayOfWeek = new Date(year, month - 1, day).getDay();
+                        const currentDayOfWeek = targetDate.getDay();
                         let daysToAdd = targetDayOfWeek - currentDayOfWeek;
                         if (daysToAdd <= 0) daysToAdd += 7; // Next week if day has passed
-
-                        const targetDate = new Date(year, month - 1, day + daysToAdd);
-                        targetYear = targetDate.getFullYear();
-                        targetMonth = targetDate.getMonth() + 1;
-                        targetDay = targetDate.getDate();
+                        targetDate.setDate(targetDate.getDate() + daysToAdd);
                     }
                 }
-
-                // Create the target date in Singapore timezone by constructing ISO string
-                const singaporeISOString = `${targetYear}-${targetMonth.toString().padStart(2, '0')}-${targetDay.toString().padStart(2, '0')}T${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00.000+08:00`;
-                const targetDate = new Date(singaporeISOString);
 
                 logger.info({
                     parsedTime: targetDate.toISOString(),
                     parsedTimeLocal: targetDate.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+                    currentTime: now.toISOString(),
+                    currentTimeLocal: now.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
                     hour, minute, ampm,
-                    isInFuture: targetDate > now
+                    isInFuture: targetDate > now,
+                    timeDifference: targetDate.getTime() - now.getTime()
                 }, 'Parsed preferred time');
 
                 // Return the parsed time if it's in the future (working hours check will be done later)
                 if (targetDate > now) {
                     return targetDate;
+                } else {
+                    logger.warn({
+                        targetDate: targetDate.toISOString(),
+                        now: now.toISOString(),
+                        message: 'Parsed time is in the past, rejecting'
+                    }, 'Time parsing rejected - time is in past');
                 }
             }
         }
