@@ -9,9 +9,24 @@ const SINGAPORE_TIMEZONE = 'Asia/Singapore';
  */
 function getSingaporeTime() {
     const now = new Date();
-    // Create a new Date object representing Singapore time
-    const singaporeTime = new Date(now.toLocaleString('en-US', { timeZone: SINGAPORE_TIMEZONE }));
-    return singaporeTime;
+    // Get the current time in Singapore timezone as a string, then parse it
+    const singaporeTimeString = now.toLocaleString('en-CA', {
+        timeZone: SINGAPORE_TIMEZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    });
+
+    // Parse the string back to a Date object (this will be in local timezone but represent Singapore time)
+    const [datePart, timePart] = singaporeTimeString.split(', ');
+    const [year, month, day] = datePart.split('-');
+    const [hour, minute, second] = timePart.split(':');
+
+    return new Date(year, month - 1, day, hour, minute, second);
 }
 
 /**

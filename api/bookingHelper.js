@@ -334,12 +334,17 @@ function parsePreferredTime(message) {
                 if (ampm === 'pm' && hour !== 12) hour += 12;
                 if (ampm === 'am' && hour === 12) hour = 0;
 
-                // Create target date based on current Singapore time
+                // Create target date in Singapore timezone
                 const singaporeNow = getSingaporeTime();
-                let targetDate = new Date(singaporeNow);
 
-                // Set the target time
-                targetDate.setHours(hour, minute, 0, 0);
+                // Create date string in Singapore timezone format and parse it
+                const year = singaporeNow.getFullYear();
+                const month = singaporeNow.getMonth() + 1;
+                const date = singaporeNow.getDate();
+
+                // Create ISO string for Singapore time (UTC+8)
+                const singaporeTimeString = `${year}-${month.toString().padStart(2, '0')}-${date.toString().padStart(2, '0')}T${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00.000+08:00`;
+                const targetDate = new Date(singaporeTimeString);
 
                 // Handle day references
                 if (lowerMessage.includes('tomorrow')) {
