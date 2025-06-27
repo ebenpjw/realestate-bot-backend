@@ -48,7 +48,7 @@ class AppointmentService {
       // Get agent information for Zoom integration
       const { data: agent, error: agentError } = await supabase
         .from('agents')
-        .select('id, full_name, zoom_email')
+        .select('id, full_name, zoom_user_id')
         .eq('id', agentId)
         .single();
 
@@ -59,18 +59,18 @@ class AppointmentService {
       // 1. Try to create Zoom meeting using Server-to-Server OAuth (continue if it fails)
       let zoomMeeting = null;
       try {
-        if (agent && agent.zoom_email) {
+        if (agent && agent.zoom_user_id) {
           // Use new Server-to-Server OAuth service
-          zoomMeeting = await createZoomMeetingForUser(agent.zoom_email, {
+          zoomMeeting = await createZoomMeetingForUser(agent.zoom_user_id, {
             topic: `Property Consultation: ${leadName}`,
             startTime: appointmentStart.toISOString(),
             duration: this.APPOINTMENT_DURATION,
             agenda: enhancedConsultationNotes
           });
-          logger.info({ leadId, zoomMeetingId: zoomMeeting.id, hostEmail: agent.zoom_email }, 'Zoom meeting created successfully with Server-to-Server OAuth');
+          logger.info({ leadId, zoomMeetingId: zoomMeeting.id, hostEmail: agent.zoom_user_id }, 'Zoom meeting created successfully with Server-to-Server OAuth');
         } else {
-          // No zoom_email found - create placeholder meeting
-          logger.warn({ agentId }, 'No zoom_email found for agent, creating placeholder meeting');
+          // No zoom_user_id found - create placeholder meeting
+          logger.warn({ agentId }, 'No zoom_user_id found for agent, creating placeholder meeting');
           zoomMeeting = {
             id: null,
             joinUrl: 'https://zoom.us/j/placeholder',
@@ -258,7 +258,7 @@ class AppointmentService {
       // 1. Get existing appointment with agent details
       const { data: appointment, error: fetchError } = await supabase
         .from('appointments')
-        .select('*, leads(full_name, phone_number), agents(zoom_email)')
+        .select('*, leads(full_name, phone_number), agents(zoom_user_id)')
         .eq('id', appointmentId)
         .single();
 
@@ -269,13 +269,13 @@ class AppointmentService {
       // 2. Cancel Zoom meeting using appropriate service
       if (appointment.zoom_meeting_id) {
         try {
-          if (appointment.agents && appointment.agents.zoom_email) {
+          if (appointment.agents && appointment.agents.zoom_user_id) {
             // Use Server-to-Server OAuth service
-            await deleteZoomMeetingForUser(appointment.agents.zoom_email, appointment.zoom_meeting_id);
+            await deleteZoomMeetingForUser(appointment.agents.zoom_user_id, appointment.zoom_meeting_id);
             logger.info({ appointmentId, zoomMeetingId: appointment.zoom_meeting_id }, 'Zoom meeting cancelled with Server-to-Server OAuth');
           } else {
-            // No zoom_email found - cannot cancel meeting
-            logger.warn({ appointmentId, zoomMeetingId: appointment.zoom_meeting_id }, 'Cannot cancel Zoom meeting - no zoom_email found for agent');
+            // No zoom_user_id found - cannot cancel meeting
+            logger.warn({ appointmentId, zoomMeetingId: appointment.zoom_meeting_id }, 'Cannot cancel Zoom meeting - no zoom_user_id found for agent');
           }
         } catch (zoomError) {
           logger.warn({ err: zoomError, appointmentId }, 'Failed to cancel Zoom meeting, continuing with appointment cancellation');
@@ -335,7 +335,7 @@ class AppointmentService {
     try {
       const { data: appointment, error } = await supabase
         .from('appointments')
-        .select('*, leads(full_name, phone_number), agents(google_email, zoom_email)')
+        .select('*, leads(full_name, phone_number), agents(google_email, zoom_user_id)')
         .eq('id', appointmentId)
         .single();
 
