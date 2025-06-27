@@ -283,17 +283,26 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
     <rule id="4" name="Smart Booking">If the lead agrees to a call, use 'initiate_booking' action. Pay attention to time preferences like "tomorrow at 3pm", "Monday morning", "this evening", etc.</rule>
     <rule id="5" name="Handle Booking Responses">After booking attempts, respond appropriately to exact matches, alternative suggestions, or no availability scenarios.</rule>
     <rule id="6" name="Appointment Management">CRITICAL: ONLY use 'reschedule_appointment' or 'cancel_appointment' actions if booking_status shows "Has scheduled appointment". If booking_status shows "No appointment scheduled yet", "Previously cancelled appointment", or any other status, treat reschedule/cancel requests as new booking requests using 'initiate_booking' instead.</rule>
-    <rule id="7" name="Alternative Selection">If booking_status shows alternatives were offered, use 'select_alternative' action when they make a choice (e.g., "option 1", "the Monday slot", "3pm works"). NEVER use 'initiate_booking' when alternatives are already offered.</rule>
+    <rule id="7" name="Dynamic Alternative Handling">If booking_status shows alternatives were offered, you have TWO options:
+      - If they select from offered alternatives (e.g., "option 1", "the Monday slot"), use 'select_alternative' action
+      - If they request a NEW time not in the alternatives (e.g., "how about 6pm?", "tomorrow at 2pm"), use 'initiate_booking' action to check their new preferred time dynamically</rule>
     <rule id="8" name="Booking Context">Always check booking_status before suggesting actions. Don't offer to book if already booked, don't reschedule if no appointment exists.</rule>
-    <rule id="9" name="No Duplicate Actions">If booking_status is 'booking_alternatives_offered', ONLY use 'select_alternative' action. Do NOT use 'initiate_booking' again.</rule>
+    <rule id="9" name="Flexible Booking">NEVER force users to pick only from pre-offered alternatives. If they suggest a new time, always check it dynamically using 'initiate_booking' action.</rule>
   </conversation_flow_rules>
 
   <tools>
     <tool name="initiate_booking">
-      Use this when the lead agrees to a consultation call. The system will intelligently match their time preferences or offer alternatives.
+      Use this when:
+      - The lead agrees to a consultation call for the first time
+      - The lead requests a specific time (even if alternatives were previously offered)
+      - The lead suggests a new time different from offered alternatives
+      The system will intelligently check their time preference and either book it or offer new alternatives.
+    </tool>
+    <tool name="select_alternative">
+      Use this ONLY when the lead clearly selects from previously offered alternatives (e.g., "option 1", "the Monday slot", "I'll take the 3pm").
     </tool>
     <tool name="reschedule_appointment">
-      ONLY use this when booking_status shows "Has scheduled appointment" AND the lead wants to change their existing appointment time. Include their new time preference.
+      ONLY use this when booking_status shows "Has scheduled appointment" AND the lead wants to change their existing appointment time.
     </tool>
     <tool name="cancel_appointment">
       ONLY use this when booking_status shows "Has scheduled appointment" AND the lead wants to cancel their existing appointment.
@@ -511,9 +520,19 @@ Respond with appropriate messages and actions based on the conversation context.
    */
   async _handleInitialBooking({ lead, agentId, userMessage }) {
     try {
-      // Prevent duplicate booking attempts when alternatives are already offered
+      // If alternatives were offered but user requests a new time, clear alternatives and process new request
       if (lead.status === 'booking_alternatives_offered') {
-        return "I've already provided you with available time slots. Please choose one by replying with the number (e.g., '1', '2', '3').";
+        logger.info({ leadId: lead.id, userMessage }, 'User requesting new time while alternatives offered - clearing alternatives and processing new request');
+
+        // Clear alternatives status to allow new booking attempt
+        await supabase.from('leads').update({
+          status: 'qualified',
+          booking_alternatives: null
+        }).eq('id', lead.id);
+
+        // Update lead object for this request
+        lead.status = 'qualified';
+        lead.booking_alternatives = null;
       }
 
       const consultationNotes = `Intent: ${lead.intent || 'Not specified'}, Budget: ${lead.budget || 'Not specified'}`;
