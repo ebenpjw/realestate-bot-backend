@@ -3,11 +3,8 @@
 const { checkAvailability } = require('./googleCalendarService');
 const supabase = require('../supabaseClient');
 const logger = require('../logger');
-const { getSingaporeTime, isInFuture, formatForDisplay, getTimeDifferenceMinutes } = require('../utils/timezone');
 
 const SLOT_DURATION_MINUTES = 60; // 1 hour consultations
-
-// getSingaporeTime is now imported from utils/timezone.js
 
 /**
  * Get agent's working hours from database
@@ -89,19 +86,19 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
             daysToSearch
         }, 'Finding available slots with agent working hours');
 
-        // Get current time in Singapore timezone
-        const singaporeTime = getSingaporeTime();
+        // Get current time
+        const now = new Date();
 
         logger.info({
             agentId,
-            currentTimeSingapore: singaporeTime.toISOString(),
-            currentHourSingapore: singaporeTime.getHours(),
-            currentDaySingapore: singaporeTime.getDay(),
+            currentTime: now.toISOString(),
+            currentHour: now.getHours(),
+            currentDay: now.getDay(),
             timezone: workingHours.timezone
         }, 'Current time information for slot calculation');
 
-        // Calculate search start time in Singapore timezone
-        const searchStart = new Date(singaporeTime);
+        // Calculate search start time
+        const searchStart = new Date(now);
 
         // If preferred time is provided and it's in the future, start search from that day
         if (preferredTime && preferredTime > singaporeTime) {
@@ -290,8 +287,8 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
  */
 function parsePreferredTime(message) {
     try {
-        // Use Singapore timezone for consistency
-        const now = getSingaporeTime();
+        // Use simple Date object
+        const now = new Date();
         const lowerMessage = message.toLowerCase();
 
         logger.info({ message, lowerMessage }, 'Parsing preferred time from message');
@@ -334,17 +331,9 @@ function parsePreferredTime(message) {
                 if (ampm === 'pm' && hour !== 12) hour += 12;
                 if (ampm === 'am' && hour === 12) hour = 0;
 
-                // Create target date in Singapore timezone
-                const singaporeNow = getSingaporeTime();
-
-                // Create date string in Singapore timezone format and parse it
-                const year = singaporeNow.getFullYear();
-                const month = singaporeNow.getMonth() + 1;
-                const date = singaporeNow.getDate();
-
-                // Create ISO string for Singapore time (UTC+8)
-                const singaporeTimeString = `${year}-${month.toString().padStart(2, '0')}-${date.toString().padStart(2, '0')}T${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00.000+08:00`;
-                const targetDate = new Date(singaporeTimeString);
+                // Create target date using simple Date object
+                const targetDate = new Date();
+                targetDate.setHours(hour, minute, 0, 0);
 
                 // Handle day references
                 if (lowerMessage.includes('tomorrow')) {
@@ -364,14 +353,12 @@ function parsePreferredTime(message) {
                     }
                 }
 
-                const timeDiffMinutes = getTimeDifferenceMinutes(targetDate, now);
+                const timeDiffMinutes = Math.round((targetDate.getTime() - now.getTime()) / (1000 * 60));
                 const isFuture = targetDate > now;
 
                 logger.info({
                     parsedTime: targetDate.toISOString(),
-                    parsedTimeLocal: targetDate.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
                     currentTime: now.toISOString(),
-                    currentTimeLocal: now.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
                     hour, minute, ampm,
                     isInFuture: isFuture,
                     timeDifferenceMinutes: timeDiffMinutes
@@ -382,8 +369,8 @@ function parsePreferredTime(message) {
                     return targetDate;
                 } else {
                     logger.warn({
-                        targetTime: targetDate.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
-                        currentTime: now.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+                        targetTime: targetDate.toISOString(),
+                        currentTime: now.toISOString(),
                         timeDifferenceMinutes: timeDiffMinutes,
                         message: 'Parsed time is in the past, rejecting'
                     }, 'Time parsing rejected - time is in past');

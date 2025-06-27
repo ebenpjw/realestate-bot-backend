@@ -318,7 +318,7 @@ class TemplateService {
           template_category: templateData.category,
           template_params: templateData.params,
           message_id: templateData.messageId,
-          sent_at: require('../utils/timezone').formatForDatabase()
+          sent_at: new Date().toISOString()
         });
 
       logger.debug({

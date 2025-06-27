@@ -4,7 +4,6 @@ const logger = require('../logger');
 const CacheManager = require('../utils/cache');
 const { CACHE, LEAD } = require('../constants');
 const { ExternalServiceError, ValidationError, NotFoundError } = require('../middleware/errorHandler');
-const { formatForDatabase } = require('../utils/timezone');
 
 class DatabaseService {
   constructor() {
@@ -112,7 +111,7 @@ class DatabaseService {
         full_name: fullName,
         source,
         status: LEAD.STATUSES.NEW,
-        created_at: formatForDatabase()
+        created_at: new Date().toISOString()
       };
 
       const { data: newLead, error: createError } = await this.supabase
@@ -249,7 +248,7 @@ class DatabaseService {
       // Add timestamps
       const messagesWithTimestamp = messages.map(msg => ({
         ...msg,
-        created_at: formatForDatabase()
+        created_at: new Date().toISOString()
       }));
 
       const { data: savedMessages, error } = await this.supabase

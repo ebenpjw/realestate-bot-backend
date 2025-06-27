@@ -109,8 +109,7 @@ async function checkAvailability(agentId, startTimeISO, endTimeISO) {
             requestBody: {
                 timeMin: startTimeISO,
                 timeMax: endTimeISO,
-                items: [{ id: 'primary' }],
-                timeZone: 'Asia/Singapore',
+                items: [{ id: 'primary' }]
             },
         });
 
@@ -139,10 +138,10 @@ async function checkAvailability(agentId, startTimeISO, endTimeISO) {
             agentId,
             busySlotsCount: busySlots.length,
             busySlots: busySlots.map(slot =>
-                `${new Date(slot.start).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })} - ${new Date(slot.end).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })}`
+                `${new Date(slot.start).toISOString()} - ${new Date(slot.end).toISOString()}`
             ),
             rawBusySlots: JSON.stringify(busySlots, null, 2),
-            searchTimeRange: `${new Date(startTimeISO).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })} - ${new Date(endTimeISO).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })}`
+            searchTimeRange: `${new Date(startTimeISO).toISOString()} - ${new Date(endTimeISO).toISOString()}`
         }, 'Checked calendar for busy slots - DETAILED DEBUG');
         return busySlots;
 
@@ -192,12 +191,10 @@ async function createEvent(agentId, eventDetails) {
             summary: eventDetails.summary,
             description: eventDetails.description,
             start: {
-                dateTime: eventDetails.startTimeISO,
-                timeZone: 'Asia/Singapore',
+                dateTime: eventDetails.startTimeISO
             },
             end: {
-                dateTime: eventDetails.endTimeISO,
-                timeZone: 'Asia/Singapore',
+                dateTime: eventDetails.endTimeISO
             },
             attendees: [
                 { email: agent.google_email } // Only add the agent to the event
