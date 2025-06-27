@@ -23,7 +23,7 @@ class BotService {
       action: 'continue'
     };
 
-    // Valid lead update fields and their validation rules
+    // Valid lead update fields and their validation rules (matching actual database schema)
     this.VALID_LEAD_FIELDS = {
       'intent': (value) => {
         if (typeof value !== 'string') return false;
@@ -37,7 +37,7 @@ class BotService {
       'budget': (value) => {
         if (typeof value !== 'string') return false;
         const trimmedValue = value.trim();
-        return trimmedValue.length > 0 && trimmedValue.length <= 200;
+        return trimmedValue.length > 0 && trimmedValue.length <= 255;
       },
       'status': (value) => {
         if (typeof value !== 'string') return false;
@@ -50,12 +50,11 @@ class BotService {
       'location_preference': (value) => typeof value === 'string' && value.length <= 255 && value.trim().length > 0,
       'property_type': (value) => typeof value === 'string' && value.length <= 100 && value.trim().length > 0,
       'timeline': (value) => typeof value === 'string' && value.length <= 100 && value.trim().length > 0,
-      'conversation_summary': (value) => typeof value === 'string' && value.length <= 2000,
-      'lead_score': (value) => typeof value === 'number' && value >= 0 && value <= 100,
-      'notes': (value) => typeof value === 'string' && value.length <= 2000,
+      'additional_notes': (value) => typeof value === 'string' && value.length <= 2000,
       'booking_alternatives': (value) => value === null || (typeof value === 'object' && Array.isArray(value)),
-      'full_name': (value) => typeof value === 'string' && value.length <= 100 && value.trim().length > 0,
-      'email': (value) => typeof value === 'string' && value.length <= 255 && (value.includes('@') || value.trim().length === 0)
+      'full_name': (value) => typeof value === 'string' && value.length <= 255 && value.trim().length > 0,
+      'source': (value) => typeof value === 'string' && value.length <= 100 && value.trim().length > 0,
+      'assigned_agent_id': (value) => typeof value === 'string' && value.length === 36 // UUID format
     };
   }
 
@@ -63,18 +62,28 @@ class BotService {
    * Main entry point - process incoming WhatsApp message
    */
   async processMessage({ senderWaId, userText, senderName }) {
+    let lead = null;
+
     try {
       logger.info({ senderWaId, senderName }, `Received message: "${userText}"`);
 
       // 1. Find or create lead
-      let lead = await this._findOrCreateLead({ senderWaId, senderName, userText });
+      lead = await this._findOrCreateLead({ senderWaId, senderName, userText });
 
       // 2. Save user message to conversation history FIRST
-      await supabase.from('messages').insert({
+      const { error: messageError } = await supabase.from('messages').insert({
         lead_id: lead.id,
         sender: 'lead',
-        message: userText
+        topic: 'conversation',
+        message: userText,
+        extension: '',
+        event: 'message_received'
       });
+
+      if (messageError) {
+        logger.error({ err: messageError, leadId: lead.id }, 'Failed to save user message');
+        // Continue processing but log the error
+      }
 
       // 3. Get conversation history (now includes current message)
       const previousMessages = await this._getConversationHistory(lead.id);
@@ -92,11 +101,18 @@ class BotService {
         await whatsappService.sendMessage({ to: senderWaId, message: response.message });
 
         // Save assistant response to conversation history
-        await supabase.from('messages').insert({
+        const { error: assistantMessageError } = await supabase.from('messages').insert({
           lead_id: lead.id,
           sender: 'assistant',
-          message: response.message
+          topic: 'conversation',
+          message: response.message,
+          extension: '',
+          event: 'message_sent'
         });
+
+        if (assistantMessageError) {
+          logger.error({ err: assistantMessageError, leadId: lead.id }, 'Failed to save assistant message');
+        }
       }
 
       logger.info({ leadId: lead.id, action: response.action }, 'Message processed successfully');
@@ -104,12 +120,25 @@ class BotService {
     } catch (err) {
       logger.error({ err, senderWaId }, 'Error processing message');
 
-      // Send fallback message
+      // Send fallback message and save to conversation history
       try {
+        const fallbackMessage = "Sorry, I had a slight issue there. Could you say that again?";
         await whatsappService.sendMessage({
           to: senderWaId,
-          message: "Sorry, I had a slight issue there. Could you say that again?"
+          message: fallbackMessage
         });
+
+        // Save fallback message to conversation history if we have a lead
+        if (lead?.id) {
+          await supabase.from('messages').insert({
+            lead_id: lead.id,
+            sender: 'assistant',
+            topic: 'conversation',
+            message: fallbackMessage,
+            extension: '',
+            event: 'error_fallback'
+          });
+        }
       } catch (fallbackErr) {
         logger.error({ err: fallbackErr }, 'Failed to send fallback message');
       }
@@ -120,7 +149,7 @@ class BotService {
    * Find or create lead with error handling
    * @private
    */
-  async _findOrCreateLead({ senderWaId, senderName, userText }) {
+  async _findOrCreateLead({ senderWaId, senderName, _userText }) {
     try {
       const lead = await findOrCreateLead({
         phoneNumber: senderWaId,
@@ -212,7 +241,7 @@ class BotService {
    * @private
    */
   async _generateFreshAIResponse(lead, previousMessages) {
-    const prompt = this._buildPrompt(lead, previousMessages);
+    const prompt = await this._buildPrompt(lead, previousMessages);
     
     try {
       const completion = await this.openai.chat.completions.create({
@@ -252,7 +281,9 @@ class BotService {
    * Build the prompt for AI generation
    * @private
    */
-  _buildPrompt(lead, previousMessages) {
+  async _buildPrompt(lead, previousMessages) {
+    const bookingStatus = await this._getBookingStatus(lead.id, lead.status);
+
     const memoryContext = `
 <lead_data>
   <name>${lead.full_name || 'Not provided'}</name>
@@ -260,7 +291,7 @@ class BotService {
   <status>${lead.status || 'new'}</status>
   <budget>${lead.budget || 'Not yet known'}</budget>
   <intent>${lead.intent || 'Not yet known'}</intent>
-  <booking_status>${this._getBookingStatus(lead.status)}</booking_status>
+  <booking_status>${bookingStatus}</booking_status>
 </lead_data>
 <full_conversation_history>
 ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: ${entry.message}`).join('\n')}
@@ -393,7 +424,25 @@ Respond with appropriate messages and actions based on the conversation context.
    * Get booking status description for AI context
    * @private
    */
-  _getBookingStatus(leadStatus) {
+  async _getBookingStatus(leadId, leadStatus) {
+    // Check if there's an active appointment in the database
+    try {
+      const { data: activeAppointment } = await supabase
+        .from('appointments')
+        .select('id, status, appointment_time')
+        .eq('lead_id', leadId)
+        .eq('status', 'scheduled')
+        .limit(1)
+        .maybeSingle();
+
+      if (activeAppointment) {
+        return 'Has scheduled appointment - can reschedule or cancel';
+      }
+    } catch (error) {
+      logger.warn({ err: error, leadId }, 'Error checking appointment status');
+    }
+
+    // Fall back to lead status
     switch (leadStatus) {
       case 'booked':
         return 'Has scheduled appointment - can reschedule or cancel';
@@ -408,15 +457,7 @@ Respond with appropriate messages and actions based on the conversation context.
     }
   }
 
-  /**
-   * Create a hash of messages for caching
-   * @private
-   */
-  _hashMessages(messages) {
-    const crypto = require('crypto');
-    const messageString = messages.map(m => `${m.sender}:${m.message}`).join('|');
-    return crypto.createHash('md5').update(messageString).digest('hex').substring(0, 8);
-  }
+
 
   /**
    * Update lead with validated data
@@ -424,9 +465,17 @@ Respond with appropriate messages and actions based on the conversation context.
    */
   async _updateLead(lead, updates) {
     try {
+      if (!lead?.id) {
+        logger.error({ lead, updates }, 'Cannot update lead - invalid lead object');
+        return lead;
+      }
+
       const validatedUpdates = this._validateLeadUpdates(updates);
 
       if (Object.keys(validatedUpdates).length > 0) {
+        // Add updated_at timestamp
+        validatedUpdates.updated_at = new Date().toISOString();
+
         const { data: updatedLead, error } = await supabase
           .from('leads')
           .update(validatedUpdates)
@@ -441,11 +490,13 @@ Respond with appropriate messages and actions based on the conversation context.
 
         logger.info({ leadId: lead.id, updates: Object.keys(validatedUpdates) }, 'Lead updated successfully');
         return updatedLead;
+      } else {
+        logger.debug({ leadId: lead.id, originalUpdates: updates }, 'No valid updates to apply');
       }
 
       return lead;
     } catch (error) {
-      logger.error({ err: error, leadId: lead.id }, 'Error updating lead');
+      logger.error({ err: error, leadId: lead?.id, updates }, 'Error updating lead');
       return lead;
     }
   }
@@ -524,6 +575,12 @@ Respond with appropriate messages and actions based on the conversation context.
    */
   async _handleInitialBooking({ lead, agentId, userMessage }) {
     try {
+      // Check if lead is already booked - should not be offering new bookings
+      if (lead.status === 'booked') {
+        logger.warn({ leadId: lead.id, userMessage }, 'Attempted to book new appointment for already booked lead');
+        return "You already have a consultation scheduled! Would you like to reschedule or cancel your existing appointment instead?";
+      }
+
       // If alternatives were offered but user requests a new time, clear alternatives and process new request
       if (lead.status === 'booking_alternatives_offered') {
         logger.info({ leadId: lead.id, userMessage }, 'User requesting new time while alternatives offered - clearing alternatives and processing new request');
