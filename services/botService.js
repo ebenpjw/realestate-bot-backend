@@ -67,43 +67,48 @@ class BotService {
       logger.info({ senderWaId, senderName }, `Received message: "${userText}"`);
 
       // 1. Find or create lead
-      const lead = await this._findOrCreateLead({ senderWaId, senderName, userText });
-      
-      // 2. Get conversation history
+      let lead = await this._findOrCreateLead({ senderWaId, senderName, userText });
+
+      // 2. Save user message to conversation history FIRST
+      await supabase.from('messages').insert({
+        lead_id: lead.id,
+        sender: 'lead',
+        message: userText
+      });
+
+      // 3. Get conversation history (now includes current message)
       const previousMessages = await this._getConversationHistory(lead.id);
-      
-      // 3. Generate AI response with appointment handling
+
+      // 4. Generate AI response with appointment handling
       const response = await this._generateCompleteResponse(lead, previousMessages, userText);
-      
-      // 4. Send single consolidated message
+
+      // 5. Update lead with any changes from AI response
+      if (response.lead_updates && Object.keys(response.lead_updates).length > 0) {
+        lead = await this._updateLead(lead, response.lead_updates);
+      }
+
+      // 6. Send single consolidated message
       if (response.message) {
         await whatsappService.sendMessage({ to: senderWaId, message: response.message });
-        
-        // Save to conversation history
-        await supabase.from('messages').insert([
-          {
-            lead_id: lead.id,
-            sender: 'lead',
-            message: userText
-          },
-          {
-            lead_id: lead.id,
-            sender: 'assistant',
-            message: response.message
-          }
-        ]);
+
+        // Save assistant response to conversation history
+        await supabase.from('messages').insert({
+          lead_id: lead.id,
+          sender: 'assistant',
+          message: response.message
+        });
       }
 
       logger.info({ leadId: lead.id, action: response.action }, 'Message processed successfully');
 
     } catch (err) {
       logger.error({ err, senderWaId }, 'Error processing message');
-      
+
       // Send fallback message
       try {
-        await whatsappService.sendMessage({ 
-          to: senderWaId, 
-          message: "Sorry, I had a slight issue there. Could you say that again?" 
+        await whatsappService.sendMessage({
+          to: senderWaId,
+          message: "Sorry, I had a slight issue there. Could you say that again?"
         });
       } catch (fallbackErr) {
         logger.error({ err: fallbackErr }, 'Failed to send fallback message');
@@ -158,15 +163,10 @@ class BotService {
   async _generateCompleteResponse(lead, previousMessages, userText) {
     // Generate AI response
     const aiResponse = await this._generateAIResponse(lead, previousMessages);
-    
-    // Update lead if needed
-    if (aiResponse.lead_updates && Object.keys(aiResponse.lead_updates).length > 0) {
-      lead = await this._updateLead(lead, aiResponse.lead_updates);
-    }
-    
+
     // Combine AI messages
     const messages = aiResponse.messages.filter(msg => msg);
-    
+
     // Handle appointment actions and add to messages
     if (['initiate_booking', 'reschedule_appointment', 'cancel_appointment', 'select_alternative'].includes(aiResponse.action)) {
       const appointmentMessage = await this._handleAppointmentAction({
@@ -174,12 +174,12 @@ class BotService {
         lead,
         userMessage: aiResponse.user_message || userText
       });
-      
+
       if (appointmentMessage) {
         messages.push(appointmentMessage);
       }
     }
-    
+
     return {
       message: messages.join('\n\n'),
       action: aiResponse.action,
@@ -193,24 +193,11 @@ class BotService {
    */
   async _generateAIResponse(lead, previousMessages) {
     try {
-      // Check cache first
-      const cacheKey = `${CACHE.KEYS.AI_RESPONSE}_${lead.id}_${this._hashMessages(previousMessages)}`;
-      
-      if (config.ENABLE_CACHING) {
-        const cachedResponse = CacheManager.get('short', cacheKey);
-        if (cachedResponse) {
-          logger.debug({ leadId: lead.id }, 'AI response served from cache');
-          return cachedResponse;
-        }
-      }
+      // Temporarily disable caching to fix conversation flow issues
+      // TODO: Re-enable caching after fixing conversation history timing
 
       // Generate fresh response
       const response = await this._generateFreshAIResponse(lead, previousMessages);
-      
-      // Cache the response
-      if (config.ENABLE_CACHING && response.action !== 'error') {
-        CacheManager.set('short', cacheKey, response, CACHE.TTL.SHORT);
-      }
 
       return response;
 
