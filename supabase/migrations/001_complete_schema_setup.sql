@@ -22,26 +22,62 @@ CREATE TABLE IF NOT EXISTS agents (
 );
 
 -- Add missing columns to agents table if they don't exist
-DO $$ 
+DO $$
 BEGIN
     -- Add working_hours column if it doesn't exist
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'agents' AND column_name = 'working_hours') THEN
         ALTER TABLE agents ADD COLUMN working_hours JSONB DEFAULT '{"start": 9, "end": 18, "days": [1, 2, 3, 4, 5]}';
     END IF;
-    
+
     -- Add timezone column if it doesn't exist
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'agents' AND column_name = 'timezone') THEN
         ALTER TABLE agents ADD COLUMN timezone VARCHAR(100) DEFAULT 'Asia/Singapore';
     END IF;
-    
+
     -- Add zoom_user_id column if it doesn't exist
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'agents' AND column_name = 'zoom_user_id') THEN
         ALTER TABLE agents ADD COLUMN zoom_user_id VARCHAR(255);
     END IF;
-    
+
     -- Add zoom_personal_meeting_id column if it doesn't exist
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'agents' AND column_name = 'zoom_personal_meeting_id') THEN
         ALTER TABLE agents ADD COLUMN zoom_personal_meeting_id VARCHAR(255);
+    END IF;
+
+    -- Note: Google OAuth uses simplified combined token format (google_refresh_token_encrypted only)
+    -- No additional Google token columns needed
+
+    -- Add Zoom OAuth token encryption columns
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'agents' AND column_name = 'zoom_email') THEN
+        ALTER TABLE agents ADD COLUMN zoom_email VARCHAR(255);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'agents' AND column_name = 'zoom_connected_at') THEN
+        ALTER TABLE agents ADD COLUMN zoom_connected_at TIMESTAMP WITH TIME ZONE;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'agents' AND column_name = 'zoom_access_token_encrypted') THEN
+        ALTER TABLE agents ADD COLUMN zoom_access_token_encrypted TEXT;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'agents' AND column_name = 'zoom_access_token_iv') THEN
+        ALTER TABLE agents ADD COLUMN zoom_access_token_iv VARCHAR(255);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'agents' AND column_name = 'zoom_access_token_tag') THEN
+        ALTER TABLE agents ADD COLUMN zoom_access_token_tag VARCHAR(255);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'agents' AND column_name = 'zoom_refresh_token_encrypted') THEN
+        ALTER TABLE agents ADD COLUMN zoom_refresh_token_encrypted TEXT;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'agents' AND column_name = 'zoom_refresh_token_iv') THEN
+        ALTER TABLE agents ADD COLUMN zoom_refresh_token_iv VARCHAR(255);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'agents' AND column_name = 'zoom_refresh_token_tag') THEN
+        ALTER TABLE agents ADD COLUMN zoom_refresh_token_tag VARCHAR(255);
     END IF;
 END $$;
 

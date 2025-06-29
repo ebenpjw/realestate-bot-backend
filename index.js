@@ -240,11 +240,15 @@ const gracefulShutdown = (signal) => {
   server.close((err) => {
     if (err) {
       logger.error({ err }, 'Error during server shutdown');
+      // Flush logs before exit
+      logger.flush();
       // eslint-disable-next-line no-process-exit
       process.exit(1);
     }
 
     logger.info('Server closed successfully');
+    // Flush logs before exit to ensure all buffered logs are written
+    logger.flush();
     // eslint-disable-next-line no-process-exit
     process.exit(0);
   });

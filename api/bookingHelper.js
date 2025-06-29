@@ -455,12 +455,26 @@ async function findNearbyAvailableSlots(agentId, requestedTime, hoursRange = 4) 
         const workingHours = await getAgentWorkingHours(agentId);
         const nearbySlots = [];
 
+        // Get current time for past validation
+        const now = new Date();
+
         // Generate slots before and after the requested time
         for (let hourOffset = -hoursRange; hourOffset <= hoursRange; hourOffset++) {
             if (hourOffset === 0) continue; // Skip the exact requested time
 
             const candidateTime = new Date(requestedTime);
             candidateTime.setHours(requestedTime.getHours() + hourOffset);
+
+            // CRITICAL FIX: Skip candidate times that are in the past
+            if (candidateTime <= now) {
+                logger.info({
+                    agentId,
+                    candidateTime: candidateTime.toISOString(),
+                    currentTime: now.toISOString(),
+                    hourOffset
+                }, 'Skipping past candidate time in nearby slots');
+                continue;
+            }
 
             // Check if within working hours
             const hour = candidateTime.getHours();

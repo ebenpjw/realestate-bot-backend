@@ -184,26 +184,34 @@ class BotService {
     // Generate AI response
     const aiResponse = await this._generateAIResponse(lead, previousMessages);
 
-    // Combine AI messages
-    const messages = aiResponse.messages.filter(msg => msg);
-
-    // Handle appointment actions and add to messages
+    // Handle appointment actions first - they take priority over AI messages
     if (['initiate_booking', 'reschedule_appointment', 'cancel_appointment', 'select_alternative'].includes(aiResponse.action)) {
-      const appointmentMessage = await this._handleAppointmentAction({
+      const appointmentResult = await this._handleAppointmentAction({
         action: aiResponse.action,
         lead,
         userMessage: aiResponse.user_message || userText
       });
 
-      if (appointmentMessage) {
-        messages.push(appointmentMessage);
+      // If appointment action was handled successfully, use its message directly
+      // This prevents contradictory messages from AI + appointment handler
+      if (appointmentResult && appointmentResult.message) {
+        return {
+          message: appointmentResult.message,
+          action: aiResponse.action,
+          lead_updates: aiResponse.lead_updates,
+          appointmentHandled: true
+        };
       }
     }
+
+    // If no appointment action or appointment action failed, use AI messages
+    const messages = aiResponse.messages.filter(msg => msg);
 
     return {
       message: messages.join('\n\n'),
       action: aiResponse.action,
-      lead_updates: aiResponse.lead_updates
+      lead_updates: aiResponse.lead_updates,
+      appointmentHandled: false
     };
   }
 
@@ -570,7 +578,7 @@ Respond with appropriate messages and actions based on the conversation context.
   }
 
   /**
-   * Handle appointment actions and return message
+   * Handle appointment actions and return structured result
    * @private
    */
   async _handleAppointmentAction({ action, lead, userMessage }) {
@@ -578,7 +586,10 @@ Respond with appropriate messages and actions based on the conversation context.
       const agentId = lead.assigned_agent_id;
       if (!agentId) {
         logger.error({ leadId: lead.id }, 'Cannot handle appointment action, lead is not assigned to an agent');
-        return "Apologies, I can't manage appointments right now as I can't find an available consultant. Please try again shortly.";
+        return {
+          success: false,
+          message: "Apologies, I can't manage appointments right now as I can't find an available consultant. Please try again shortly."
+        };
       }
 
       // Enhanced database check for existing appointments
@@ -592,7 +603,10 @@ Respond with appropriate messages and actions based on the conversation context.
 
       if (appointmentCheckError) {
         logger.error({ err: appointmentCheckError, leadId: lead.id }, 'Error checking existing appointments');
-        return "I'm having trouble checking your appointment status. Please try again in a moment.";
+        return {
+          success: false,
+          message: "I'm having trouble checking your appointment status. Please try again in a moment."
+        };
       }
 
       // Log the current appointment state for debugging
@@ -611,7 +625,10 @@ Respond with appropriate messages and actions based on the conversation context.
           if (existingAppointment) {
             logger.info({ leadId: lead.id, appointmentId: existingAppointment.id }, 'Attempted new booking but appointment already exists');
             const appointmentTime = new Date(existingAppointment.appointment_time);
-            return `You already have a consultation scheduled for ${appointmentTime.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${appointmentTime.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}. Would you like to reschedule it instead?`;
+            return {
+              success: false,
+              message: `You already have a consultation scheduled for ${appointmentTime.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${appointmentTime.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}. Would you like to reschedule it instead?`
+            };
           }
           return await this._handleInitialBooking({ lead, agentId, userMessage });
 
@@ -627,12 +644,18 @@ Respond with appropriate messages and actions based on the conversation context.
           // Only allow cancel if appointment exists
           if (!existingAppointment) {
             logger.info({ leadId: lead.id }, 'Attempted cancel but no appointment exists');
-            return "I couldn't find an existing appointment to cancel. Would you like to book a new consultation instead?";
+            return {
+              success: false,
+              message: "I couldn't find an existing appointment to cancel. Would you like to book a new consultation instead?"
+            };
           }
           // Verify the appointment belongs to the correct agent
           if (existingAppointment.agent_id !== agentId) {
             logger.warn({ leadId: lead.id, appointmentAgentId: existingAppointment.agent_id, currentAgentId: agentId }, 'Agent mismatch for appointment cancellation');
-            return "I found your appointment, but there seems to be an issue with the consultant assignment. Let me have someone help you with this.";
+            return {
+              success: false,
+              message: "I found your appointment, but there seems to be an issue with the consultant assignment. Let me have someone help you with this."
+            };
           }
           return await this._handleCancelAppointment({ lead, existingAppointment });
 
@@ -640,23 +663,32 @@ Respond with appropriate messages and actions based on the conversation context.
           // Validate that alternatives were actually offered
           if (lead.status !== 'booking_alternatives_offered' || !lead.booking_alternatives) {
             logger.info({ leadId: lead.id, leadStatus: lead.status }, 'Attempted alternative selection but no alternatives were offered');
-            return "I don't see any appointment alternatives to choose from. Let me help you find available times instead.";
+            return {
+              success: false,
+              message: "I don't see any appointment alternatives to choose from. Let me help you find available times instead."
+            };
           }
           // Ensure no existing appointment before processing alternative selection
           if (existingAppointment) {
             logger.info({ leadId: lead.id, appointmentId: existingAppointment.id }, 'Attempted alternative selection but appointment already exists');
             const appointmentTime = new Date(existingAppointment.appointment_time);
-            return `You already have a consultation scheduled for ${appointmentTime.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${appointmentTime.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}. Would you like to reschedule it instead?`;
+            return {
+              success: false,
+              message: `You already have a consultation scheduled for ${appointmentTime.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${appointmentTime.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}. Would you like to reschedule it instead?`
+            };
           }
           return await this._handleAlternativeSelection({ lead, agentId, userMessage });
 
         default:
           logger.warn({ action, leadId: lead.id }, 'Unknown appointment action');
-          return '';
+          return { success: false, message: '' };
       }
     } catch (error) {
       logger.error({ err: error, action, leadId: lead.id }, 'Error handling appointment action');
-      return "Sorry, I had an issue processing your appointment request. Please try again or let me know if you need help.";
+      return {
+        success: false,
+        message: "Sorry, I had an issue processing your appointment request. Please try again or let me know if you need help."
+      };
     }
   }
 
@@ -700,19 +732,33 @@ Respond with appropriate messages and actions based on the conversation context.
         // Update lead status to booked
         await supabase.from('leads').update({ status: 'booked' }).eq('id', lead.id);
         logger.info({ leadId: lead.id, appointmentId: result.appointment.id }, 'Appointment booked successfully');
+        return {
+          success: true,
+          message: result.message
+        };
       } else if (result.type === 'alternatives_offered') {
         // Store alternatives and update status
         await supabase.from('leads').update({
           status: 'booking_alternatives_offered',
           booking_alternatives: JSON.stringify(result.alternatives)
         }).eq('id', lead.id);
+        return {
+          success: true,
+          message: result.message
+        };
       }
 
-      return result.message;
+      return {
+        success: false,
+        message: result.message || "I couldn't process your booking request. Please try again."
+      };
 
     } catch (error) {
       logger.error({ err: error, leadId: lead.id }, 'Error in initial booking');
-      return "I'm having trouble booking your appointment right now. Let me have our consultant contact you directly to arrange a suitable time.";
+      return {
+        success: false,
+        message: "I'm having trouble booking your appointment right now. Let me have our consultant contact you directly to arrange a suitable time."
+      };
     }
   }
 
@@ -739,7 +785,10 @@ Respond with appropriate messages and actions based on the conversation context.
       }
 
       if (!appointment) {
-        return "I couldn't find an existing appointment to reschedule. Would you like to book a new consultation instead?";
+        return {
+          success: false,
+          message: "I couldn't find an existing appointment to reschedule. Would you like to book a new consultation instead?"
+        };
       }
 
       // Use booking helper to find new time
@@ -754,7 +803,10 @@ Respond with appropriate messages and actions based on the conversation context.
           reason: `Rescheduled via WhatsApp: ${userMessage}`
         });
 
-        return `Perfect! I've rescheduled your consultation to ${exactMatch.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${exactMatch.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}.\n\nYour Zoom link remains the same: ${appointment.zoom_join_url}\n\nLooking forward to speaking with you soon!`;
+        return {
+          success: true,
+          message: `Perfect! I've rescheduled your consultation to ${exactMatch.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${exactMatch.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}.\n\nYour Zoom link remains the same: ${appointment.zoom_join_url}\n\nLooking forward to speaking with you soon!`
+        };
       } else if (alternatives.length > 0) {
         // Offer alternatives for rescheduling
         const topAlternatives = alternatives.slice(0, 3);
@@ -768,13 +820,22 @@ Respond with appropriate messages and actions based on the conversation context.
           booking_alternatives: JSON.stringify(topAlternatives)
         }).eq('id', lead.id);
 
-        return `I couldn't find availability for your exact preferred time, but here are some available slots for rescheduling:\n\n${alternativeText}\n\nWhich one works best for you? Just reply with the number!`;
+        return {
+          success: true,
+          message: `I couldn't find availability for your exact preferred time, but here are some available slots for rescheduling:\n\n${alternativeText}\n\nWhich one works best for you? Just reply with the number!`
+        };
       } else {
-        return "I'm sorry, but I couldn't find any available slots for your preferred time. Let me have our consultant reach out to you directly to find a suitable time. Is that okay?";
+        return {
+          success: false,
+          message: "I'm sorry, but I couldn't find any available slots for your preferred time. Let me have our consultant reach out to you directly to find a suitable time. Is that okay?"
+        };
       }
     } catch (error) {
       logger.error({ err: error, leadId: lead.id }, 'Error in reschedule appointment');
-      return "I'm having trouble rescheduling your appointment right now. Let me have our consultant contact you directly to arrange a new time. Sorry for the inconvenience!";
+      return {
+        success: false,
+        message: "I'm having trouble rescheduling your appointment right now. Let me have our consultant contact you directly to arrange a new time. Sorry for the inconvenience!"
+      };
     }
   }
 
@@ -800,7 +861,10 @@ Respond with appropriate messages and actions based on the conversation context.
       }
 
       if (!appointment) {
-        return "I couldn't find an existing appointment to cancel. Is there anything else I can help you with?";
+        return {
+          success: false,
+          message: "I couldn't find an existing appointment to cancel. Is there anything else I can help you with?"
+        };
       }
 
       const result = await appointmentService.cancelAppointment({
@@ -810,10 +874,16 @@ Respond with appropriate messages and actions based on the conversation context.
       // Update lead status
       await supabase.from('leads').update({ status: 'appointment_cancelled' }).eq('id', lead.id);
 
-      return result.message;
+      return {
+        success: true,
+        message: result.message
+      };
     } catch (error) {
       logger.error({ err: error, leadId: lead.id }, 'Error in cancel appointment');
-      return "I'm having trouble cancelling your appointment right now. Let me have our consultant contact you directly.";
+      return {
+        success: false,
+        message: "I'm having trouble cancelling your appointment right now. Let me have our consultant contact you directly."
+      };
     }
   }
 
@@ -827,7 +897,10 @@ Respond with appropriate messages and actions based on the conversation context.
       const storedAlternatives = lead.booking_alternatives ? JSON.parse(lead.booking_alternatives) : [];
 
       if (storedAlternatives.length === 0) {
-        return "I don't have any alternative slots stored. Let me find some available times for you.";
+        return {
+          success: false,
+          message: "I don't have any alternative slots stored. Let me find some available times for you."
+        };
       }
 
       // Parse user selection (e.g., "1", "3", "option 2", "the first one")
@@ -881,13 +954,22 @@ Respond with appropriate messages and actions based on the conversation context.
           booking_alternatives: null
         }).eq('id', lead.id);
 
-        return `Perfect! I've booked your consultation for ${selectedSlot.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${selectedSlot.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}.\n\nZoom Link: ${result.zoomMeeting.joinUrl}\n\nI'll send you a reminder before the meeting!`;
+        return {
+          success: true,
+          message: `Perfect! I've booked your consultation for ${selectedSlot.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${selectedSlot.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}.\n\nZoom Link: ${result.zoomMeeting.joinUrl}\n\nI'll send you a reminder before the meeting!`
+        };
       } else {
-        return "I'm not sure which time slot you'd prefer. Could you please specify by saying something like 'option 1' or 'the Monday slot'?";
+        return {
+          success: false,
+          message: "I'm not sure which time slot you'd prefer. Could you please specify by saying something like 'option 1' or 'the Monday slot'?"
+        };
       }
     } catch (error) {
       logger.error({ err: error, leadId: lead.id }, 'Error in alternative selection');
-      return "I'm having trouble booking your selected time slot. Let me have our consultant contact you directly.";
+      return {
+        success: false,
+        message: "I'm having trouble booking your selected time slot. Let me have our consultant contact you directly."
+      };
     }
   }
 
