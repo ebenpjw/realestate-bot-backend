@@ -90,10 +90,10 @@ describe('Application Integration Tests', () => {
 
     test('Database Service should initialize without errors', () => {
       const databaseService = require('../services/databaseService');
-      
+
       expect(databaseService).toBeDefined();
       expect(typeof databaseService.findOrCreateLead).toBe('function');
-      expect(typeof databaseService.updateLead).toBe('function');
+      expect(typeof databaseService.getConversationHistory).toBe('function');
       expect(typeof databaseService.healthCheck).toBe('function');
     });
   });

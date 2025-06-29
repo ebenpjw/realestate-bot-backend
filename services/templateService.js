@@ -318,7 +318,9 @@ class TemplateService {
           template_category: templateData.category,
           template_params: templateData.params,
           message_id: templateData.messageId,
-          sent_at: new Date().toISOString()
+          sent_at: new Date().toISOString(),
+          status: 'sent',
+          created_at: new Date().toISOString()
         });
 
       logger.debug({

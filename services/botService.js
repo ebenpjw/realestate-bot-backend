@@ -3,20 +3,25 @@ const config = require('../config');
 const logger = require('../logger');
 const supabase = require('../supabaseClient');
 const whatsappService = require('./whatsappService');
-const appointmentService = require('./appointmentService');
 const { findOrCreateLead } = require('../api/leadManager');
-const CacheManager = require('../utils/cache');
-const { AI, CACHE } = require('../constants');
+const { AI } = require('../constants');
 const { ExternalServiceError } = require('../middleware/errorHandler');
+const { toSgTime, formatForDisplay } = require('../utils/timezoneUtils');
 
 class BotService {
-  constructor() {
-    this.openai = new OpenAI({ 
+  constructor(dependencies = {}) {
+    // Dependency injection with defaults
+    this.openai = dependencies.openai || new OpenAI({
       apiKey: config.OPENAI_API_KEY,
       timeout: config.OPENAI_TIMEOUT || AI.TIMEOUT,
       maxRetries: AI.RETRY_ATTEMPTS
     });
-    
+
+    this.appointmentService = dependencies.appointmentService || require('./appointmentService');
+    this.whatsappService = dependencies.whatsappService || require('./whatsappService');
+    this.databaseService = dependencies.databaseService || require('./databaseService');
+    this.supabase = dependencies.supabase || supabase;
+
     this.fallbackResponse = {
       messages: ["Sorry, I had a slight issue there. Could you say that again?"],
       lead_updates: {},
@@ -62,16 +67,22 @@ class BotService {
    * Main entry point - process incoming WhatsApp message
    */
   async processMessage({ senderWaId, userText, senderName }) {
+    const operationId = `process-message-${senderWaId}-${Date.now()}`;
     let lead = null;
 
     try {
-      logger.info({ senderWaId, senderName }, `Received message: "${userText}"`);
+      logger.info({
+        operationId,
+        senderWaId,
+        senderName,
+        messageLength: userText?.length
+      }, `[ENTRY] Processing WhatsApp message: "${userText?.substring(0, 100)}${userText?.length > 100 ? '...' : ''}"`);
 
       // 1. Find or create lead
       lead = await this._findOrCreateLead({ senderWaId, senderName, userText });
 
       // 2. Save user message to conversation history FIRST
-      const { error: messageError } = await supabase.from('messages').insert({
+      const { error: messageError } = await this.supabase.from('messages').insert({
         lead_id: lead.id,
         sender: 'lead',
         message: userText
@@ -117,21 +128,33 @@ class BotService {
       // Send fallback message and save to conversation history
       try {
         const fallbackMessage = "Sorry, I had a slight issue there. Could you say that again?";
-        await whatsappService.sendMessage({
+        await this.whatsappService.sendMessage({
           to: senderWaId,
           message: fallbackMessage
         });
 
         // Save fallback message to conversation history if we have a lead
         if (lead?.id) {
-          await supabase.from('messages').insert({
+          await this.supabase.from('messages').insert({
             lead_id: lead.id,
             sender: 'assistant',
             message: fallbackMessage
           });
         }
+
+        logger.warn({
+          operationId,
+          leadId: lead?.id,
+          senderWaId
+        }, '[EXIT] Sent fallback message due to processing error');
+
       } catch (fallbackErr) {
-        logger.error({ err: fallbackErr }, 'Failed to send fallback message');
+        logger.error({
+          err: fallbackErr,
+          operationId,
+          leadId: lead?.id,
+          senderWaId
+        }, '[EXIT] Failed to send fallback message');
       }
     }
   }
@@ -427,19 +450,17 @@ Respond with appropriate messages and actions based on the conversation context.
         .maybeSingle();
 
       if (activeAppointment) {
-        const appointmentDate = new Date(activeAppointment.appointment_time);
-        const formattedDate = appointmentDate.toLocaleDateString('en-SG', {
+        const appointmentDate = toSgTime(activeAppointment.appointment_time);
+        const formattedDateTime = formatForDisplay(appointmentDate, {
           weekday: 'long',
           day: 'numeric',
-          month: 'long'
-        });
-        const formattedTime = appointmentDate.toLocaleTimeString('en-SG', {
+          month: 'long',
           hour: '2-digit',
           minute: '2-digit',
           hour12: true
         });
 
-        let statusMessage = `Has scheduled appointment on ${formattedDate} at ${formattedTime}`;
+        let statusMessage = `Has scheduled appointment on ${formattedDateTime}`;
 
         // Include Zoom link if available and not placeholder
         if (activeAppointment.zoom_join_url && activeAppointment.zoom_join_url !== 'https://zoom.us/j/placeholder') {
@@ -500,7 +521,62 @@ Respond with appropriate messages and actions based on the conversation context.
     }
   }
 
+  /**
+   * Validate agent assignment for appointment actions
+   * @private
+   */
+  _validateAgentAssignment(lead) {
+    const agentId = lead.assigned_agent_id;
+    if (!agentId) {
+      logger.error({ leadId: lead.id }, 'Cannot handle appointment action, lead is not assigned to an agent');
+      return {
+        valid: false,
+        result: {
+          success: false,
+          message: "Apologies, I can't manage appointments right now as I can't find an available consultant. Please try again shortly."
+        }
+      };
+    }
+    return { valid: true, agentId };
+  }
 
+  /**
+   * Check for existing appointments
+   * @private
+   */
+  async _checkExistingAppointments(lead) {
+    try {
+      const { data: existingAppointment, error: appointmentCheckError } = await this.supabase
+        .from('appointments')
+        .select('id, status, appointment_time, agent_id')
+        .eq('lead_id', lead.id)
+        .eq('status', 'scheduled')
+        .limit(1)
+        .maybeSingle();
+
+      if (appointmentCheckError) {
+        logger.error({ err: appointmentCheckError, leadId: lead.id }, 'Error checking existing appointments');
+        return {
+          valid: false,
+          result: {
+            success: false,
+            message: "I'm having trouble checking your appointment status. Please try again in a moment."
+          }
+        };
+      }
+
+      return { valid: true, existingAppointment };
+    } catch (error) {
+      logger.error({ err: error, leadId: lead.id }, 'Error in appointment check');
+      return {
+        valid: false,
+        result: {
+          success: false,
+          message: "I'm having trouble checking your appointment status. Please try again in a moment."
+        }
+      };
+    }
+  }
 
   /**
    * Update lead with validated data
@@ -583,31 +659,21 @@ Respond with appropriate messages and actions based on the conversation context.
    */
   async _handleAppointmentAction({ action, lead, userMessage }) {
     try {
-      const agentId = lead.assigned_agent_id;
-      if (!agentId) {
-        logger.error({ leadId: lead.id }, 'Cannot handle appointment action, lead is not assigned to an agent');
-        return {
-          success: false,
-          message: "Apologies, I can't manage appointments right now as I can't find an available consultant. Please try again shortly."
-        };
+      // Validate agent assignment
+      const agentValidation = this._validateAgentAssignment(lead);
+      if (!agentValidation.valid) {
+        return agentValidation.result;
       }
 
-      // Enhanced database check for existing appointments
-      const { data: existingAppointment, error: appointmentCheckError } = await supabase
-        .from('appointments')
-        .select('id, status, appointment_time, agent_id')
-        .eq('lead_id', lead.id)
-        .eq('status', 'scheduled')
-        .limit(1)
-        .maybeSingle();
+      const { agentId } = agentValidation;
 
-      if (appointmentCheckError) {
-        logger.error({ err: appointmentCheckError, leadId: lead.id }, 'Error checking existing appointments');
-        return {
-          success: false,
-          message: "I'm having trouble checking your appointment status. Please try again in a moment."
-        };
+      // Check existing appointments
+      const appointmentCheck = await this._checkExistingAppointments(lead);
+      if (!appointmentCheck.valid) {
+        return appointmentCheck.result;
       }
+
+      const { existingAppointment } = appointmentCheck;
 
       // Log the current appointment state for debugging
       logger.info({
@@ -624,10 +690,11 @@ Respond with appropriate messages and actions based on the conversation context.
           // Only allow new booking if no existing appointment
           if (existingAppointment) {
             logger.info({ leadId: lead.id, appointmentId: existingAppointment.id }, 'Attempted new booking but appointment already exists');
-            const appointmentTime = new Date(existingAppointment.appointment_time);
+            const appointmentTime = toSgTime(existingAppointment.appointment_time);
+            const formattedTime = formatForDisplay(appointmentTime);
             return {
               success: false,
-              message: `You already have a consultation scheduled for ${appointmentTime.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${appointmentTime.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}. Would you like to reschedule it instead?`
+              message: `You already have a consultation scheduled for ${formattedTime}. Would you like to reschedule it instead?`
             };
           }
           return await this._handleInitialBooking({ lead, agentId, userMessage });
@@ -671,10 +738,11 @@ Respond with appropriate messages and actions based on the conversation context.
           // Ensure no existing appointment before processing alternative selection
           if (existingAppointment) {
             logger.info({ leadId: lead.id, appointmentId: existingAppointment.id }, 'Attempted alternative selection but appointment already exists');
-            const appointmentTime = new Date(existingAppointment.appointment_time);
+            const appointmentTime = toSgTime(existingAppointment.appointment_time);
+            const formattedTime = formatForDisplay(appointmentTime);
             return {
               success: false,
-              message: `You already have a consultation scheduled for ${appointmentTime.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${appointmentTime.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}. Would you like to reschedule it instead?`
+              message: `You already have a consultation scheduled for ${formattedTime}. Would you like to reschedule it instead?`
             };
           }
           return await this._handleAlternativeSelection({ lead, agentId, userMessage });
@@ -719,7 +787,7 @@ Respond with appropriate messages and actions based on the conversation context.
 
       const consultationNotes = `Intent: ${lead.intent || 'Not specified'}, Budget: ${lead.budget || 'Not specified'}`;
 
-      const result = await appointmentService.findAndBookAppointment({
+      const result = await this.appointmentService.findAndBookAppointment({
         leadId: lead.id,
         agentId,
         userMessage,
@@ -797,21 +865,22 @@ Respond with appropriate messages and actions based on the conversation context.
 
       if (exactMatch) {
         // Update the existing appointment
-        await appointmentService.rescheduleAppointment({
+        await this.appointmentService.rescheduleAppointment({
           appointmentId: appointment.id,
-          newTime: exactMatch,
+          newAppointmentTime: exactMatch,
           reason: `Rescheduled via WhatsApp: ${userMessage}`
         });
 
+        const formattedTime = formatForDisplay(toSgTime(exactMatch));
         return {
           success: true,
-          message: `Perfect! I've rescheduled your consultation to ${exactMatch.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${exactMatch.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}.\n\nYour Zoom link remains the same: ${appointment.zoom_join_url}\n\nLooking forward to speaking with you soon!`
+          message: `Perfect! I've rescheduled your consultation to ${formattedTime}.\n\nYour Zoom link remains the same: ${appointment.zoom_join_url}\n\nLooking forward to speaking with you soon!`
         };
       } else if (alternatives.length > 0) {
         // Offer alternatives for rescheduling
         const topAlternatives = alternatives.slice(0, 3);
         const alternativeText = topAlternatives.map((slot, index) =>
-          `${index + 1}. ${slot.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${slot.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}`
+          `${index + 1}. ${formatForDisplay(toSgTime(slot))}`
         ).join('\n');
 
         // Store alternatives
@@ -867,7 +936,7 @@ Respond with appropriate messages and actions based on the conversation context.
         };
       }
 
-      const result = await appointmentService.cancelAppointment({
+      const result = await this.appointmentService.cancelAppointment({
         appointmentId: appointment.id
       });
 
@@ -939,7 +1008,7 @@ Respond with appropriate messages and actions based on the conversation context.
         const consultationNotes = `Intent: ${lead.intent || 'Not specified'}, Budget: ${lead.budget || 'Not specified'}`;
 
         // Book the selected alternative
-        const result = await appointmentService.createAppointment({
+        const result = await this.appointmentService.createAppointment({
           leadId: lead.id,
           agentId,
           appointmentTime: selectedSlot,
@@ -954,9 +1023,10 @@ Respond with appropriate messages and actions based on the conversation context.
           booking_alternatives: null
         }).eq('id', lead.id);
 
+        const formattedTime = formatForDisplay(toSgTime(selectedSlot));
         return {
           success: true,
-          message: `Perfect! I've booked your consultation for ${selectedSlot.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${selectedSlot.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}.\n\nZoom Link: ${result.zoomMeeting.joinUrl}\n\nI'll send you a reminder before the meeting!`
+          message: `Perfect! I've booked your consultation for ${formattedTime}.\n\nZoom Link: ${result.zoomMeeting.joinUrl}\n\nI'll send you a reminder before the meeting!`
         };
       } else {
         return {
@@ -999,4 +1069,14 @@ Respond with appropriate messages and actions based on the conversation context.
   }
 }
 
-module.exports = new BotService();
+// Factory function for creating BotService with dependencies
+function createBotService(dependencies = {}) {
+  return new BotService(dependencies);
+}
+
+// Export singleton instance for backward compatibility
+const botServiceInstance = new BotService();
+
+module.exports = botServiceInstance;
+module.exports.BotService = BotService;
+module.exports.createBotService = createBotService;

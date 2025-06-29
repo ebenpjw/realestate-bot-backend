@@ -1,5 +1,17 @@
 // Tests for timezone utility functions and Google Calendar integration
-const { formatToLocalISO, formatToFullISO } = require('../utils/timezoneUtils');
+const {
+  formatToLocalISO,
+  formatToFullISO,
+  getNowInSg,
+  toSgTime,
+  fromSgTimeToUtc,
+  formatForDisplay,
+  formatForGoogleCalendar,
+  createSgDate,
+  parseSgTime,
+  isInSgBusinessHours,
+  validateTimezoneConfig
+} = require('../utils/timezoneUtils');
 
 describe('Timezone Utilities', () => {
   describe('formatToLocalISO', () => {

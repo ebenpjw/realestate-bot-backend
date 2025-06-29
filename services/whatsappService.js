@@ -2,13 +2,13 @@ const axios = require('axios');
 const qs = require('qs');
 const config = require('../config');
 const logger = require('../logger');
-const { SERVICES, MESSAGE, VALIDATION } = require('../constants');
+const { MESSAGE, VALIDATION } = require('../constants');
 const { ExternalServiceError, ValidationError } = require('../middleware/errorHandler');
 
 class WhatsAppService {
   constructor() {
-    this.baseURL = SERVICES.GUPSHUP.BASE_URL;
-    this.timeout = config.GUPSHUP_TIMEOUT || SERVICES.GUPSHUP.TIMEOUT;
+    this.baseURL = 'https://api.gupshup.io/wa/api/v1';
+    this.timeout = config.GUPSHUP_TIMEOUT || 10000;
     this.apiKey = config.GUPSHUP_API_KEY;
     this.wabaNumber = config.WABA_NUMBER;
     

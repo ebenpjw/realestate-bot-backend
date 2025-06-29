@@ -45,6 +45,39 @@ class ExternalServiceError extends AppError {
   }
 }
 
+class CalendarApiError extends ExternalServiceError {
+  constructor(message, originalError = null) {
+    super('Google Calendar', message, originalError);
+  }
+}
+
+class ZoomApiError extends ExternalServiceError {
+  constructor(message, originalError = null) {
+    super('Zoom', message, originalError);
+  }
+}
+
+class DatabaseError extends ExternalServiceError {
+  constructor(message, originalError = null) {
+    super('Database', message, originalError);
+  }
+}
+
+class AppointmentStateError extends AppError {
+  constructor(message, currentState, attemptedAction) {
+    super(message, 400);
+    this.currentState = currentState;
+    this.attemptedAction = attemptedAction;
+  }
+}
+
+class AppointmentConflictError extends AppError {
+  constructor(message, conflictingTime) {
+    super(message, 409);
+    this.conflictingTime = conflictingTime;
+  }
+}
+
 // Error response formatter
 const formatErrorResponse = (error, includeStack = false) => {
   const response = {
@@ -169,6 +202,11 @@ module.exports = {
   AuthorizationError,
   NotFoundError,
   ExternalServiceError,
+  CalendarApiError,
+  ZoomApiError,
+  DatabaseError,
+  AppointmentStateError,
+  AppointmentConflictError,
   errorHandler,
   asyncHandler,
   notFoundHandler,

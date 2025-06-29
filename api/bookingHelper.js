@@ -3,7 +3,11 @@
 const { checkAvailability } = require('./googleCalendarService');
 const supabase = require('../supabaseClient');
 const logger = require('../logger');
-const { formatToFullISO } = require('../utils/timezoneUtils');
+const {
+  formatToFullISO,
+  getNowInSg,
+  createSgDate
+} = require('../utils/timezoneUtils');
 
 const SLOT_DURATION_MINUTES = 60; // 1 hour consultations
 
@@ -87,9 +91,9 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
             daysToSearch
         }, 'Finding available slots with agent working hours');
 
-        // Get current time (server time, which should be Singapore time based on deployment)
-        const now = new Date();
-        const singaporeTime = now; // Since DB and calendar are already in Singapore timezone
+        // Get current time in Singapore timezone
+        const now = getNowInSg();
+        const singaporeTime = now;
 
         logger.info({
             agentId,
@@ -334,9 +338,14 @@ function parsePreferredTime(message) {
                 if (ampm === 'pm' && hour !== 12) hour += 12;
                 if (ampm === 'am' && hour === 12) hour = 0;
 
-                // Create target date using simple Date object
-                const targetDate = new Date();
-                targetDate.setHours(hour, minute, 0, 0);
+                // Create target date in Singapore timezone
+                const targetDate = createSgDate(
+                  getNowInSg().getFullYear(),
+                  getNowInSg().getMonth() + 1,
+                  getNowInSg().getDate(),
+                  hour,
+                  minute
+                );
 
                 // Handle day references
                 if (lowerMessage.includes('tomorrow')) {

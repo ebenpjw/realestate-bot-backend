@@ -49,9 +49,7 @@ const APP_CONSTANTS = {
       NEW: 'new',
       QUALIFIED: 'qualified',
       BOOKED: 'booked',
-      NEEDS_HANDOFF: 'needs_human_handoff',
-      CONVERTED: 'converted',
-      LOST: 'lost'
+      NEEDS_HANDOFF: 'needs_human_handoff'
     },
     SOURCES: {
       WA_DIRECT: 'WA Direct',
@@ -70,24 +68,7 @@ const APP_CONSTANTS = {
     RETRY_DELAY: 1000 // 1 second
   },
   
-  // External services
-  SERVICES: {
-    GUPSHUP: {
-      BASE_URL: 'https://api.gupshup.io/wa/api/v1',
-      TIMEOUT: 10000
-    },
-    OPENAI: {
-      TIMEOUT: 30000,
-      MAX_RETRIES: 3
-    },
-    GOOGLE: {
-      SCOPES: [
-        'https://www.googleapis.com/auth/calendar.events',
-        'https://www.googleapis.com/auth/calendar.freebusy'
-      ],
-      TIMEOUT: 15000
-    }
-  },
+
   
   // Validation rules
   VALIDATION: {

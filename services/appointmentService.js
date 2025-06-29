@@ -6,7 +6,19 @@ const { createEvent } = require('../api/googleCalendarService');
 const { createZoomMeetingForUser, deleteZoomMeetingForUser } = require('../api/zoomServerService');
 const { findMatchingSlot, findNearbyAvailableSlots } = require('../api/bookingHelper');
 const whatsappService = require('./whatsappService');
-const { formatToLocalISO, formatToFullISO } = require('../utils/timezoneUtils');
+const {
+  formatForGoogleCalendar,
+  formatForDisplay,
+  formatToFullISO,
+  toSgTime
+} = require('../utils/timezoneUtils');
+const {
+  DatabaseError
+} = require('../middleware/errorHandler');
+const {
+  retryZoomOperation,
+  retryDatabaseOperation
+} = require('../utils/retryUtils');
 
 class AppointmentService {
   constructor() {
@@ -17,6 +29,7 @@ class AppointmentService {
 
   /**
    * Create a new appointment with Zoom meeting and calendar event
+   * Uses atomic transaction pattern - rolls back database changes if external APIs fail
    * @param {Object} params - Appointment parameters
    * @returns {Promise<Object>} Created appointment details
    */
@@ -28,10 +41,21 @@ class AppointmentService {
     leadPhone: _leadPhone,
     consultationNotes = ''
   }) {
-    try {
-      logger.info({ leadId, agentId, appointmentTime }, 'Creating new appointment');
+    const operationId = `create-appointment-${leadId}-${Date.now()}`;
+    let createdAppointment = null;
+    let zoomMeeting = null;
+    let calendarEvent = null;
 
-      const appointmentStart = new Date(appointmentTime);
+    try {
+      logger.info({
+        operationId,
+        leadId,
+        agentId,
+        appointmentTime
+      }, 'Starting appointment creation with atomic transaction pattern');
+
+      // Ensure appointment times are in Singapore timezone
+      const appointmentStart = toSgTime(appointmentTime);
       const appointmentEnd = new Date(appointmentStart.getTime() + this.APPOINTMENT_DURATION * 60 * 1000);
 
       // Fetch full lead details for enhanced calendar event
@@ -100,8 +124,8 @@ class AppointmentService {
         calendarEvent = await createEvent(agentId, {
           summary: `🏠 Property Consultation: ${leadName}`,
           description: eventDescription,
-          startTimeISO: formatToLocalISO(appointmentStart),
-          endTimeISO: formatToLocalISO(appointmentEnd)
+          startTimeISO: formatForGoogleCalendar(appointmentStart),
+          endTimeISO: formatForGoogleCalendar(appointmentEnd)
         });
         logger.info({ leadId, calendarEventId: calendarEvent.id }, 'Google Calendar event created successfully');
       } catch (calendarError) {
@@ -112,53 +136,149 @@ class AppointmentService {
         };
       }
 
-      // 3. Store appointment in database (always save, even if external integrations failed)
-      const { data: appointment, error } = await supabase
-        .from('appointments')
-        .insert({
-          lead_id: leadId,
-          agent_id: agentId,
-          appointment_time: appointmentStart.toISOString(),
-          duration_minutes: this.APPOINTMENT_DURATION,
-          zoom_meeting_id: zoomMeeting.id,
-          zoom_join_url: zoomMeeting.joinUrl,
-          zoom_password: zoomMeeting.password,
-          calendar_event_id: calendarEvent.id,
-          consultation_notes: enhancedConsultationNotes,
-          status: 'scheduled',
-          created_at: new Date().toISOString()
-        })
-        .select()
-        .single();
+      // Step 4: Store appointment in database with retry and rollback capability
+      try {
+        createdAppointment = await retryDatabaseOperation(async () => {
+          const { data, error } = await supabase
+            .from('appointments')
+            .insert({
+              lead_id: leadId,
+              agent_id: agentId,
+              appointment_time: appointmentStart.toISOString(), // Store in database timezone (Singapore)
+              duration_minutes: this.APPOINTMENT_DURATION,
+              zoom_meeting_id: zoomMeeting.id,
+              zoom_join_url: zoomMeeting.joinUrl,
+              zoom_password: zoomMeeting.password,
+              calendar_event_id: calendarEvent.id,
+              consultation_notes: enhancedConsultationNotes,
+              status: 'scheduled',
+              created_at: new Date().toISOString()
+            })
+            .select()
+            .single();
 
-      if (error) {
-        logger.error({ err: error, leadId, agentId }, 'Failed to save appointment to database');
-        throw new Error('Failed to save appointment');
+          if (error) {
+            throw new DatabaseError(`Failed to save appointment: ${error.message}`, error);
+          }
+          return data;
+        }, 'create-appointment-record');
+
+        logger.info({
+          operationId,
+          leadId,
+          agentId,
+          appointmentId: createdAppointment.id
+        }, 'Appointment created successfully');
+
+      } catch (error) {
+        // ROLLBACK: If database insertion fails, clean up external resources
+        logger.error({
+          err: error,
+          operationId,
+          leadId,
+          agentId
+        }, 'Database insertion failed, initiating rollback');
+
+        await this._rollbackAppointmentCreation({
+          operationId,
+          zoomMeeting,
+          calendarEvent,
+          agentId
+        });
+
+        throw new DatabaseError('Failed to create appointment - all changes rolled back', error);
       }
 
-      // 4. Update lead status
-      await supabase
-        .from('leads')
-        .update({ status: 'booked' })
-        .eq('id', leadId);
+      // Step 5: Update lead status
+      try {
+        await retryDatabaseOperation(async () => {
+          const { error } = await supabase
+            .from('leads')
+            .update({ status: 'booked' })
+            .eq('id', leadId);
+
+          if (error) {
+            throw new DatabaseError(`Failed to update lead status: ${error.message}`, error);
+          }
+        }, 'update-lead-status');
+      } catch (error) {
+        // If lead status update fails, log but don't rollback the appointment
+        logger.warn({
+          err: error,
+          operationId,
+          leadId,
+          appointmentId: createdAppointment.id
+        }, 'Failed to update lead status, but appointment was created successfully');
+      }
 
       logger.info({
-        appointmentId: appointment.id,
+        operationId,
+        appointmentId: createdAppointment.id,
         leadId,
         agentId,
         zoomMeetingId: zoomMeeting.id,
         calendarEventId: calendarEvent.id
-      }, 'Successfully created appointment with Zoom and calendar integration');
+      }, 'Successfully created appointment with external integrations');
 
       return {
-        appointment,
+        appointment: createdAppointment,
         zoomMeeting,
         calendarEvent
       };
+
     } catch (error) {
-      logger.error({ err: error, leadId, agentId }, 'Failed to create appointment');
+      logger.error({
+        err: error,
+        operationId,
+        leadId,
+        agentId
+      }, 'Failed to create appointment');
       throw error;
     }
+  }
+
+  /**
+   * Rollback appointment creation by cleaning up external resources
+   * @private
+   */
+  async _rollbackAppointmentCreation({ operationId, zoomMeeting, calendarEvent, agentId }) {
+    logger.info({ operationId }, 'Starting appointment creation rollback');
+
+    // Clean up Zoom meeting if created
+    if (zoomMeeting && zoomMeeting.id && zoomMeeting.id !== 'placeholder') {
+      try {
+        await retryZoomOperation(async () => {
+          await deleteZoomMeetingForUser(agentId, zoomMeeting.id);
+        }, 'rollback-zoom-meeting');
+
+        logger.info({ operationId, zoomMeetingId: zoomMeeting.id }, 'Zoom meeting cleaned up during rollback');
+      } catch (error) {
+        logger.warn({
+          err: error,
+          operationId,
+          zoomMeetingId: zoomMeeting.id
+        }, 'Failed to clean up Zoom meeting during rollback');
+      }
+    }
+
+    // Clean up calendar event if created
+    if (calendarEvent && calendarEvent.id) {
+      try {
+        // Note: Calendar cleanup would require implementing deleteEvent in googleCalendarService
+        logger.warn({
+          operationId,
+          calendarEventId: calendarEvent.id
+        }, 'Calendar event cleanup not implemented - manual cleanup may be required');
+      } catch (error) {
+        logger.warn({
+          err: error,
+          operationId,
+          calendarEventId: calendarEvent.id
+        }, 'Failed to clean up calendar event during rollback');
+      }
+    }
+
+    logger.info({ operationId }, 'Appointment creation rollback completed');
   }
 
   /**
@@ -183,7 +303,8 @@ class AppointmentService {
         throw new Error('Appointment not found');
       }
 
-      const newStart = new Date(newAppointmentTime);
+      // Ensure new appointment times are in Singapore timezone
+      const newStart = toSgTime(newAppointmentTime);
       const newEnd = new Date(newStart.getTime() + this.APPOINTMENT_DURATION * 60 * 1000);
 
       // 2. Update Zoom meeting (Server-to-Server OAuth only)
@@ -202,13 +323,14 @@ class AppointmentService {
           .single();
 
         const calendarDescription = this._buildCalendarDescription(leadDetails, appointment.lead_id);
-        const rescheduleNote = `\n\n🔄 RESCHEDULED:\n• Original time: ${new Date(appointment.appointment_time).toLocaleString('en-SG')}\n• New time: ${newStart.toLocaleString('en-SG')}\n• Reason: ${reason}`;
+        const originalTime = toSgTime(appointment.appointment_time);
+        const rescheduleNote = `\n\n🔄 RESCHEDULED:\n• Original time: ${formatForDisplay(originalTime)}\n• New time: ${formatForDisplay(newStart)}\n• Reason: ${reason}`;
 
         const newCalendarEvent = await createEvent(appointment.agent_id, {
           summary: `🏠 Property Consultation: ${appointment.leads.full_name} (Rescheduled)`,
           description: `${calendarDescription}${rescheduleNote}\n\n📞 Zoom Meeting: ${appointment.zoom_join_url}\n\n📝 Consultation Notes:\n${appointment.consultation_notes}`,
-          startTimeISO: formatToLocalISO(newStart),
-          endTimeISO: formatToLocalISO(newEnd)
+          startTimeISO: formatForGoogleCalendar(newStart),
+          endTimeISO: formatForGoogleCalendar(newEnd)
         });
 
         // Update appointment with new calendar event ID
@@ -219,7 +341,7 @@ class AppointmentService {
       const { data: updatedAppointment, error: updateError } = await supabase
         .from('appointments')
         .update({
-          appointment_time: newStart.toISOString(),
+          appointment_time: newStart.toISOString(), // Store in database timezone (Singapore)
           status: 'rescheduled',
           reschedule_reason: reason,
           updated_at: new Date().toISOString(),

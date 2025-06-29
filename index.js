@@ -6,7 +6,6 @@ const pinoHttp = require('pino-http');
 const config = require('./config');
 const logger = require('./logger');
 const { HTTP_STATUS } = require('./constants');
-const CacheManager = require('./utils/cache');
 
 // Import middleware
 const { createSecurityMiddleware, rateLimits } = require('./middleware/security');
@@ -23,7 +22,7 @@ const gupshupRouter = require('./api/gupshup');
 const metaRouter = require('./api/meta');
 const testRouter = require('./api/test');
 const authRouter = require('./api/auth');
-const { testCalendarIntegration } = require('./api/googleCalendarService');
+
 
 // Initialize Express app
 const app = express();
