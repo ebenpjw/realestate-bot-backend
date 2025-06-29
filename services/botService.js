@@ -464,16 +464,47 @@ Respond with appropriate messages and actions based on the conversation context.
       logger.warn({ err: error, leadId }, 'Error checking appointment status');
     }
 
-    // Fall back to lead status
+    // CRITICAL FIX: Check for database inconsistencies and fix them
+    // If lead status is 'booked' but no appointment exists, this is a data inconsistency
+    if (leadStatus === 'booked') {
+      logger.warn({ leadId, leadStatus }, 'INCONSISTENCY DETECTED: Lead marked as booked but no appointment found - fixing status');
+
+      // Check if there are stored alternatives that should be processed
+      const { data: leadData } = await supabase
+        .from('leads')
+        .select('booking_alternatives')
+        .eq('id', leadId)
+        .single();
+
+      if (leadData?.booking_alternatives) {
+        // Lead has alternatives but is marked as booked - should be waiting for selection
+        await supabase.from('leads').update({
+          status: 'booking_alternatives_offered'
+        }).eq('id', leadId);
+
+        return 'Has been offered alternative time slots - waiting for selection';
+      } else {
+        // No alternatives and no appointment - reset to qualified
+        await supabase.from('leads').update({
+          status: 'qualified'
+        }).eq('id', leadId);
+
+        return 'No appointment scheduled yet - ready to book consultation';
+      }
+    }
+
+    // Fall back to lead status with accurate descriptions
     switch (leadStatus) {
-      case 'booked':
-        return 'Has scheduled appointment - can reschedule or cancel';
       case 'booking_alternatives_offered':
         return 'Has been offered alternative time slots - waiting for selection';
       case 'appointment_cancelled':
         return 'Previously cancelled appointment - can book new one';
       case 'needs_human_handoff':
         return 'Requires human assistance for booking';
+      case 'qualified':
+        return 'Qualified lead - ready to book consultation';
+      case 'new':
+        return 'New lead - needs qualification before booking';
       default:
         return 'No appointment scheduled yet';
     }
@@ -568,17 +599,42 @@ Respond with appropriate messages and actions based on the conversation context.
         return "Apologies, I can't manage appointments right now as I can't find an available consultant. Please try again shortly.";
       }
 
+      // CRITICAL FIX: Check for existing appointments before processing actions
+      const { data: existingAppointment } = await supabase
+        .from('appointments')
+        .select('id, status, appointment_time')
+        .eq('lead_id', lead.id)
+        .eq('status', 'scheduled')
+        .limit(1)
+        .maybeSingle();
+
       switch (action) {
         case 'initiate_booking':
+          // Only allow new booking if no existing appointment
+          if (existingAppointment) {
+            logger.info({ leadId: lead.id, appointmentId: existingAppointment.id }, 'Attempted new booking but appointment already exists');
+            return null; // Let AI handle this with proper context
+          }
           return await this._handleInitialBooking({ lead, agentId, userMessage });
 
         case 'reschedule_appointment':
-          return await this._handleRescheduleAppointment({ lead, agentId, userMessage });
+          // Only allow reschedule if appointment exists
+          if (!existingAppointment) {
+            logger.info({ leadId: lead.id }, 'Attempted reschedule but no appointment exists - treating as new booking');
+            return await this._handleInitialBooking({ lead, agentId, userMessage });
+          }
+          return await this._handleRescheduleAppointment({ lead, agentId, userMessage, existingAppointment });
 
         case 'cancel_appointment':
-          return await this._handleCancelAppointment({ lead });
+          // Only allow cancel if appointment exists
+          if (!existingAppointment) {
+            logger.info({ leadId: lead.id }, 'Attempted cancel but no appointment exists');
+            return "I couldn't find an existing appointment to cancel. Would you like to book a new consultation instead?";
+          }
+          return await this._handleCancelAppointment({ lead, existingAppointment });
 
         case 'select_alternative':
+          // Handle alternative selection (this should complete a booking)
           return await this._handleAlternativeSelection({ lead, agentId, userMessage });
 
         default:
@@ -597,11 +653,9 @@ Respond with appropriate messages and actions based on the conversation context.
    */
   async _handleInitialBooking({ lead, agentId, userMessage }) {
     try {
-      // Check if lead is already booked - should not be offering new bookings
-      if (lead.status === 'booked') {
-        logger.warn({ leadId: lead.id, userMessage }, 'Attempted to book new appointment for already booked lead');
-        return "You already have a consultation scheduled! Would you like to reschedule or cancel your existing appointment instead?";
-      }
+      // CRITICAL FIX: Remove the blocking logic for 'booked' status
+      // The _handleAppointmentAction already checks for actual appointments
+      // This method should focus on booking logic, not status validation
 
       // If alternatives were offered but user requests a new time, clear alternatives and process new request
       if (lead.status === 'booking_alternatives_offered') {
@@ -653,18 +707,25 @@ Respond with appropriate messages and actions based on the conversation context.
    * Handle appointment rescheduling
    * @private
    */
-  async _handleRescheduleAppointment({ lead, agentId, userMessage }) {
+  async _handleRescheduleAppointment({ lead, agentId, userMessage, existingAppointment }) {
     try {
-      // Check if there's an existing appointment
-      const { data: existingAppointment } = await supabase
-        .from('appointments')
-        .select('*')
-        .eq('lead_id', lead.id)
-        .eq('status', 'scheduled')
-        .limit(1)
-        .single();
+      // CRITICAL FIX: Use the passed existingAppointment parameter instead of querying again
+      // If not provided, fall back to querying (for backward compatibility)
+      let appointment = existingAppointment;
 
-      if (!existingAppointment) {
+      if (!appointment) {
+        const { data: queriedAppointment } = await supabase
+          .from('appointments')
+          .select('*')
+          .eq('lead_id', lead.id)
+          .eq('status', 'scheduled')
+          .limit(1)
+          .single();
+
+        appointment = queriedAppointment;
+      }
+
+      if (!appointment) {
         return "I couldn't find an existing appointment to reschedule. Would you like to book a new consultation instead?";
       }
 
@@ -675,12 +736,12 @@ Respond with appropriate messages and actions based on the conversation context.
       if (exactMatch) {
         // Update the existing appointment
         await appointmentService.rescheduleAppointment({
-          appointmentId: existingAppointment.id,
+          appointmentId: appointment.id,
           newTime: exactMatch,
           reason: `Rescheduled via WhatsApp: ${userMessage}`
         });
 
-        return `Perfect! I've rescheduled your consultation to ${exactMatch.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${exactMatch.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}.\n\nYour Zoom link remains the same: ${existingAppointment.zoom_join_url}\n\nLooking forward to speaking with you soon!`;
+        return `Perfect! I've rescheduled your consultation to ${exactMatch.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${exactMatch.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}.\n\nYour Zoom link remains the same: ${appointment.zoom_join_url}\n\nLooking forward to speaking with you soon!`;
       } else if (alternatives.length > 0) {
         // Offer alternatives for rescheduling
         const topAlternatives = alternatives.slice(0, 3);
@@ -708,21 +769,29 @@ Respond with appropriate messages and actions based on the conversation context.
    * Handle appointment cancellation
    * @private
    */
-  async _handleCancelAppointment({ lead }) {
+  async _handleCancelAppointment({ lead, existingAppointment }) {
     try {
-      const { data: existingAppointment } = await supabase
-        .from('appointments')
-        .select('*')
-        .eq('lead_id', lead.id)
-        .eq('status', 'scheduled')
-        .single();
+      // CRITICAL FIX: Use the passed existingAppointment parameter instead of querying again
+      // If not provided, fall back to querying (for backward compatibility)
+      let appointment = existingAppointment;
 
-      if (!existingAppointment) {
+      if (!appointment) {
+        const { data: queriedAppointment } = await supabase
+          .from('appointments')
+          .select('*')
+          .eq('lead_id', lead.id)
+          .eq('status', 'scheduled')
+          .single();
+
+        appointment = queriedAppointment;
+      }
+
+      if (!appointment) {
         return "I couldn't find an existing appointment to cancel. Is there anything else I can help you with?";
       }
 
       const result = await appointmentService.cancelAppointment({
-        appointmentId: existingAppointment.id
+        appointmentId: appointment.id
       });
 
       // Update lead status
