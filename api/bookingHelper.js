@@ -24,7 +24,7 @@ async function getAgentWorkingHours(agentId) {
             return {
                 start: 8,
                 end: 23, // 11pm
-                days: [1, 2, 3, 4, 5, 6, 7], // All days of the week
+                days: [0, 1, 2, 3, 4, 5, 6], // All days of the week (Sunday=0, Monday=1, ..., Saturday=6)
                 timezone: 'Asia/Singapore'
             };
         }
@@ -47,7 +47,7 @@ async function getAgentWorkingHours(agentId) {
             return {
                 start: 8,
                 end: 23, // 11pm
-                days: [1, 2, 3, 4, 5, 6, 7], // All days of the week
+                days: [0, 1, 2, 3, 4, 5, 6], // All days of the week (Sunday=0, Monday=1, ..., Saturday=6)
                 timezone: agent.timezone || 'Asia/Singapore'
             };
         }
@@ -86,8 +86,9 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
             daysToSearch
         }, 'Finding available slots with agent working hours');
 
-        // Get current time
+        // Get current time (server time, which should be Singapore time based on deployment)
         const now = new Date();
+        const singaporeTime = now; // Since DB and calendar are already in Singapore timezone
 
         logger.info({
             agentId,
@@ -122,13 +123,14 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
             }, 'Determining search start time logic');
 
             // Check if we need to move to next working day
-            if (nextHour >= workingHours.end || currentDaySingapore === 0 || currentDaySingapore === 6) {
-                // If next hour is past working hours or it's weekend, start from next working day
+            const isCurrentDayWorking = workingHours.days.includes(currentDaySingapore);
+            if (nextHour >= workingHours.end || !isCurrentDayWorking) {
+                // If next hour is past working hours or current day is not a working day, start from next working day
                 const nextWorkingDay = new Date(singaporeTime);
                 nextWorkingDay.setDate(singaporeTime.getDate() + 1);
 
-                // Skip weekends
-                while (nextWorkingDay.getDay() === 0 || nextWorkingDay.getDay() === 6) {
+                // Skip non-working days based on agent's working hours configuration
+                while (!workingHours.days.includes(nextWorkingDay.getDay())) {
                     nextWorkingDay.setDate(nextWorkingDay.getDate() + 1);
                 }
 
