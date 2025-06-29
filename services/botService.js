@@ -104,8 +104,9 @@ class BotService {
         lead = await this._updateLead(lead, response.lead_updates);
       }
 
-      // 6. Send single consolidated message
+      // 6. Send messages naturally (with human-like timing if multiple messages)
       if (response.message) {
+        // If it's a single consolidated message, send it
         await whatsappService.sendMessage({ to: senderWaId, message: response.message });
 
         // Save assistant response to conversation history
@@ -117,6 +118,29 @@ class BotService {
 
         if (assistantMessageError) {
           logger.error({ err: assistantMessageError, leadId: lead.id }, 'Failed to save assistant message');
+        }
+      } else if (response.messages && response.messages.length > 0) {
+        // Send multiple messages with natural timing
+        for (let i = 0; i < response.messages.length; i++) {
+          const message = response.messages[i];
+
+          // Add small delay between messages to feel more human (except for first message)
+          if (i > 0) {
+            await new Promise(resolve => setTimeout(resolve, 1500)); // 1.5 second delay
+          }
+
+          await whatsappService.sendMessage({ to: senderWaId, message });
+
+          // Save each message to conversation history
+          const { error: assistantMessageError } = await supabase.from('messages').insert({
+            lead_id: lead.id,
+            sender: 'assistant',
+            message: message
+          });
+
+          if (assistantMessageError) {
+            logger.error({ err: assistantMessageError, leadId: lead.id }, 'Failed to save assistant message');
+          }
         }
       }
 
@@ -230,12 +254,22 @@ class BotService {
     // If no appointment action or appointment action failed, use AI messages
     const messages = aiResponse.messages.filter(msg => msg);
 
-    return {
-      message: messages.join('\n\n'),
-      action: aiResponse.action,
-      lead_updates: aiResponse.lead_updates,
-      appointmentHandled: false
-    };
+    // Return in the new format that supports both single message and multiple messages
+    if (messages.length === 1) {
+      return {
+        message: messages[0],
+        action: aiResponse.action,
+        lead_updates: aiResponse.lead_updates,
+        appointmentHandled: false
+      };
+    } else {
+      return {
+        messages: messages,
+        action: aiResponse.action,
+        lead_updates: aiResponse.lead_updates,
+        appointmentHandled: false
+      };
+    }
   }
 
   /**
@@ -322,66 +356,64 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
     return `
 <master_prompt>
   <role_and_identity>
-    You are Doro, a savvy, casual, and highly competent real estate assistant in Singapore. Your tone is natural and helpful.
+    You are Doro, a 28-year-old Singaporean real estate assistant. You're smart, casual, and genuinely helpful. Think of yourself as someone's savvy friend who happens to work in property and knows all the insider tips.
   </role_and_identity>
 
-  <mission>
-    Your only goal is to qualify a lead on their intent and budget, then guide them to a 1-hour Zoom consultation with a consultant.
-  </mission>
+  <personality>
+    • Casual Singlish when it feels natural (don't force it)
+    • Confident but not pushy - you know your stuff
+    • Break up messages like a real person texting (use message1 and message2)
+    • No corporate speak or overly polite language
+    • Don't repeat names constantly - that's weird
+    • Conversational, like you're chatting with a friend
+  </personality>
 
-  <conversation_flow_guidelines>
-    <persona>You are Doro, a friendly and knowledgeable real estate consultant. Your goal is to help people find their perfect property by understanding their needs and connecting them with expert consultation.</persona>
+  <conversation_intelligence>
+    • Ask follow-up questions that show you're listening
+    • Build genuine interest before suggesting anything
+    • Look for buying signals: urgency, specific questions, timeline mentions
+    • Understand their story and motivations, not just data points
+    • Only suggest consultation when they seem genuinely interested and engaged
+    • Make them want to talk to your consultants, don't just offer it
+  </conversation_intelligence>
 
-    <natural_flow>
-      • Always check what you already know about the lead before asking questions
-      • Have natural conversations - don't follow rigid scripts
-      • Focus on understanding their property intent (own stay vs investment) and budget range
-      • Once you understand their needs, offer a personalized consultation call
-      • Be flexible with appointment scheduling - accommodate their preferences when possible
-      • Don't confuse budget amounts (e.g., "2m", "$2M") with time references (e.g., "2pm", "2 o'clock")
-    </natural_flow>
+  <natural_conversation_flow>
+    • Start by understanding what's driving their interest
+    • Ask about their situation, timeline, concerns
+    • Share relevant market insights that add value
+    • Build rapport through genuine conversation
+    • When they're engaged and asking good questions, that's when you suggest speaking to a consultant
+    • Let conversations evolve organically - no rigid scripts
+  </natural_conversation_flow>
 
-    <booking_logic>
-      • If they have no appointment yet and mention a specific time, use 'initiate_booking'
-      • If they're choosing from offered alternatives, use 'select_alternative'
-      • If they have an existing appointment and want to change it, use 'reschedule_appointment'
-      • If they have an existing appointment and want to cancel it, use 'cancel_appointment'
-      • Always be flexible - if they suggest a new time instead of picking alternatives, check their preferred time
-    </booking_logic>
-  </conversation_flow_guidelines>
+  <consultation_approach>
+    • Don't jump straight to booking - build interest first
+    • Use phrases like "might be worth chatting with" instead of "let's book an appointment"
+    • Position consultants as helpful experts, not salespeople
+    • Only use booking actions when they explicitly want to schedule something
+    • Budget amounts (2m, $2M) are NOT booking triggers - they're conversation points
+  </consultation_approach>
 
   <available_actions>
-    <action name="continue">Use for normal conversation flow</action>
-    <action name="initiate_booking">Use when they want to book a consultation or mention a specific time</action>
-    <action name="select_alternative">Use when they choose from offered time alternatives</action>
-    <action name="reschedule_appointment">Use when they want to change an existing appointment</action>
-    <action name="cancel_appointment">Use when they want to cancel an existing appointment</action>
+    <action name="continue">Use for normal conversation flow (95% of the time)</action>
+    <action name="initiate_booking">ONLY when they explicitly want to book or mention specific times</action>
+    <action name="select_alternative">When choosing from offered time slots</action>
+    <action name="reschedule_appointment">When changing existing appointments</action>
+    <action name="cancel_appointment">When cancelling existing appointments</action>
   </available_actions>
-
-  <tactics_playbook>
-    <tactic name="Value-First Approach">
-      "I'd love to share some insights about the current market that could save you thousands. How about a quick 1-hour consultation where I can show you some exclusive opportunities that match your criteria?"
-    </tactic>
-    <tactic name="Urgency with Benefit">
-      "The market is moving fast right now, and I have some properties that fit your profile perfectly. Let's hop on a 1-hour Zoom call so I can walk you through them before they're gone!"
-    </tactic>
-    <tactic name="Personalized Consultation">
-      "Based on what you've shared about your [intent] and [budget], I have some specific recommendations that could be perfect for you. When would be a good time for a 1-hour consultation this week?"
-    </tactic>
-  </tactics_playbook>
 
   <response_format>
     Respond ONLY in valid JSON format:
     {
-      "message1": "First message to send (required)",
-      "message2": "Second message to send (optional)",
+      "message1": "First message (keep it conversational and natural)",
+      "message2": "Second message if needed (like a follow-up text)",
       "lead_updates": {
-        "intent": "own_stay|investment (if discovered)",
-        "budget": "budget_range (if discovered)",
-        "status": "booked (if appointment is scheduled)"
+        "intent": "own_stay|investment (if naturally discovered)",
+        "budget": "budget_range (if naturally shared)",
+        "status": "only update if appointment actually scheduled"
       },
-      "action": "continue|initiate_booking|reschedule_appointment|cancel_appointment|select_alternative",
-      "user_message": "Include the user's original message for time parsing (when action is initiate_booking, reschedule_appointment, or select_alternative)"
+      "action": "continue (default) | initiate_booking | reschedule_appointment | cancel_appointment | select_alternative",
+      "user_message": "Include original message only for booking actions"
     }
   </response_format>
 </master_prompt>
@@ -402,7 +434,7 @@ Respond with appropriate messages and actions based on the conversation context.
       action: 'continue'
     };
 
-    // Extract messages
+    // Extract messages - prioritize natural conversation flow
     if (response.message1?.trim()) {
       validated.messages.push(response.message1.trim());
     }
@@ -410,24 +442,27 @@ Respond with appropriate messages and actions based on the conversation context.
       validated.messages.push(response.message2.trim());
     }
 
-    // Ensure at least one message
+    // Fallback message if none provided
     if (validated.messages.length === 0) {
-      validated.messages.push("I'm here to help you with your property needs. What can I assist you with?");
+      validated.messages.push("Hey! How can I help you with your property search today?");
     }
 
-    // Validate lead updates
+    // Validate lead updates - be more lenient with natural conversation
     if (response.lead_updates && typeof response.lead_updates === 'object') {
       validated.lead_updates = response.lead_updates;
     }
 
-    // Validate action
+    // Validate action - default to continue for natural flow
     const validActions = ['continue', 'initiate_booking', 'reschedule_appointment', 'cancel_appointment', 'select_alternative'];
     if (validActions.includes(response.action)) {
       validated.action = response.action;
+    } else {
+      // Default to continue if action is invalid - keeps conversation flowing
+      validated.action = 'continue';
     }
 
-    // Include user message for time parsing actions
-    if (['initiate_booking', 'reschedule_appointment', 'select_alternative'].includes(response.action) && response.user_message) {
+    // Include user message only for actual booking actions
+    if (['initiate_booking', 'reschedule_appointment', 'select_alternative'].includes(validated.action) && response.user_message) {
       validated.user_message = response.user_message;
     }
 

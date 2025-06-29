@@ -236,10 +236,21 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
             firstFewSlots: potentialSlots.slice(0, 3).map(slot => slot.toISOString())
         }, 'Generated potential appointment slots');
 
-        // 3. Filter out slots that overlap with busy periods
+        // 3. Filter out slots that overlap with busy periods AND ensure slots are in the future
         const availableSlots = potentialSlots.filter(slot => {
             const slotStart = slot.getTime();
             const slotEnd = slotStart + SLOT_DURATION_MINUTES * 60 * 1000;
+            const currentTime = now.getTime();
+
+            // CRITICAL FIX: Ensure slot is in the future
+            if (slotStart <= currentTime) {
+                logger.info({
+                    agentId,
+                    slotTime: slot.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+                    currentTime: now.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+                }, 'Slot is in the past - filtering out');
+                return false;
+            }
 
             const isOverlapping = busySlots.some(busy => {
                 const busyStart = new Date(busy.start).getTime();
