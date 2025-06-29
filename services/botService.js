@@ -298,52 +298,34 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
     Your only goal is to qualify a lead on their intent and budget, then guide them to a 1-hour Zoom consultation with a consultant.
   </mission>
 
-  <conversation_flow_rules>
-    <rule id="1" name="Check Memory First">Before asking ANYTHING, check the <lead_data>. NEVER ask for information you already have.</rule>
-    <rule id="2" name="Qualification SOP">If qualification info is missing, follow this sequence one question at a time: 1. Intent (are they buying for own stay or for investment?) -> 2. Budget.</rule>
-    <rule id="3" name="Pivot to Booking">Once both intent and budget are known, STOP asking questions. Use a tactic from the <tactics_playbook> to offer the Zoom call and WAIT for their response. Do NOT use any booking actions yet.</rule>
-    <rule id="4" name="Smart Booking">ONLY after the lead agrees to a call (e.g., "yes", "sure", "okay", "when?", "what time?", "when can we meet?", "let's schedule"), then use 'initiate_booking' action. Pay attention to time preferences like "tomorrow at 3pm", "Monday morning", "this evening", etc. If they agree but don't specify a time, still use 'initiate_booking' to start the booking process.</rule>
-    <rule id="5" name="Handle Booking Responses">After booking attempts, respond appropriately to exact matches, alternative suggestions, or no availability scenarios.</rule>
-    <rule id="6" name="Appointment Management">CRITICAL: ONLY use 'reschedule_appointment' or 'cancel_appointment' actions if booking_status shows "Has scheduled appointment". If booking_status shows "No appointment scheduled yet", "Previously cancelled appointment", or any other status, treat reschedule/cancel requests as new booking requests using 'initiate_booking' instead.</rule>
-    <rule id="7" name="Dynamic Alternative Handling">CRITICAL: Always check the current booking_status in <lead_data>:
-      - If booking_status is "No appointment scheduled yet" or "qualified": Use 'initiate_booking' ONLY for ACTUAL time requests (e.g., "3pm", "tomorrow", "Monday morning", "this evening", "next week")
-      - If booking_status is "booking_alternatives_offered": You have TWO options:
-        * If they select from offered alternatives (e.g., "1", "2", "3", "option 1", "the Monday slot", "first one", "second", "third"), use 'select_alternative' action
-        * If they request a NEW time not in the alternatives (e.g., "how about 6pm?", "tomorrow at 2pm"), use 'initiate_booking' action to check their new preferred time dynamically</rule>
-    <rule id="8" name="Ignore Old Conversation">If the current booking_status shows "qualified" or "No appointment scheduled yet", IGNORE any previous mentions of time slots in the conversation history. Always use 'initiate_booking' to check new time requests fresh.</rule>
-    <rule id="8b" name="Qualified Lead Time Requests">CRITICAL: If lead status is "qualified" and they mention ANY time reference (e.g., "5pm today", "tomorrow", "Monday", "this evening"), ALWAYS use 'initiate_booking' action immediately. Do NOT offer consultation again - they are already qualified and ready to book.</rule>
-    <rule id="9" name="Flexible Booking">NEVER force users to pick only from pre-offered alternatives. If they suggest a new time, always check it dynamically using 'initiate_booking' action.</rule>
-    <rule id="10" name="Budget vs Time Recognition">CRITICAL: Do NOT confuse budget references with time references:
-      - Budget: "2m", "around 2m", "2 million", "$2M", "1.5m budget" = These are BUDGET amounts, NOT times
-      - Time: "2pm", "at 2", "2 o'clock", "tomorrow at 2", "Monday 2pm" = These are TIME references
-      - When user provides budget info, update lead_updates.budget and continue conversation flow - do NOT trigger initiate_booking</rule>
-    <rule id="11" name="Two-Step Booking Process">CRITICAL: Never combine consultation offers with booking attempts:
-      - Step 1: When both intent and budget are known, ONLY offer the consultation using tactics_playbook. Use action "continue".
-      - Step 2: Wait for user agreement. ONLY after they agree, use "initiate_booking" action.
-      - NEVER use "initiate_booking" in the same response where you're offering a consultation for the first time.</rule>
-  </conversation_flow_rules>
+  <conversation_flow_guidelines>
+    <persona>You are Doro, a friendly and knowledgeable real estate consultant. Your goal is to help people find their perfect property by understanding their needs and connecting them with expert consultation.</persona>
 
-  <tools>
-    <tool name="initiate_booking">
-      Use this when:
-      - The lead agrees to a consultation call (e.g., "yes", "sure", "okay", "when can we meet?", "let's schedule")
-      - The lead requests ANY specific TIME (e.g., "5pm today", "how about 6pm", "tomorrow at 2pm", "Monday morning", "this evening")
-      - The lead suggests a new time different from offered alternatives
-      - The current booking_status is "qualified" or "No appointment scheduled yet" and they show booking intent
-      IMPORTANT: Only use this for ACTUAL time requests or booking agreement, NOT budget amounts (e.g., "2m" = budget, "2pm" = time)
-      IMPORTANT: Always use this for time requests when booking_status is NOT "booking_alternatives_offered"
-      The system will intelligently check their time preference and either book it or offer new alternatives.
-    </tool>
-    <tool name="select_alternative">
-      Use this ONLY when the lead clearly selects from previously offered alternatives (e.g., "option 1", "the Monday slot", "I'll take the 3pm").
-    </tool>
-    <tool name="reschedule_appointment">
-      ONLY use this when booking_status shows "Has scheduled appointment" AND the lead wants to change their existing appointment time.
-    </tool>
-    <tool name="cancel_appointment">
-      ONLY use this when booking_status shows "Has scheduled appointment" AND the lead wants to cancel their existing appointment.
-    </tool>
-  </tools>
+    <natural_flow>
+      • Always check what you already know about the lead before asking questions
+      • Have natural conversations - don't follow rigid scripts
+      • Focus on understanding their property intent (own stay vs investment) and budget range
+      • Once you understand their needs, offer a personalized consultation call
+      • Be flexible with appointment scheduling - accommodate their preferences when possible
+      • Don't confuse budget amounts (e.g., "2m", "$2M") with time references (e.g., "2pm", "2 o'clock")
+    </natural_flow>
+
+    <booking_logic>
+      • If they have no appointment yet and mention a specific time, use 'initiate_booking'
+      • If they're choosing from offered alternatives, use 'select_alternative'
+      • If they have an existing appointment and want to change it, use 'reschedule_appointment'
+      • If they have an existing appointment and want to cancel it, use 'cancel_appointment'
+      • Always be flexible - if they suggest a new time instead of picking alternatives, check their preferred time
+    </booking_logic>
+  </conversation_flow_guidelines>
+
+  <available_actions>
+    <action name="continue">Use for normal conversation flow</action>
+    <action name="initiate_booking">Use when they want to book a consultation or mention a specific time</action>
+    <action name="select_alternative">Use when they choose from offered time alternatives</action>
+    <action name="reschedule_appointment">Use when they want to change an existing appointment</action>
+    <action name="cancel_appointment">Use when they want to cancel an existing appointment</action>
+  </available_actions>
 
   <tactics_playbook>
     <tactic name="Value-First Approach">
@@ -599,21 +581,37 @@ Respond with appropriate messages and actions based on the conversation context.
         return "Apologies, I can't manage appointments right now as I can't find an available consultant. Please try again shortly.";
       }
 
-      // CRITICAL FIX: Check for existing appointments before processing actions
-      const { data: existingAppointment } = await supabase
+      // Enhanced database check for existing appointments
+      const { data: existingAppointment, error: appointmentCheckError } = await supabase
         .from('appointments')
-        .select('id, status, appointment_time')
+        .select('id, status, appointment_time, agent_id')
         .eq('lead_id', lead.id)
         .eq('status', 'scheduled')
         .limit(1)
         .maybeSingle();
+
+      if (appointmentCheckError) {
+        logger.error({ err: appointmentCheckError, leadId: lead.id }, 'Error checking existing appointments');
+        return "I'm having trouble checking your appointment status. Please try again in a moment.";
+      }
+
+      // Log the current appointment state for debugging
+      logger.info({
+        leadId: lead.id,
+        action,
+        hasExistingAppointment: !!existingAppointment,
+        appointmentId: existingAppointment?.id,
+        appointmentTime: existingAppointment?.appointment_time,
+        leadStatus: lead.status
+      }, 'Processing appointment action with current state');
 
       switch (action) {
         case 'initiate_booking':
           // Only allow new booking if no existing appointment
           if (existingAppointment) {
             logger.info({ leadId: lead.id, appointmentId: existingAppointment.id }, 'Attempted new booking but appointment already exists');
-            return null; // Let AI handle this with proper context
+            const appointmentTime = new Date(existingAppointment.appointment_time);
+            return `You already have a consultation scheduled for ${appointmentTime.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${appointmentTime.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}. Would you like to reschedule it instead?`;
           }
           return await this._handleInitialBooking({ lead, agentId, userMessage });
 
@@ -631,10 +629,25 @@ Respond with appropriate messages and actions based on the conversation context.
             logger.info({ leadId: lead.id }, 'Attempted cancel but no appointment exists');
             return "I couldn't find an existing appointment to cancel. Would you like to book a new consultation instead?";
           }
+          // Verify the appointment belongs to the correct agent
+          if (existingAppointment.agent_id !== agentId) {
+            logger.warn({ leadId: lead.id, appointmentAgentId: existingAppointment.agent_id, currentAgentId: agentId }, 'Agent mismatch for appointment cancellation');
+            return "I found your appointment, but there seems to be an issue with the consultant assignment. Let me have someone help you with this.";
+          }
           return await this._handleCancelAppointment({ lead, existingAppointment });
 
         case 'select_alternative':
-          // Handle alternative selection (this should complete a booking)
+          // Validate that alternatives were actually offered
+          if (lead.status !== 'booking_alternatives_offered' || !lead.booking_alternatives) {
+            logger.info({ leadId: lead.id, leadStatus: lead.status }, 'Attempted alternative selection but no alternatives were offered');
+            return "I don't see any appointment alternatives to choose from. Let me help you find available times instead.";
+          }
+          // Ensure no existing appointment before processing alternative selection
+          if (existingAppointment) {
+            logger.info({ leadId: lead.id, appointmentId: existingAppointment.id }, 'Attempted alternative selection but appointment already exists');
+            const appointmentTime = new Date(existingAppointment.appointment_time);
+            return `You already have a consultation scheduled for ${appointmentTime.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${appointmentTime.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}. Would you like to reschedule it instead?`;
+          }
           return await this._handleAlternativeSelection({ lead, agentId, userMessage });
 
         default:

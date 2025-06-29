@@ -3,6 +3,7 @@
 const { checkAvailability } = require('./googleCalendarService');
 const supabase = require('../supabaseClient');
 const logger = require('../logger');
+const { formatToFullISO } = require('../utils/timezoneUtils');
 
 const SLOT_DURATION_MINUTES = 60; // 1 hour consultations
 
@@ -195,7 +196,7 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
             searchEnd: searchEnd.toISOString()
         }, 'Checking calendar availability for date range');
 
-        const busySlots = await checkAvailability(agentId, searchStart.toISOString(), searchEnd.toISOString());
+        const busySlots = await checkAvailability(agentId, formatToFullISO(searchStart), formatToFullISO(searchEnd));
 
         logger.info({
             agentId,
@@ -412,8 +413,8 @@ async function isTimeSlotAvailable(agentId, requestedTime) {
         }
 
         // Check for calendar conflicts
-        const slotStart = requestedTime.toISOString();
-        const slotEnd = new Date(requestedTime.getTime() + 60 * 60 * 1000).toISOString(); // 1 hour later
+        const slotStart = formatToFullISO(requestedTime);
+        const slotEnd = formatToFullISO(new Date(requestedTime.getTime() + 60 * 60 * 1000)); // 1 hour later
 
         const busySlots = await checkAvailability(agentId, slotStart, slotEnd);
 

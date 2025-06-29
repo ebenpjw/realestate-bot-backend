@@ -6,11 +6,14 @@ const { createEvent } = require('../api/googleCalendarService');
 const { createZoomMeetingForUser, deleteZoomMeetingForUser } = require('../api/zoomServerService');
 const { findMatchingSlot, findNearbyAvailableSlots } = require('../api/bookingHelper');
 const whatsappService = require('./whatsappService');
+const { formatToLocalISO, formatToFullISO } = require('../utils/timezoneUtils');
 
 class AppointmentService {
   constructor() {
     this.APPOINTMENT_DURATION = 60; // 1 hour in minutes
   }
+
+
 
   /**
    * Create a new appointment with Zoom meeting and calendar event
@@ -97,8 +100,8 @@ class AppointmentService {
         calendarEvent = await createEvent(agentId, {
           summary: `🏠 Property Consultation: ${leadName}`,
           description: eventDescription,
-          startTimeISO: appointmentStart.toISOString(),
-          endTimeISO: appointmentEnd.toISOString()
+          startTimeISO: formatToLocalISO(appointmentStart),
+          endTimeISO: formatToLocalISO(appointmentEnd)
         });
         logger.info({ leadId, calendarEventId: calendarEvent.id }, 'Google Calendar event created successfully');
       } catch (calendarError) {
@@ -204,8 +207,8 @@ class AppointmentService {
         const newCalendarEvent = await createEvent(appointment.agent_id, {
           summary: `🏠 Property Consultation: ${appointment.leads.full_name} (Rescheduled)`,
           description: `${calendarDescription}${rescheduleNote}\n\n📞 Zoom Meeting: ${appointment.zoom_join_url}\n\n📝 Consultation Notes:\n${appointment.consultation_notes}`,
-          startTimeISO: newStart.toISOString(),
-          endTimeISO: newEnd.toISOString()
+          startTimeISO: formatToLocalISO(newStart),
+          endTimeISO: formatToLocalISO(newEnd)
         });
 
         // Update appointment with new calendar event ID
@@ -373,7 +376,7 @@ class AppointmentService {
         const appointmentEnd = new Date(appointmentStart.getTime() + this.APPOINTMENT_DURATION * 60 * 1000);
 
         const { checkAvailability } = require('../api/googleCalendarService');
-        const busySlots = await checkAvailability(agentId, appointmentStart.toISOString(), appointmentEnd.toISOString());
+        const busySlots = await checkAvailability(agentId, formatToFullISO(appointmentStart), formatToFullISO(appointmentEnd));
 
         if (busySlots && busySlots.length > 0) {
           logger.warn({
