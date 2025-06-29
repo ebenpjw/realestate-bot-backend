@@ -116,17 +116,6 @@ describe('Application Integration Tests', () => {
     });
   });
 
-  describe('Cache Manager', () => {
-    test('Cache Manager should initialize without errors', () => {
-      const CacheManager = require('../utils/cache');
-      
-      expect(CacheManager).toBeDefined();
-      expect(typeof CacheManager.get).toBe('function');
-      expect(typeof CacheManager.set).toBe('function');
-      expect(typeof CacheManager.getOrSet).toBe('function');
-    });
-  });
-
   describe('WABA Compliance', () => {
     test('Template Service should initialize with approved templates', () => {
       const templateService = require('../services/templateService');

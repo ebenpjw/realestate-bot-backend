@@ -42,7 +42,6 @@ const config = {
 
   // Feature flags
   ENABLE_RATE_LIMITING: parseBoolean(process.env.ENABLE_RATE_LIMITING, true),
-  ENABLE_CACHING: parseBoolean(process.env.ENABLE_CACHING, true),
   ENABLE_REQUEST_LOGGING: parseBoolean(process.env.ENABLE_REQUEST_LOGGING, true),
 
   // Supabase Configuration

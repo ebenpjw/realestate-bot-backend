@@ -86,21 +86,7 @@ const APP_CONSTANTS = {
       MIN_LENGTH: 1
     }
   },
-  
-  // Cache configuration
-  CACHE: {
-    TTL: {
-      SHORT: 300,    // 5 minutes
-      MEDIUM: 1800,  // 30 minutes
-      LONG: 3600     // 1 hour
-    },
-    KEYS: {
-      LEAD_HISTORY: 'lead_history',
-      AGENT_AVAILABILITY: 'agent_availability',
-      AI_RESPONSE: 'ai_response'
-    }
-  },
-  
+
   // HTTP status codes
   HTTP_STATUS: {
     OK: 200,
