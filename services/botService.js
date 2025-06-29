@@ -429,14 +429,35 @@ Respond with appropriate messages and actions based on the conversation context.
     try {
       const { data: activeAppointment } = await supabase
         .from('appointments')
-        .select('id, status, appointment_time')
+        .select('id, status, appointment_time, zoom_join_url, zoom_meeting_id')
         .eq('lead_id', leadId)
         .eq('status', 'scheduled')
         .limit(1)
         .maybeSingle();
 
       if (activeAppointment) {
-        return 'Has scheduled appointment - can reschedule or cancel';
+        const appointmentDate = new Date(activeAppointment.appointment_time);
+        const formattedDate = appointmentDate.toLocaleDateString('en-SG', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long'
+        });
+        const formattedTime = appointmentDate.toLocaleTimeString('en-SG', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+
+        let statusMessage = `Has scheduled appointment on ${formattedDate} at ${formattedTime}`;
+
+        // Include Zoom link if available and not placeholder
+        if (activeAppointment.zoom_join_url && activeAppointment.zoom_join_url !== 'https://zoom.us/j/placeholder') {
+          statusMessage += ` (Zoom: ${activeAppointment.zoom_join_url})`;
+        }
+
+        statusMessage += ' - can reschedule or cancel';
+
+        return statusMessage;
       }
     } catch (error) {
       logger.warn({ err: error, leadId }, 'Error checking appointment status');
