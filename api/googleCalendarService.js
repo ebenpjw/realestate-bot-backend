@@ -191,10 +191,12 @@ async function createEvent(agentId, eventDetails) {
             summary: eventDetails.summary,
             description: eventDetails.description,
             start: {
-                dateTime: eventDetails.startTimeISO
+                dateTime: eventDetails.startTimeISO,
+                timeZone: 'Asia/Singapore'
             },
             end: {
-                dateTime: eventDetails.endTimeISO
+                dateTime: eventDetails.endTimeISO,
+                timeZone: 'Asia/Singapore'
             },
             attendees: [
                 { email: agent.google_email } // Only add the agent to the event
@@ -207,8 +209,10 @@ async function createEvent(agentId, eventDetails) {
 
         logger.info({
             agentId,
-            eventPayload: JSON.stringify(event, null, 2)
-        }, 'Attempting to create Google Calendar event with payload');
+            eventPayload: JSON.stringify(event, null, 2),
+            startTimeLocal: new Date(eventDetails.startTimeISO).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+            endTimeLocal: new Date(eventDetails.endTimeISO).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+        }, 'Attempting to create Google Calendar event with payload - TIMEZONE DEBUG');
 
         const response = await calendar.events.insert({
             calendarId: 'primary',

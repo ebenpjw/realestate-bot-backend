@@ -4,7 +4,7 @@ const supabase = require('../supabaseClient');
 const logger = require('../logger');
 const { createEvent } = require('../api/googleCalendarService');
 const { createZoomMeetingForUser, deleteZoomMeetingForUser } = require('../api/zoomServerService');
-const { findMatchingSlot } = require('../api/bookingHelper');
+const { findMatchingSlot, findNearbyAvailableSlots } = require('../api/bookingHelper');
 const whatsappService = require('./whatsappService');
 
 class AppointmentService {
@@ -368,7 +368,34 @@ class AppointmentService {
       const { exactMatch, alternatives } = await findMatchingSlot(agentId, userMessage);
 
       if (exactMatch) {
-        // Book the exact match
+        // Double-check availability before booking to prevent conflicts
+        const appointmentStart = new Date(exactMatch);
+        const appointmentEnd = new Date(appointmentStart.getTime() + this.APPOINTMENT_DURATION * 60 * 1000);
+
+        const { checkAvailability } = require('../api/googleCalendarService');
+        const busySlots = await checkAvailability(agentId, appointmentStart.toISOString(), appointmentEnd.toISOString());
+
+        if (busySlots && busySlots.length > 0) {
+          logger.warn({
+            agentId,
+            requestedTime: exactMatch.toISOString(),
+            busySlots
+          }, 'Requested time is actually busy - conflict detected during final booking check');
+
+          // Time is busy, find alternatives instead
+          const nearbySlots = await findNearbyAvailableSlots(agentId, exactMatch);
+          if (nearbySlots.length > 0) {
+            return await whatsappService.sendMessage(leadPhone,
+              `I apologize, but ${exactMatch.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${exactMatch.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })} just became unavailable.\n\nHere are the closest available times:\n${nearbySlots.slice(0, 3).map((slot, index) => `${index + 1}. ${slot.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${slot.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}`).join('\n')}\n\nWhich time works best for you?`
+            );
+          } else {
+            return await whatsappService.sendMessage(leadPhone,
+              `I apologize, but that time slot is no longer available. Let me find you some alternative times. Please reply with "available times" to see what's open.`
+            );
+          }
+        }
+
+        // Time is available, proceed with booking
         const result = await this.createAppointment({
           leadId,
           agentId,
