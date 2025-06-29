@@ -86,7 +86,11 @@ describe('Bot Logic Improvements', () => {
       ];
 
       // The bot should process this without getting stuck in rigid rule checking
-      const result = await botService.processMessage(mockLead, mockMessages, 'I want to buy a property');
+      const result = await botService.processMessage({
+        senderWaId: '+6512345678',
+        userText: 'I want to buy a property',
+        senderName: 'Test User'
+      });
       
       expect(result).toBeDefined();
       expect(result.messages).toBeDefined();
@@ -109,7 +113,11 @@ describe('Bot Logic Improvements', () => {
       ];
 
       // Should handle time requests naturally without overly complex rule checking
-      const result = await botService.processMessage(mockLead, mockMessages, 'Can we meet tomorrow at 3pm?');
+      const result = await botService.processMessage({
+        senderWaId: '+6512345678',
+        userText: 'Can we meet tomorrow at 3pm?',
+        senderName: 'Test User'
+      });
       
       expect(result).toBeDefined();
       expect(result.action).toBeDefined();
@@ -153,7 +161,8 @@ describe('Bot Logic Improvements', () => {
         userMessage: 'I want to book at 3pm'
       });
 
-      expect(result).toContain('already have a consultation scheduled');
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('already have a consultation scheduled');
       expect(supabase.from).toHaveBeenCalledWith('appointments');
     });
 
@@ -184,7 +193,8 @@ describe('Bot Logic Improvements', () => {
         userMessage: 'Cancel my appointment'
       });
 
-      expect(result).toContain("couldn't find an existing appointment to cancel");
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("couldn't find an existing appointment to cancel");
     });
 
     test('should validate agent assignment for appointment actions', async () => {
@@ -222,7 +232,8 @@ describe('Bot Logic Improvements', () => {
         userMessage: 'Cancel my appointment'
       });
 
-      expect(result).toContain('issue with the consultant assignment');
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('issue with the consultant assignment');
     });
 
     test('should validate alternatives before selection', async () => {
@@ -253,7 +264,8 @@ describe('Bot Logic Improvements', () => {
         userMessage: 'Option 1'
       });
 
-      expect(result).toContain("don't see any appointment alternatives");
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("don't see any appointment alternatives");
     });
   });
 
@@ -288,7 +300,8 @@ describe('Bot Logic Improvements', () => {
         userMessage: 'Book at 3pm'
       });
 
-      expect(result).toContain('trouble checking your appointment status');
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('trouble checking your appointment status');
     });
 
     test('should handle missing agent assignment', async () => {
@@ -304,7 +317,8 @@ describe('Bot Logic Improvements', () => {
         userMessage: 'Book at 3pm'
       });
 
-      expect(result).toContain("can't find an available consultant");
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("can't find an available consultant");
     });
   });
 });
