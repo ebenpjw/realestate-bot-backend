@@ -69,7 +69,7 @@ jest.mock('axios', () => ({
   post: jest.fn().mockRejectedValue(new Error('External API not available in test environment'))
 }));
 
-// Mock Supabase client
+// Mock Supabase client with proper method chaining
 jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn(() => ({
     from: jest.fn(() => ({
@@ -81,7 +81,8 @@ jest.mock('@supabase/supabase-js', () => ({
       order: jest.fn().mockReturnThis(),
       maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
       single: jest.fn().mockResolvedValue({ data: null, error: null })
-    }))
+    })),
+    rpc: jest.fn().mockResolvedValue({ data: null, error: null })
   }))
 }));
 

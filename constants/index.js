@@ -25,9 +25,9 @@ const APP_CONSTANTS = {
     MAX_LENGTH: 4096,
     MAX_HISTORY: 10,
     DELAY: {
-      SHORT: 1500,
-      MEDIUM: 2500,
-      LONG: 4500,
+      SHORT: 1200,
+      MEDIUM: 2000,
+      LONG: 3500,
       RANDOM_FACTOR: 1000
     }
   },
@@ -61,8 +61,8 @@ const APP_CONSTANTS = {
   
   // AI configuration
   AI: {
-    DEFAULT_TEMPERATURE: 0.5,
-    MAX_TOKENS: 1000,
+    DEFAULT_TEMPERATURE: 0.7,
+    MAX_TOKENS: 1200,
     TIMEOUT: 30000, // 30 seconds
     RETRY_ATTEMPTS: 3,
     RETRY_DELAY: 1000 // 1 second
@@ -75,7 +75,7 @@ const APP_CONSTANTS = {
     PHONE: {
       MIN_LENGTH: 10,
       MAX_LENGTH: 15,
-      PATTERN: /^\d{10,15}$/
+      PATTERN: /^\+?\d{8,15}$/ // Allow optional + prefix and more flexible length
     },
     NAME: {
       MAX_LENGTH: 100,

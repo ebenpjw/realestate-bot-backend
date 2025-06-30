@@ -62,8 +62,8 @@ const config = {
 
   // OpenAI Configuration
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-  OPENAI_TEMPERATURE: parseFloatEnv(process.env.OPENAI_TEMPERATURE, 0.5),
-  OPENAI_MAX_TOKENS: parseInteger(process.env.OPENAI_MAX_TOKENS, 1000),
+  OPENAI_TEMPERATURE: parseFloatEnv(process.env.OPENAI_TEMPERATURE, 0.7),
+  OPENAI_MAX_TOKENS: parseInteger(process.env.OPENAI_MAX_TOKENS, 1200),
   OPENAI_TIMEOUT: parseInteger(process.env.OPENAI_TIMEOUT, 30000),
 
   // Google OAuth Configuration
@@ -92,17 +92,19 @@ const config = {
 };
 
 // --- Configuration Validation ---
-const requiredConfig = {
-  // Critical for basic functionality
+// Core required config for all environments
+const coreRequiredConfig = {
   SUPABASE_URL: 'Database connection required',
   SUPABASE_KEY: 'Database authentication required',
   WABA_NUMBER: 'WhatsApp Business Account number required',
   GUPSHUP_API_KEY: 'Gupshup API access required',
   OPENAI_API_KEY: 'OpenAI API access required for AI responses',
-  REFRESH_TOKEN_ENCRYPTION_KEY: 'Encryption key required for secure token storage',
-  WEBHOOK_SECRET_TOKEN: 'Webhook security token required',
+  REFRESH_TOKEN_ENCRYPTION_KEY: 'Encryption key required for secure token storage'
+};
 
-  // Required for specific features
+// Optional config for production/specific features
+const optionalConfig = {
+  WEBHOOK_SECRET_TOKEN: 'Webhook security token required',
   META_VERIFY_TOKEN: 'Meta webhook verification required',
   META_APP_SECRET: 'Meta webhook signature verification required',
   GOOGLE_CLIENT_ID: 'Google OAuth required for calendar integration',
@@ -111,6 +113,11 @@ const requiredConfig = {
   ZOOM_CLIENT_SECRET: 'Zoom OAuth required for meeting integration',
   ZOOM_ACCOUNT_ID: 'Zoom Account ID required for Server-to-Server OAuth'
 };
+
+// Use different validation based on environment
+const requiredConfig = config.NODE_ENV === 'production'
+  ? { ...coreRequiredConfig, ...optionalConfig }
+  : coreRequiredConfig;
 
 // Validate required configuration
 const missingConfig = [];
