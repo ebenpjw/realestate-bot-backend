@@ -242,6 +242,15 @@ class BotService {
 
     // Handle appointment actions first - they take priority over AI messages
     if (['initiate_booking', 'reschedule_appointment', 'cancel_appointment', 'select_alternative'].includes(aiResponse.action)) {
+      logger.info({
+        leadId: lead.id,
+        action: aiResponse.action,
+        userMessage: userText,
+        aiUserMessage: aiResponse.user_message,
+        leadStatus: lead.status,
+        hasAlternatives: !!lead.booking_alternatives
+      }, 'AI classified message as appointment action');
+
       const appointmentResult = await this._handleAppointmentAction({
         action: aiResponse.action,
         lead,
@@ -498,11 +507,12 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
     <action name="initiate_booking">Use when they:
       - Ask to "set an appointment", "schedule", "meet", "book a consultation"
       - Ask about availability: "when are you free?", "what times work?"
-      - Suggest specific times: "can we meet at 7pm?", "how about tomorrow?"
+      - Suggest specific times: "can we meet at 7pm?", "how about tomorrow?", "what about 2pm?"
       - Want to speak to consultants: "can I talk to someone?", "I'd like to meet"
       - Show readiness after building interest: "that sounds interesting, can we chat more?"
+      - Suggest NEW times even if alternatives were previously offered
     </action>
-    <action name="select_alternative">When choosing from offered time slots</action>
+    <action name="select_alternative">ONLY when choosing from numbered options (1, 2, 3) from previously offered alternatives</action>
     <action name="reschedule_appointment">When changing existing appointments</action>
     <action name="cancel_appointment">When cancelling existing appointments</action>
   </available_actions>
@@ -511,12 +521,18 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
     ALWAYS use "initiate_booking" action when user says:
     • "set an appointment" / "schedule" / "book" / "meet"
     • "when are you free?" / "what times work?" / "are you available?"
-    • Specific times: "7pm today" / "tomorrow at 2" / "this weekend"
+    • Specific times: "7pm today" / "tomorrow at 2" / "this weekend" / "how about 2pm?" / "what about Monday?"
     • "can I talk to someone?" / "speak to consultant" / "I'd like to meet"
     • "that sounds good, let's chat" / "I'm interested, can we discuss?"
     • Any variation of wanting to schedule or meet
+    • NEW time suggestions even after alternatives were offered
 
-    DO NOT use "continue" for these - they are clear booking requests!
+    ONLY use "select_alternative" when user picks numbered options like:
+    • "1" / "option 1" / "the first one" / "number 2"
+    • Clear selection from previously offered numbered alternatives
+
+    DO NOT use "continue" for booking requests!
+    DO NOT use "select_alternative" for new time suggestions!
   </appointment_booking_triggers>
 
   <response_format>
@@ -881,11 +897,15 @@ Respond with appropriate messages and actions based on the conversation context.
         case 'select_alternative':
           // Validate that alternatives were actually offered
           if (lead.status !== 'booking_alternatives_offered' || !lead.booking_alternatives) {
-            logger.info({ leadId: lead.id, leadStatus: lead.status }, 'Attempted alternative selection but no alternatives were offered');
-            return {
-              success: false,
-              message: "I don't see any appointment alternatives to choose from. Let me help you find available times instead."
-            };
+            logger.info({
+              leadId: lead.id,
+              leadStatus: lead.status,
+              hasAlternatives: !!lead.booking_alternatives,
+              userMessage: userMessage
+            }, 'Attempted alternative selection but no alternatives were offered - treating as new booking request');
+
+            // Instead of failing, treat this as a new booking request
+            return await this._handleInitialBooking({ lead, agentId, userMessage });
           }
           // Ensure no existing appointment before processing alternative selection
           if (existingAppointment) {
@@ -935,6 +955,29 @@ Respond with appropriate messages and actions based on the conversation context.
         // Update lead object for this request
         lead.status = 'qualified';
         lead.booking_alternatives = null;
+      }
+
+      // Also handle case where user is in 'booked' status but wants to reschedule
+      // This can happen if there was a booking conflict or error
+      if (lead.status === 'booked') {
+        logger.info({ leadId: lead.id, userMessage }, 'User requesting new time while marked as booked - checking for actual appointment');
+
+        // If no actual appointment exists (booking failed), allow new booking
+        const { data: existingAppointment } = await supabase
+          .from('appointments')
+          .select('*')
+          .eq('lead_id', lead.id)
+          .eq('status', 'scheduled')
+          .limit(1)
+          .single();
+
+        if (!existingAppointment) {
+          logger.info({ leadId: lead.id }, 'No actual appointment found despite booked status - allowing new booking');
+          await supabase.from('leads').update({
+            status: 'qualified'
+          }).eq('id', lead.id);
+          lead.status = 'qualified';
+        }
       }
 
       const consultationNotes = `Intent: ${lead.intent || 'Not specified'}, Budget: ${lead.budget || 'Not specified'}`;
