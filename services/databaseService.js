@@ -88,7 +88,32 @@ class DatabaseService {
         return existingLead;
       }
 
-      // Create new lead
+      // Get a default agent for assignment with better error handling
+      let defaultAgent = null;
+      try {
+        const { data: agent, error: agentError } = await this.supabase
+          .from('agents')
+          .select('id, full_name')
+          .eq('status', 'active')
+          .limit(1)
+          .maybeSingle(); // Use maybeSingle to handle no results gracefully
+
+        if (agentError) {
+          logger.warn({ agentError }, 'Error fetching active agents');
+        } else if (agent) {
+          defaultAgent = agent;
+          logger.info({
+            agentId: agent.id,
+            agentName: agent.full_name
+          }, 'Found active agent for assignment');
+        } else {
+          logger.warn('No active agents found in database');
+        }
+      } catch (agentFetchError) {
+        logger.warn({ err: agentFetchError }, 'Failed to fetch agents, proceeding without assignment');
+      }
+
+      // Create new lead with agent assignment
       const newLeadData = {
         phone_number: phoneNumber,
         full_name: fullName,
@@ -96,6 +121,17 @@ class DatabaseService {
         status: 'new',
         created_at: new Date().toISOString()
       };
+
+      // Assign to default agent if available
+      if (defaultAgent) {
+        newLeadData.assigned_agent_id = defaultAgent.id;
+        logger.info({
+          agentId: defaultAgent.id,
+          agentName: defaultAgent.full_name
+        }, 'Assigning lead to active agent');
+      } else {
+        logger.warn('Creating lead without agent assignment - no active agents available');
+      }
 
       const { data: newLead, error: createError } = await this.supabase
         .from('leads')

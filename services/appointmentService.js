@@ -493,32 +493,13 @@ class AppointmentService {
       const { exactMatch, alternatives } = await findMatchingSlot(agentId, userMessage);
 
       if (exactMatch) {
-        // Double-check availability before booking to prevent conflicts
-        const appointmentStart = new Date(exactMatch);
-        const appointmentEnd = new Date(appointmentStart.getTime() + this.APPOINTMENT_DURATION * 60 * 1000);
-
-        const { checkAvailability } = require('../api/googleCalendarService');
-        const busySlots = await checkAvailability(agentId, formatToFullISO(appointmentStart), formatToFullISO(appointmentEnd));
-
-        if (busySlots && busySlots.length > 0) {
-          logger.warn({
-            agentId,
-            requestedTime: exactMatch.toISOString(),
-            busySlots
-          }, 'Requested time is actually busy - conflict detected during final booking check');
-
-          // Time is busy, find alternatives instead
-          const nearbySlots = await findNearbyAvailableSlots(agentId, exactMatch);
-          if (nearbySlots.length > 0) {
-            return await whatsappService.sendMessage(leadPhone,
-              `I apologize, but ${exactMatch.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${exactMatch.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })} just became unavailable.\n\nHere are the closest available times:\n${nearbySlots.slice(0, 3).map((slot, index) => `${index + 1}. ${slot.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${slot.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}`).join('\n')}\n\nWhich time works best for you?`
-            );
-          } else {
-            return await whatsappService.sendMessage(leadPhone,
-              `I apologize, but that time slot is no longer available. Let me find you some alternative times. Please reply with "available times" to see what's open.`
-            );
-          }
-        }
+        // The exactMatch already went through availability checking in findMatchingSlot
+        // No need to double-check - this was causing redundant API calls
+        logger.info({
+          agentId,
+          requestedTime: exactMatch.toISOString(),
+          requestedTimeLocal: exactMatch.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+        }, 'Exact match found and already verified - proceeding with booking');
 
         // Time is available, proceed with booking
         const result = await this.createAppointment({
