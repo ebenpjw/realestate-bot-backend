@@ -530,23 +530,21 @@ class AppointmentService {
           message: successMessage
         };
       } else if (alternatives.length > 0) {
-        // Offer alternatives
-        const topAlternatives = alternatives.slice(0, 3);
-        const alternativeText = topAlternatives.map((slot, index) => 
-          `${index + 1}. ${slot.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${slot.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}`
-        ).join('\n');
+        // Offer alternatives - limit to 1 nearby slot + option for lead's preferred time
+        const nearestAlternative = alternatives[0];
+        const formattedAlternative = formatForDisplay(toSgTime(nearestAlternative));
 
         return {
           success: false,
           type: 'alternatives_offered',
-          alternatives: topAlternatives,
-          message: `I couldn't find an exact match for your preferred time, but here are some available slots:\n\n${alternativeText}\n\nWhich one works best for you? Just reply with the number or let me know another time that suits you!`
+          alternatives: [nearestAlternative], // Only offer 1 alternative
+          message: `I see that time slot is already taken! 😅\n\nHow about ${formattedAlternative} instead? That's the closest available slot.\n\nOr if you have another preferred time in mind, just let me know! 😊`
         };
       } else {
         return {
           success: false,
-          type: 'no_availability',
-          message: `I'm sorry, but there are no available consultation slots in the next few days. Let me have our consultant reach out to you directly to arrange a suitable time. Is that okay?`
+          type: 'no_immediate_availability',
+          message: `I see that time slot is already taken! 😅\n\nI don't have any immediate alternatives, but let me know what other time works for you and I'll check if it's available.\n\nIf you need some time to think about it, just let me know your preferred time and I can tentatively hold that slot for you while you decide! 😊`
         };
       }
     } catch (error) {

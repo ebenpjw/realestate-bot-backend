@@ -241,7 +241,7 @@ class BotService {
     const aiResponse = await this._generateAIResponse(lead, previousMessages);
 
     // Handle appointment actions first - they take priority over AI messages
-    if (['initiate_booking', 'reschedule_appointment', 'cancel_appointment', 'select_alternative'].includes(aiResponse.action)) {
+    if (['initiate_booking', 'reschedule_appointment', 'cancel_appointment', 'select_alternative', 'tentative_booking'].includes(aiResponse.action)) {
       logger.info({
         leadId: lead.id,
         action: aiResponse.action,
@@ -512,6 +512,13 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
       - Show readiness after building interest: "that sounds interesting, can we chat more?"
       - Suggest NEW times even if alternatives were previously offered
     </action>
+    <action name="tentative_booking">Use when they want to check availability but aren't ready to commit:
+      - "Let me check if 3pm works and get back to you"
+      - "Can you hold 2pm for me while I confirm?"
+      - "I'll let you know about that time"
+      - "Let me see if that works for me"
+      - Want to tentatively reserve a slot
+    </action>
     <action name="select_alternative">ONLY when choosing from numbered options (1, 2, 3) from previously offered alternatives</action>
     <action name="reschedule_appointment">When changing existing appointments</action>
     <action name="cancel_appointment">When cancelling existing appointments</action>
@@ -545,7 +552,7 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
         "budget": "budget_range (if naturally shared)",
         "status": "only update if appointment actually scheduled"
       },
-      "action": "continue | initiate_booking | reschedule_appointment | cancel_appointment | select_alternative",
+      "action": "continue | initiate_booking | reschedule_appointment | cancel_appointment | select_alternative | tentative_booking",
       "user_message": "Include original message only for booking actions"
     }
   </response_format>
@@ -586,7 +593,7 @@ Respond with appropriate messages and actions based on the conversation context.
     }
 
     // Validate action - default to continue for natural flow
-    const validActions = ['continue', 'initiate_booking', 'reschedule_appointment', 'cancel_appointment', 'select_alternative'];
+    const validActions = ['continue', 'initiate_booking', 'reschedule_appointment', 'cancel_appointment', 'select_alternative', 'tentative_booking'];
     if (validActions.includes(response.action)) {
       validated.action = response.action;
     } else {
@@ -595,7 +602,7 @@ Respond with appropriate messages and actions based on the conversation context.
     }
 
     // Include user message only for actual booking actions
-    if (['initiate_booking', 'reschedule_appointment', 'select_alternative'].includes(validated.action) && response.user_message) {
+    if (['initiate_booking', 'reschedule_appointment', 'select_alternative', 'tentative_booking'].includes(validated.action) && response.user_message) {
       validated.user_message = response.user_message;
     }
 
@@ -919,6 +926,10 @@ Respond with appropriate messages and actions based on the conversation context.
           }
           return await this._handleAlternativeSelection({ lead, agentId, userMessage });
 
+        case 'tentative_booking':
+          // Handle tentative booking requests
+          return await this._handleTentativeBooking({ lead, agentId, userMessage });
+
         default:
           logger.warn({ action, leadId: lead.id }, 'Unknown appointment action');
           return { success: false, message: '' };
@@ -1072,26 +1083,25 @@ Respond with appropriate messages and actions based on the conversation context.
           message: `Perfect! I've rescheduled your consultation to ${formattedTime}.\n\nYour Zoom link remains the same: ${appointment.zoom_join_url}\n\nLooking forward to speaking with you soon!`
         };
       } else if (alternatives.length > 0) {
-        // Offer alternatives for rescheduling
-        const topAlternatives = alternatives.slice(0, 3);
-        const alternativeText = topAlternatives.map((slot, index) =>
-          `${index + 1}. ${formatForDisplay(toSgTime(slot))}`
-        ).join('\n');
+        // Offer alternatives for rescheduling - limit to 1 nearby slot + lead's preferred time option
+        const nearestAlternative = alternatives[0];
+        const formattedAlternative = formatForDisplay(toSgTime(nearestAlternative));
 
-        // Store alternatives
+        // Store the single alternative for potential booking
         await supabase.from('leads').update({
           status: 'booking_alternatives_offered',
-          booking_alternatives: JSON.stringify(topAlternatives)
+          booking_alternatives: JSON.stringify([nearestAlternative])
         }).eq('id', lead.id);
 
         return {
           success: true,
-          message: `I couldn't find availability for your exact preferred time, but here are some available slots for rescheduling:\n\n${alternativeText}\n\nWhich one works best for you? Just reply with the number!`
+          message: `I see that time slot is already taken! 😅\n\nHow about ${formattedAlternative} instead? That's the closest available slot.\n\nOr if you have another preferred time in mind, just let me know! 😊`
         };
       } else {
+        // No alternatives found - offer to check lead's preferred time and lock it tentatively
         return {
-          success: false,
-          message: "I'm sorry, but I couldn't find any available slots for your preferred time. Let me have our consultant reach out to you directly to find a suitable time. Is that okay?"
+          success: true,
+          message: `I see that time slot is already taken! 😅\n\nI don't have any immediate alternatives, but let me know what other time works for you and I'll check if it's available.\n\nIf you need some time to think about it, just let me know your preferred time and I can tentatively hold that slot for you while you decide! 😊`
         };
       }
     } catch (error) {
@@ -1147,6 +1157,57 @@ Respond with appropriate messages and actions based on the conversation context.
       return {
         success: false,
         message: "I'm having trouble cancelling your appointment right now. Let me have our consultant contact you directly."
+      };
+    }
+  }
+
+  /**
+   * Handle tentative booking when user says they'll get back to us
+   * @private
+   */
+  async _handleTentativeBooking({ lead, agentId, userMessage }) {
+    try {
+      const { findMatchingSlot } = require('../api/bookingHelper');
+      const { exactMatch, alternatives } = await findMatchingSlot(agentId, userMessage);
+
+      if (exactMatch) {
+        // Store tentative booking information
+        await supabase.from('leads').update({
+          status: 'tentative_booking_offered',
+          booking_alternatives: JSON.stringify([exactMatch]),
+          tentative_booking_time: exactMatch.toISOString()
+        }).eq('id', lead.id);
+
+        const formattedTime = formatForDisplay(toSgTime(exactMatch));
+        return {
+          success: true,
+          message: `Perfect! ${formattedTime} is available. I'll tentatively hold that slot for you! 😊\n\nJust let me know when you're ready to confirm, or if you need to make any changes. The slot will be held for you in the meantime! 👍`
+        };
+      } else if (alternatives.length > 0) {
+        const nearestAlternative = alternatives[0];
+        const formattedAlternative = formatForDisplay(toSgTime(nearestAlternative));
+
+        await supabase.from('leads').update({
+          status: 'tentative_booking_offered',
+          booking_alternatives: JSON.stringify([nearestAlternative]),
+          tentative_booking_time: nearestAlternative.toISOString()
+        }).eq('id', lead.id);
+
+        return {
+          success: true,
+          message: `That exact time isn't available, but ${formattedAlternative} is free! I'll tentatively hold that slot for you instead. 😊\n\nLet me know if that works or if you'd prefer a different time! 👍`
+        };
+      } else {
+        return {
+          success: false,
+          message: `I'm sorry, but that time slot isn't available and I don't have immediate alternatives. Let me know another time that works for you and I'll check! 😊`
+        };
+      }
+    } catch (error) {
+      logger.error({ err: error, leadId: lead.id }, 'Error handling tentative booking');
+      return {
+        success: false,
+        message: "I'm having trouble checking that time slot. Could you try again or suggest another time?"
       };
     }
   }
