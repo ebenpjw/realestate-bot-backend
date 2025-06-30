@@ -432,11 +432,30 @@ async function isTimeSlotAvailable(agentId, requestedTime) {
             return false;
         }
 
-        // Check for calendar conflicts
+        // Check for calendar conflicts with enhanced logging
         const slotStart = formatToFullISO(requestedTime);
         const slotEnd = formatToFullISO(new Date(requestedTime.getTime() + 60 * 60 * 1000)); // 1 hour later
 
+        logger.info({
+            agentId,
+            requestedTime: requestedTime.toISOString(),
+            requestedTimeLocal: requestedTime.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+            slotStart,
+            slotEnd
+        }, 'CONFLICT CHECK: About to check calendar for conflicts');
+
         const busySlots = await checkAvailability(agentId, slotStart, slotEnd);
+
+        logger.info({
+            agentId,
+            busySlotsCount: busySlots.length,
+            busySlots: busySlots.map(slot => ({
+                start: slot.start,
+                end: slot.end,
+                startLocal: new Date(slot.start).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+                endLocal: new Date(slot.end).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+            }))
+        }, 'CONFLICT CHECK: Retrieved busy slots from calendar');
 
         // Check if there are any overlapping busy periods
         const hasConflict = busySlots.some(busy => {
@@ -446,15 +465,32 @@ async function isTimeSlotAvailable(agentId, requestedTime) {
             const requestedEnd = requestedStart + 60 * 60 * 1000; // 1 hour
 
             // Check for any overlap
-            return requestedStart < busyEnd && requestedEnd > busyStart;
+            const overlap = requestedStart < busyEnd && requestedEnd > busyStart;
+
+            if (overlap) {
+                logger.warn({
+                    agentId,
+                    requestedTime: requestedTime.toISOString(),
+                    busySlot: {
+                        start: busy.start,
+                        end: busy.end,
+                        startLocal: new Date(busy.start).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+                        endLocal: new Date(busy.end).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+                    }
+                }, 'CONFLICT DETECTED: Requested time overlaps with busy slot');
+            }
+
+            return overlap;
         });
 
         logger.info({
             agentId,
             requestedTime: requestedTime.toISOString(),
+            requestedTimeLocal: requestedTime.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
             hasConflict,
-            busySlotsCount: busySlots.length
-        }, 'Checked specific time slot availability');
+            busySlotsCount: busySlots.length,
+            finalResult: hasConflict ? 'BUSY/UNAVAILABLE' : 'AVAILABLE'
+        }, 'CONFLICT CHECK RESULT: Final availability determination');
 
         return !hasConflict;
     } catch (error) {
@@ -554,8 +590,21 @@ async function findMatchingSlot(agentId, userMessage) {
             preferredTimeLocal: preferredTime.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
         }, 'Checking if preferred time is available');
 
-        // Directly check if the preferred time is available
+        // CRITICAL: Check if the preferred time is available with detailed logging
+        logger.info({
+            agentId,
+            preferredTime: preferredTime.toISOString(),
+            preferredTimeLocal: preferredTime.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+        }, 'CRITICAL CHECK: About to verify if preferred time is available');
+
         const isAvailable = await isTimeSlotAvailable(agentId, preferredTime);
+
+        logger.info({
+            agentId,
+            preferredTime: preferredTime.toISOString(),
+            isAvailable,
+            result: isAvailable ? 'AVAILABLE' : 'BUSY'
+        }, 'CRITICAL RESULT: Time slot availability check completed');
 
         if (isAvailable) {
             logger.info({ agentId, preferredTime: preferredTime.toISOString() }, 'Preferred time is available - exact match found');
