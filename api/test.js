@@ -25,8 +25,9 @@ router.post('/simulate-inbound', async (req, res, next) => {
 
     await supabase.from('messages').insert({ lead_id: lead.id, sender: 'lead', message: userText });
     
-    const { data: history } = await supabase.from('messages').select('sender, message').eq('lead_id', lead.id).order('created_at', { ascending: false }).limit(10);
-    const previousMessages = history ? history.map(entry => ({ sender: entry.sender, message: entry.message })).reverse() : [];
+    // Get conversation history for context (not used in this test endpoint)
+    // const { data: history } = await supabase.from('messages').select('sender, message').eq('lead_id', lead.id).order('created_at', { ascending: false }).limit(10);
+    // const previousMessages = history ? history.map(entry => ({ sender: entry.sender, message: entry.message })).reverse() : [];
     
     // Use the unified bot service for simulation (but don't actually send WhatsApp messages)
     logger.info({ leadId: lead.id, userText }, '[SIMULATION] Processing with bot service');

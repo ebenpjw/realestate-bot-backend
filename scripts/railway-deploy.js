@@ -35,24 +35,9 @@ async function railwayDeploy() {
       throw new Error(`Missing environment variables: ${missingVars.join(', ')}`);
     }
 
-    // 1. Setup Supabase database
-    logger.info('📊 Setting up Supabase database...');
-    const { setupSupabase } = require('./setup-supabase');
-    await setupSupabase();
-
-    // 2. Create default agent
-    logger.info('👤 Creating default agent...');
-    const { createDefaultAgent } = require('./create-default-agent');
-    const agent = await createDefaultAgent();
-
-    // 3. Assign agents to existing leads (only if agent was created/found)
-    if (agent) {
-      logger.info('🔗 Assigning agents to leads...');
-      const { assignAgentsToLeads } = require('./assign-agents-to-leads');
-      await assignAgentsToLeads();
-    } else {
-      logger.warn('⚠️ Skipping lead assignment - no active agent available');
-    }
+    // Database and agent setup should be done manually in production
+    logger.info('✅ Environment validated - ready for deployment');
+    logger.info('📝 Note: Ensure database schema and agents are set up in Supabase dashboard');
 
     logger.info('✅ Railway deployment setup completed successfully!');
     return true;
@@ -74,11 +59,11 @@ if (require.main === module) {
       } else {
         console.log('⚠️ Railway deployment setup had issues but continuing...');
       }
-      process.exit(0);
+      return success;
     })
     .catch((error) => {
       console.error('❌ Railway deployment setup failed:', error.message);
-      process.exit(1);
+      throw error;
     });
 }
 

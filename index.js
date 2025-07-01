@@ -194,6 +194,8 @@ app.get('/debug/calendar/:agentId', asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Agent ID is required' });
   }
 
+  // Import the function dynamically to avoid circular dependencies
+  const { testCalendarIntegration } = require('./api/googleCalendarService');
   const testResult = await testCalendarIntegration(agentId);
   res.json(testResult);
 }));

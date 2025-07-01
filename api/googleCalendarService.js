@@ -22,7 +22,7 @@ async function getAgentWithToken(agentId) {
         errorMessage: error?.message,
         agentEmail: agent?.google_email,
         hasRefreshToken: !!agent?.google_refresh_token_encrypted
-    }, 'Agent lookup result - AGENT ID: ' + agentId);
+    }, `Agent lookup result - AGENT ID: ${agentId}`);
 
     if (error || !agent) {
         logger.error({ err: error, agentId }, 'Could not find agent or their Google credentials.');
@@ -295,7 +295,7 @@ async function testCalendarIntegration(agentId) {
                 start: event.start?.dateTime || event.start?.date,
                 end: event.end?.dateTime || event.end?.date
             })) || [],
-            busySlots: busySlots
+            busySlots
         };
     } catch (error) {
         logger.error({ err: error, agentId }, 'Google Calendar integration test failed');

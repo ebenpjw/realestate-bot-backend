@@ -4,12 +4,11 @@ const supabase = require('../supabaseClient');
 const logger = require('../logger');
 const { createEvent } = require('../api/googleCalendarService');
 const { createZoomMeetingForUser, deleteZoomMeetingForUser } = require('../api/zoomServerService');
-const { findMatchingSlot, findNearbyAvailableSlots } = require('../api/bookingHelper');
+const { findMatchingSlot } = require('../api/bookingHelper');
 const whatsappService = require('./whatsappService');
 const {
   formatForGoogleCalendar,
   formatForDisplay,
-  formatToFullISO,
   toSgTime
 } = require('../utils/timezoneUtils');
 const {
@@ -38,7 +37,6 @@ class AppointmentService {
     agentId,
     appointmentTime,
     leadName,
-    leadPhone: _leadPhone,
     consultationNotes = ''
   }) {
     const operationId = `create-appointment-${leadId}-${Date.now()}`;
@@ -84,7 +82,6 @@ class AppointmentService {
       }
 
       // 1. Try to create Zoom meeting using Server-to-Server OAuth (continue if it fails)
-      let zoomMeeting = null;
       try {
         if (agent && agent.zoom_user_id) {
           // Use new Server-to-Server OAuth service
@@ -115,7 +112,6 @@ class AppointmentService {
       }
 
       // 2. Try to create Google Calendar event (continue if it fails)
-      let calendarEvent = null;
       try {
         const eventDescription = zoomMeeting.joinUrl !== 'https://zoom.us/j/placeholder'
           ? `${calendarDescription}\n\n📞 Zoom Meeting: ${zoomMeeting.joinUrl}\n\n📝 Consultation Notes:\n${enhancedConsultationNotes}`
@@ -485,7 +481,6 @@ class AppointmentService {
     agentId,
     userMessage,
     leadName,
-    leadPhone,
     consultationNotes = ''
   }) {
     try {
@@ -507,7 +502,6 @@ class AppointmentService {
           agentId,
           appointmentTime: exactMatch,
           leadName,
-          leadPhone,
           consultationNotes
         });
 

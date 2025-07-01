@@ -1,5 +1,4 @@
 const axios = require('axios');
-const qs = require('qs');
 const config = require('../config');
 const logger = require('../logger');
 const { MESSAGE, VALIDATION } = require('../constants');
@@ -106,13 +105,13 @@ class WhatsAppService {
       await this._validateTemplateCompliance({ to, templateId, category, templateName });
 
       const templateObject = { id: templateId, params };
-      const payload = qs.stringify({
+      const payload = new URLSearchParams({
         channel: 'whatsapp',
         source: this.wabaNumber,
         destination: to,
         'src.name': 'DoroSmartGuide',
         template: JSON.stringify(templateObject)
-      });
+      }).toString();
 
       logger.info({
         to,
@@ -256,13 +255,13 @@ class WhatsAppService {
         throw new Error('Gupshup API key not configured');
       }
 
-      const payload = qs.stringify({
+      const payload = new URLSearchParams({
         channel: 'whatsapp',
         source: this.wabaNumber,
         destination: to,
         'src.name': 'SmartGuide Doro',
         message: JSON.stringify({ type: 'text', text: message })
-      });
+      }).toString();
 
       logger.info({
         to,

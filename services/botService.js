@@ -144,7 +144,7 @@ class BotService {
           const { error: assistantMessageError } = await this.supabase.from('messages').insert({
             lead_id: lead.id,
             sender: 'assistant',
-            message: message
+            message
           });
 
           if (assistantMessageError) {
@@ -282,7 +282,7 @@ class BotService {
       };
     } else {
       return {
-        messages: messages,
+        messages,
         action: aiResponse.action,
         lead_updates: aiResponse.lead_updates,
         appointmentHandled: false
@@ -908,7 +908,7 @@ Respond with appropriate messages and actions based on the conversation context.
               leadId: lead.id,
               leadStatus: lead.status,
               hasAlternatives: !!lead.booking_alternatives,
-              userMessage: userMessage
+              userMessage
             }, 'Attempted alternative selection but no alternatives were offered - treating as new booking request');
 
             // Instead of failing, treat this as a new booking request
@@ -998,7 +998,6 @@ Respond with appropriate messages and actions based on the conversation context.
         agentId,
         userMessage,
         leadName: lead.full_name,
-        leadPhone: lead.phone_number,
         consultationNotes
       });
 
@@ -1269,7 +1268,6 @@ Respond with appropriate messages and actions based on the conversation context.
           agentId,
           appointmentTime: selectedSlot,
           leadName: lead.full_name,
-          leadPhone: lead.phone_number,
           consultationNotes
         });
 
