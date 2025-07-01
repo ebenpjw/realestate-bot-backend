@@ -328,9 +328,9 @@ function parsePreferredTime(message) {
                 pattern: /(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i,
                 hourIndex: 2, minuteIndex: 3, ampmIndex: 4
             },
-            // Just time: "3pm", "2:30pm", "for 2pm"
+            // Just time with optional punctuation: "3pm", "2:30pm", "8pm?", "how about 7pm"
             {
-                pattern: /(?:^|\s|for\s+)(\d{1,2})(?::(\d{2}))?\s*(am|pm)(?:\s|$)/i,
+                pattern: /(?:^|\s|for\s+|about\s+|how about\s+)(\d{1,2})(?::(\d{2}))?\s*(am|pm)[\?\s]*(?:\s|$)/i,
                 hourIndex: 1, minuteIndex: 2, ampmIndex: 3
             }
         ];

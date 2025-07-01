@@ -638,7 +638,7 @@ Respond with appropriate messages and actions based on the conversation context.
     }
 
     // Validate action - default to continue for natural flow
-    const validActions = ['continue', 'initiate_booking', 'reschedule_appointment', 'cancel_appointment', 'select_alternative', 'tentative_booking'];
+    const validActions = ['continue', 'initiate_booking', 'reschedule_appointment', 'cancel_appointment', 'select_alternative', 'tentative_booking', 'confirm_tentative_booking'];
     if (validActions.includes(response.action)) {
       validated.action = response.action;
     } else {
@@ -647,7 +647,7 @@ Respond with appropriate messages and actions based on the conversation context.
     }
 
     // Include user message only for actual booking actions
-    if (['initiate_booking', 'reschedule_appointment', 'select_alternative', 'tentative_booking'].includes(validated.action) && response.user_message) {
+    if (['initiate_booking', 'reschedule_appointment', 'select_alternative', 'tentative_booking', 'confirm_tentative_booking'].includes(validated.action) && response.user_message) {
       validated.user_message = response.user_message;
     }
 
