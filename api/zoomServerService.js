@@ -117,10 +117,13 @@ async function createZoomMeetingForUser(userEmail, meetingDetails) {
                 participant_video: true,
                 join_before_host: false,
                 mute_upon_entry: true,
-                waiting_room: true,
+                waiting_room: false, // Disable waiting room for easier access
                 audio: 'both',
                 auto_recording: 'none',
-                approval_type: 0 // Automatically approve
+                approval_type: 0, // Automatically approve
+                use_pmi: false, // Don't use personal meeting ID
+                meeting_authentication: false, // No authentication required
+                password: '' // Explicitly set empty password for no password requirement
             }
         };
 

@@ -95,17 +95,31 @@ function formatForGoogleCalendar(date) {
 }
 
 /**
- * Create a Date object from date/time components
+ * Create a Date object from date/time components in Singapore timezone
  * @param {number} year - Year
  * @param {number} month - Month (1-12)
  * @param {number} day - Day of month
  * @param {number} hour - Hour (0-23)
  * @param {number} minute - Minute (0-59)
  * @param {number} second - Second (0-59)
- * @returns {Date} Date object
+ * @returns {Date} Date object representing Singapore time
  */
 function createSgDate(year, month, day, hour = 0, minute = 0, second = 0) {
-  return new Date(year, month - 1, day, hour, minute, second);
+  // Create date string in Singapore timezone format
+  const pad = (num) => num.toString().padStart(2, '0');
+  const dateString = `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}:${pad(second)}+08:00`;
+
+  // Parse as Singapore time (UTC+8)
+  const date = new Date(dateString);
+
+  logger.info({
+    input: { year, month, day, hour, minute, second },
+    dateString,
+    resultISO: date.toISOString(),
+    resultSgLocal: date.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+  }, 'Created Singapore date');
+
+  return date;
 }
 
 /**

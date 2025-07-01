@@ -506,7 +506,8 @@ class AppointmentService {
         });
 
         // Create success message based on available integrations
-        let successMessage = `Perfect! I've booked your consultation for ${exactMatch.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${exactMatch.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })}.`;
+        const formattedTime = formatForDisplay(toSgTime(exactMatch));
+        let successMessage = `Perfect! I've booked your consultation for ${formattedTime}.`;
 
         if (result.zoomMeeting && result.zoomMeeting.joinUrl !== 'https://zoom.us/j/placeholder') {
           successMessage += `\n\nZoom Link: ${result.zoomMeeting.joinUrl}`;
