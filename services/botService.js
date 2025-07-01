@@ -240,7 +240,7 @@ class BotService {
     const aiResponse = await this._generateAIResponse(lead, previousMessages);
 
     // Handle appointment actions first - they take priority over AI messages
-    if (['initiate_booking', 'reschedule_appointment', 'cancel_appointment', 'select_alternative', 'tentative_booking'].includes(aiResponse.action)) {
+    if (['initiate_booking', 'reschedule_appointment', 'cancel_appointment', 'select_alternative', 'tentative_booking', 'confirm_tentative_booking'].includes(aiResponse.action)) {
       logger.info({
         leadId: lead.id,
         action: aiResponse.action,
@@ -548,6 +548,12 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
       - "Let me see if that works for me"
       - Want to tentatively reserve a slot
     </action>
+    <action name="confirm_tentative_booking">Use when confirming a previously offered tentative booking:
+      - "yes confirmed" / "yes confirm" / "confirm it" / "book it"
+      - "that works" / "that's good" / "perfect"
+      - "let's do it" / "go ahead" / "yes please"
+      - Any confirmation after tentative booking was offered
+    </action>
     <action name="select_alternative">ONLY when choosing from numbered options (1, 2, 3) from previously offered alternatives</action>
     <action name="reschedule_appointment">When changing existing appointments</action>
     <action name="cancel_appointment">When cancelling existing appointments</action>
@@ -565,6 +571,12 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
     • Repeating or clarifying time preferences: "I said 7pm today" / "I meant 2pm" / "what about the time I mentioned"
     • Confirming or insisting on specific times: "okay confirm it" / "yes that time" / "book that slot"
 
+    ALWAYS use "confirm_tentative_booking" when user confirms a tentative booking:
+    • "yes confirmed" / "yes confirm" / "confirm it" / "book it"
+    • "that works" / "that's good" / "perfect" / "sounds good"
+    • "let's do it" / "go ahead" / "yes please"
+    • Any positive confirmation after tentative booking was offered
+
     ONLY use "select_alternative" when user picks numbered options like:
     • "1" / "option 1" / "the first one" / "number 2"
     • Clear selection from previously offered numbered alternatives
@@ -572,6 +584,7 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
     DO NOT use "continue" for booking requests!
     DO NOT use "select_alternative" for new time suggestions!
     DO NOT use "continue" when user is clarifying or confirming appointment times!
+    DO NOT use "continue" when user is confirming tentative bookings!
   </appointment_booking_triggers>
 
   <response_format>
@@ -584,7 +597,7 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
         "budget": "budget_range (if naturally shared)",
         "status": "only update if appointment actually scheduled"
       },
-      "action": "continue | initiate_booking | reschedule_appointment | cancel_appointment | select_alternative | tentative_booking",
+      "action": "continue | initiate_booking | reschedule_appointment | cancel_appointment | select_alternative | tentative_booking | confirm_tentative_booking",
       "user_message": "Include original message only for booking actions"
     }
   </response_format>
@@ -962,6 +975,10 @@ Respond with appropriate messages and actions based on the conversation context.
           // Handle tentative booking requests
           return await this._handleTentativeBooking({ lead, agentId, userMessage });
 
+        case 'confirm_tentative_booking':
+          // Handle confirmation of tentative booking
+          return await this._handleTentativeBookingConfirmation({ lead, agentId, userMessage });
+
         default:
           logger.warn({ action, leadId: lead.id }, 'Unknown appointment action');
           return { success: false, message: '' };
@@ -1239,6 +1256,72 @@ Respond with appropriate messages and actions based on the conversation context.
       return {
         success: false,
         message: "I'm having trouble checking that time slot. Could you try again or suggest another time?"
+      };
+    }
+  }
+
+  /**
+   * Handle confirmation of tentative booking
+   * @private
+   */
+  async _handleTentativeBookingConfirmation({ lead, agentId, userMessage }) {
+    try {
+      // Check if lead has a tentative booking
+      if (lead.status !== 'tentative_booking_offered' || !lead.tentative_booking_time) {
+        logger.warn({ leadId: lead.id, status: lead.status }, 'No tentative booking found to confirm');
+        return {
+          success: false,
+          message: "I don't see any tentative booking to confirm. Would you like to schedule a new appointment?"
+        };
+      }
+
+      const tentativeTime = new Date(lead.tentative_booking_time);
+      const consultationNotes = `Intent: ${lead.intent || 'Not specified'}, Budget: ${lead.budget || 'Not specified'}`;
+
+      // Create the actual appointment
+      const result = await this.appointmentService.createAppointment({
+        leadId: lead.id,
+        agentId,
+        appointmentTime: tentativeTime,
+        leadName: lead.full_name,
+        consultationNotes
+      });
+
+      if (result.appointment) {
+        // Update lead status and clear tentative booking
+        await supabase.from('leads').update({
+          status: 'booked',
+          tentative_booking_time: null,
+          booking_alternatives: null
+        }).eq('id', lead.id);
+
+        const formattedTime = formatForDisplay(toSgTime(tentativeTime));
+        let successMessage = `Perfect! I've confirmed your consultation for ${formattedTime}.`;
+
+        if (result.zoomMeeting && result.zoomMeeting.joinUrl !== 'https://zoom.us/j/placeholder') {
+          successMessage += `\n\nZoom Link: ${result.zoomMeeting.joinUrl}`;
+        } else {
+          successMessage += `\n\nOur consultant will contact you with meeting details.`;
+        }
+
+        successMessage += `\n\nI'll send you a reminder before the meeting!`;
+
+        logger.info({ leadId: lead.id, appointmentId: result.appointment.id }, 'Tentative booking confirmed successfully');
+        return {
+          success: true,
+          message: successMessage
+        };
+      } else {
+        return {
+          success: false,
+          message: "I had trouble confirming your appointment. Let me have our consultant contact you directly to sort this out."
+        };
+      }
+    } catch (error) {
+      logger.error({ err: error, leadId: lead.id }, 'Error confirming tentative booking');
+      return {
+        success: false,
+        message: "Sorry, I had an issue confirming your appointment. Please try again or let me know if you need help."
       };
     }
   }
