@@ -496,6 +496,10 @@ class AppointmentService {
     consultationNotes = ''
   }) {
     try {
+      // Check if user specified a time first
+      const { parsePreferredTime } = require('../api/bookingHelper');
+      const userSpecifiedTime = parsePreferredTime(userMessage);
+
       // Find matching slots based on user preference
       const { exactMatch, alternatives } = await findMatchingSlot(agentId, userMessage);
 
@@ -537,22 +541,45 @@ class AppointmentService {
           message: successMessage
         };
       } else if (alternatives.length > 0) {
-        // Offer alternatives - limit to 1 nearby slot + option for lead's preferred time
-        const nearestAlternative = alternatives[0];
-        const formattedAlternative = formatForDisplay(toSgTime(nearestAlternative));
+        // Check if user specified a time or just asked for general availability
+        if (userSpecifiedTime) {
+          // User specified a time but it's busy - offer alternatives
+          const nearestAlternative = alternatives[0];
+          const formattedAlternative = formatForDisplay(toSgTime(nearestAlternative));
 
-        return {
-          success: false,
-          type: 'alternatives_offered',
-          alternatives: [nearestAlternative], // Only offer 1 alternative
-          message: `I see that time slot is already taken! 😅\n\nHow about ${formattedAlternative} instead? That's the closest available slot.\n\nOr if you have another preferred time in mind, just let me know! 😊`
-        };
+          return {
+            success: false,
+            type: 'alternatives_offered',
+            alternatives: [nearestAlternative], // Only offer 1 alternative
+            message: `I see that time slot is already taken! 😅\n\nHow about ${formattedAlternative} instead? That's the closest available slot.\n\nOr if you have another preferred time in mind, just let me know! 😊`
+          };
+        } else {
+          // User didn't specify a time - offer general availability
+          const nearestAlternative = alternatives[0];
+          const formattedAlternative = formatForDisplay(toSgTime(nearestAlternative));
+
+          return {
+            success: false,
+            type: 'general_availability_offered',
+            alternatives: [nearestAlternative],
+            message: `Absolutely! I'd be happy to connect you with one of our consultants! 😊\n\nThe earliest available slot is ${formattedAlternative}. Does that work for you?\n\nOr if you have a preferred time in mind, just let me know and I'll check if it's available! 👍`
+          };
+        }
       } else {
-        return {
-          success: false,
-          type: 'no_immediate_availability',
-          message: `I see that time slot is already taken! 😅\n\nI don't have any immediate alternatives, but let me know what other time works for you and I'll check if it's available.\n\nIf you need some time to think about it, just let me know your preferred time and I can tentatively hold that slot for you while you decide! 😊`
-        };
+        // No alternatives available
+        if (userSpecifiedTime) {
+          return {
+            success: false,
+            type: 'no_immediate_availability',
+            message: `I see that time slot is already taken! 😅\n\nI don't have any immediate alternatives, but let me know what other time works for you and I'll check if it's available.\n\nIf you need some time to think about it, just let me know your preferred time and I can tentatively hold that slot for you while you decide! 😊`
+          };
+        } else {
+          return {
+            success: false,
+            type: 'no_general_availability',
+            message: `I'd love to connect you with one of our consultants! 😊\n\nLet me check our availability and get back to you with some time options. What time of day generally works best for you? Morning, afternoon, or evening?\n\nOr if you have a specific time in mind, just let me know! 👍`
+          };
+        }
       }
     } catch (error) {
       logger.error({ err: error, leadId, agentId }, 'Failed to find and book appointment');

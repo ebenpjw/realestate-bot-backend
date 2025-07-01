@@ -532,13 +532,18 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
   </conversation_flow>
 
   <available_actions>
-    <action name="continue">Use for normal conversation (most of the time)</action>
-    <action name="initiate_booking">Use when they:
-      - Ask to "set an appointment", "schedule", "meet", "book a consultation"
+    <action name="continue">Use for normal conversation including:
+      - General consultation requests: "can I speak to a consultant?", "I'd like to talk to someone"
+      - Building interest and rapport before suggesting specific appointment times
+      - Answering questions about properties, market, etc.
+      - Most conversations that don't involve specific time scheduling
+    </action>
+    <action name="initiate_booking">Use ONLY when they:
+      - Explicitly ask to "set an appointment", "schedule", "book a consultation"
       - Ask about availability: "when are you free?", "what times work?"
       - Suggest specific times: "can we meet at 7pm?", "how about tomorrow?", "what about 2pm?"
-      - Want to speak to consultants: "can I talk to someone?", "I'd like to meet"
-      - Show readiness after building interest: "that sounds interesting, can we chat more?"
+      - Request specific meeting times: "I want to meet at 3pm", "book me for Monday"
+      - Show readiness with time context: "that sounds interesting, when can we meet?"
       - Suggest NEW times even if alternatives were previously offered
     </action>
     <action name="tentative_booking">Use when they want to check availability but aren't ready to commit:
@@ -560,16 +565,19 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
   </available_actions>
 
   <appointment_booking_triggers>
-    ALWAYS use "initiate_booking" action when user says:
-    • "set an appointment" / "schedule" / "book" / "meet"
-    • "when are you free?" / "what times work?" / "are you available?"
-    • Specific times: "7pm today" / "tomorrow at 2" / "this weekend" / "how about 2pm?" / "what about Monday?"
-    • "can I talk to someone?" / "speak to consultant" / "I'd like to meet"
-    • "that sounds good, let's chat" / "I'm interested, can we discuss?"
-    • Any variation of wanting to schedule or meet
+    ONLY use "initiate_booking" action when user:
+    • Explicitly requests scheduling: "set an appointment" / "schedule" / "book a consultation"
+    • Asks about availability: "when are you free?" / "what times work?" / "are you available?"
+    • Suggests specific times: "7pm today" / "tomorrow at 2" / "this weekend" / "how about 2pm?" / "what about Monday?"
+    • Wants to book specific times: "I want to meet at 3pm" / "book me for Friday"
     • NEW time suggestions even after alternatives were offered
     • Repeating or clarifying time preferences: "I said 7pm today" / "I meant 2pm" / "what about the time I mentioned"
     • Confirming or insisting on specific times: "okay confirm it" / "yes that time" / "book that slot"
+
+    DO NOT use "initiate_booking" for general consultation requests like:
+    • "can I talk to someone?" / "speak to consultant" / "I'd like to meet" (use "continue" instead)
+    • "that sounds good, let's chat" / "I'm interested, can we discuss?" (use "continue" instead)
+    • General interest without time context (build rapport first, then suggest scheduling)
 
     ALWAYS use "confirm_tentative_booking" when user confirms a tentative booking:
     • "yes confirmed" / "yes confirm" / "confirm it" / "book it"
@@ -1060,6 +1068,16 @@ Respond with appropriate messages and actions based on the conversation context.
         };
       } else if (result.type === 'alternatives_offered') {
         // Store alternatives and update status
+        await supabase.from('leads').update({
+          status: 'booking_alternatives_offered',
+          booking_alternatives: JSON.stringify(result.alternatives)
+        }).eq('id', lead.id);
+        return {
+          success: true,
+          message: result.message
+        };
+      } else if (result.type === 'general_availability_offered') {
+        // Store general availability options and update status
         await supabase.from('leads').update({
           status: 'booking_alternatives_offered',
           booking_alternatives: JSON.stringify(result.alternatives)
