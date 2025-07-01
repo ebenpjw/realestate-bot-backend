@@ -236,39 +236,39 @@ class BotService {
    * @private
    */
   async _generateCompleteResponse(lead, previousMessages, userText) {
-    // Generate AI response
+    // Generate AI response with full conversation context
     const aiResponse = await this._generateAIResponse(lead, previousMessages);
 
-    // Handle appointment actions first - they take priority over AI messages
-    if (['initiate_booking', 'reschedule_appointment', 'cancel_appointment', 'select_alternative', 'tentative_booking', 'confirm_tentative_booking'].includes(aiResponse.action)) {
+    // Check if AI wants to handle appointment booking
+    if (aiResponse.appointment_intent) {
       logger.info({
         leadId: lead.id,
-        action: aiResponse.action,
+        appointmentIntent: aiResponse.appointment_intent,
         userMessage: userText,
-        aiUserMessage: aiResponse.user_message,
         leadStatus: lead.status,
-        hasAlternatives: !!lead.booking_alternatives
-      }, 'AI classified message as appointment action');
+        conversationContext: previousMessages.slice(-3) // Last 3 messages for context
+      }, 'AI detected appointment intent');
 
-      const appointmentResult = await this._handleAppointmentAction({
-        action: aiResponse.action,
+      const appointmentResult = await this._handleIntelligentAppointmentBooking({
         lead,
-        userMessage: aiResponse.user_message || userText
+        appointmentIntent: aiResponse.appointment_intent,
+        conversationHistory: previousMessages,
+        currentMessage: userText,
+        aiInstructions: aiResponse.booking_instructions
       });
 
-      // If appointment action was handled successfully, use its message directly
-      // This prevents contradictory messages from AI + appointment handler
+      // If appointment was handled, return the result
       if (appointmentResult && appointmentResult.message) {
         return {
           message: appointmentResult.message,
-          action: aiResponse.action,
+          action: 'appointment_handled',
           lead_updates: aiResponse.lead_updates,
           appointmentHandled: true
         };
       }
     }
 
-    // If no appointment action or appointment action failed, use AI messages
+    // If no appointment handling or it failed, use AI messages
     const messages = aiResponse.messages.filter(msg => msg);
 
     // Return in the new format that supports both single message and multiple messages
@@ -318,7 +318,7 @@ class BotService {
     
     try {
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4.1',
         messages: [{ role: 'user', content: prompt }],
         temperature: config.OPENAI_TEMPERATURE || AI.DEFAULT_TEMPERATURE,
         max_tokens: config.OPENAI_MAX_TOKENS || AI.MAX_TOKENS,
@@ -531,67 +531,32 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
     • Only mention consultants when they seem ready for expert advice or show genuine interest
   </conversation_flow>
 
-  <available_actions>
-    <action name="continue">Use for normal conversation including:
-      - General consultation requests: "can I speak to a consultant?", "I'd like to talk to someone"
-      - Building interest and rapport before suggesting specific appointment times
-      - Answering questions about properties, market, etc.
-      - Most conversations that don't involve specific time scheduling
-    </action>
-    <action name="initiate_booking">Use when they:
-      - Ask to "set an appointment", "schedule", "book a consultation"
-      - Ask about availability: "when are you free?", "what times work?"
-      - Suggest specific times: "can we meet at 7pm?", "how about tomorrow?", "what about 2pm?"
-      - Want to speak to consultants: "can I talk to someone?", "I'd like to meet", "speak to consultant"
-      - Request specific meeting times: "I want to meet at 3pm", "book me for Monday"
-      - Show readiness: "that sounds interesting, can we chat more?"
-      - Suggest NEW times even if alternatives were previously offered
-    </action>
-    <action name="tentative_booking">Use when they want to check availability but aren't ready to commit:
-      - "Let me check if 3pm works and get back to you"
-      - "Can you hold 2pm for me while I confirm?"
-      - "I'll let you know about that time"
-      - "Let me see if that works for me"
-      - Want to tentatively reserve a slot
-    </action>
-    <action name="confirm_tentative_booking">Use when confirming a previously offered tentative booking:
-      - "yes confirmed" / "yes confirm" / "confirm it" / "book it"
-      - "that works" / "that's good" / "perfect"
-      - "let's do it" / "go ahead" / "yes please"
-      - Any confirmation after tentative booking was offered
-    </action>
-    <action name="select_alternative">ONLY when choosing from numbered options (1, 2, 3) from previously offered alternatives</action>
-    <action name="reschedule_appointment">When changing existing appointments</action>
-    <action name="cancel_appointment">When cancelling existing appointments</action>
-  </available_actions>
+  <appointment_intelligence>
+    You are now responsible for understanding the FULL conversation context and making intelligent decisions about appointment booking.
 
-  <appointment_booking_triggers>
-    ALWAYS use "initiate_booking" action when user says:
-    • "set an appointment" / "schedule" / "book" / "meet"
-    • "when are you free?" / "what times work?" / "are you available?"
-    • Specific times: "7pm today" / "tomorrow at 2" / "this weekend" / "how about 2pm?" / "what about Monday?"
-    • "can I talk to someone?" / "speak to consultant" / "I'd like to meet"
-    • "that sounds good, let's chat" / "I'm interested, can we discuss?"
-    • Any variation of wanting to schedule or meet
-    • NEW time suggestions even after alternatives were offered
-    • Repeating or clarifying time preferences: "I said 7pm today" / "I meant 2pm" / "what about the time I mentioned"
-    • Confirming or insisting on specific times: "okay confirm it" / "yes that time" / "book that slot"
+    Instead of rigid action classifications, analyze the conversation and determine if the user wants to book/reschedule/confirm an appointment.
 
-    ALWAYS use "confirm_tentative_booking" when user confirms a tentative booking:
-    • "yes confirmed" / "yes confirm" / "confirm it" / "book it"
-    • "that works" / "that's good" / "perfect" / "sounds good"
-    • "let's do it" / "go ahead" / "yes please"
-    • Any positive confirmation after tentative booking was offered
+    When you detect appointment intent, set "appointment_intent" to one of:
+    - "book_new": User wants to schedule a new appointment
+    - "reschedule_existing": User wants to change an existing appointment
+    - "confirm_tentative": User is confirming a previously offered slot
+    - "select_alternative": User is choosing from offered alternatives
+    - "cancel_appointment": User wants to cancel
 
-    ONLY use "select_alternative" when user picks numbered options like:
-    • "1" / "option 1" / "the first one" / "number 2"
-    • Clear selection from previously offered numbered alternatives
+    Also provide "booking_instructions" with:
+    - "preferred_time": The time they want (extracted from conversation context, not just current message)
+    - "context_summary": Brief summary of what led to this booking request
+    - "user_intent_confidence": How confident you are about their intent (high/medium/low)
 
-    DO NOT use "continue" for booking requests!
-    DO NOT use "select_alternative" for new time suggestions!
-    DO NOT use "continue" when user is clarifying or confirming appointment times!
-    DO NOT use "continue" when user is confirming tentative bookings!
-  </appointment_booking_triggers>
+    CRITICAL: Look at the ENTIRE conversation, not just the last message. If someone said "7pm today" earlier and now says "yes that works", understand they're confirming 7pm today.
+
+    Examples:
+    - If conversation shows: User: "can we do 7pm today please" → Bot: "That time is taken, how about 8pm?" → User: "ok that works"
+      Then: appointment_intent="book_new", preferred_time="8pm today", context_summary="User agreed to 8pm alternative after 7pm was unavailable"
+
+    - If User says: "yes" after being offered a tentative booking
+      Then: appointment_intent="confirm_tentative", context_summary="User confirming previously offered tentative slot"
+  </appointment_intelligence>
 
   <response_format>
     Respond ONLY in valid JSON format:
@@ -603,8 +568,13 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
         "budget": "budget_range (if naturally shared)",
         "status": "only update if appointment actually scheduled"
       },
-      "action": "continue | initiate_booking | reschedule_appointment | cancel_appointment | select_alternative | tentative_booking | confirm_tentative_booking",
-      "user_message": "Include original message only for booking actions"
+      "action": "continue",
+      "appointment_intent": "book_new|reschedule_existing|confirm_tentative|select_alternative|cancel_appointment (only if appointment-related)",
+      "booking_instructions": {
+        "preferred_time": "extracted time preference from conversation context",
+        "context_summary": "brief summary of what led to this booking request",
+        "user_intent_confidence": "high|medium|low"
+      }
     }
   </response_format>
 </master_prompt>
@@ -880,7 +850,539 @@ Respond with appropriate messages and actions based on the conversation context.
   }
 
   /**
-   * Handle appointment actions and return structured result
+   * Handle intelligent appointment booking based on conversation context
+   * @private
+   */
+  async _handleIntelligentAppointmentBooking({ lead, appointmentIntent, conversationHistory, currentMessage, aiInstructions }) {
+    try {
+      logger.info({
+        leadId: lead.id,
+        appointmentIntent,
+        aiInstructions,
+        conversationContext: conversationHistory.slice(-3)
+      }, 'Processing intelligent appointment booking');
+
+      // Validate agent assignment
+      const agentValidation = this._validateAgentAssignment(lead);
+      if (!agentValidation.valid) {
+        return { success: false, message: agentValidation.result?.message || 'Agent validation failed' };
+      }
+      const agentId = agentValidation.agentId;
+
+      // Check for existing appointment
+      const { data: existingAppointment } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('lead_id', lead.id)
+        .eq('status', 'scheduled')
+        .limit(1)
+        .single();
+
+      switch (appointmentIntent) {
+        case 'book_new':
+          return await this._handleIntelligentNewBooking({
+            lead,
+            agentId,
+            aiInstructions,
+            conversationHistory,
+            currentMessage,
+            existingAppointment
+          });
+
+        case 'reschedule_existing':
+          if (!existingAppointment) {
+            return { success: false, message: "I don't see any existing appointment to reschedule. Would you like to book a new consultation instead?" };
+          }
+          return await this._handleIntelligentReschedule({
+            lead,
+            agentId,
+            aiInstructions,
+            existingAppointment
+          });
+
+        case 'confirm_tentative':
+          return await this._handleIntelligentTentativeConfirmation({
+            lead,
+            agentId,
+            aiInstructions
+          });
+
+        case 'select_alternative':
+          return await this._handleIntelligentAlternativeSelection({
+            lead,
+            agentId,
+            aiInstructions
+          });
+
+        case 'cancel_appointment':
+          if (!existingAppointment) {
+            return { success: false, message: "I don't see any appointment to cancel." };
+          }
+          return await this._handleAppointmentCancellation({
+            lead,
+            appointment: existingAppointment
+          });
+
+        default:
+          logger.warn({ appointmentIntent, leadId: lead.id }, 'Unknown appointment intent');
+          return { success: false, message: '' };
+      }
+    } catch (error) {
+      logger.error({ err: error, appointmentIntent, leadId: lead.id }, 'Error in intelligent appointment booking');
+      return {
+        success: false,
+        message: "Sorry, I had an issue processing your appointment request. Please try again or let me know if you need help."
+      };
+    }
+  }
+
+  /**
+   * Handle intelligent new booking with conversation context
+   * @private
+   */
+  async _handleIntelligentNewBooking({ lead, agentId, aiInstructions, conversationHistory, currentMessage, existingAppointment }) {
+    try {
+      // Check if existing appointment blocks new booking
+      if (existingAppointment) {
+        logger.info({ leadId: lead.id, appointmentId: existingAppointment.id }, 'Attempted new booking but appointment already exists');
+        const appointmentTime = toSgTime(existingAppointment.appointment_time);
+        const formattedTime = formatForDisplay(appointmentTime);
+        return {
+          success: false,
+          message: `You already have a consultation scheduled for ${formattedTime}. Would you like to reschedule it instead?`
+        };
+      }
+
+      // Handle case where user is in 'booked' status but wants to reschedule
+      if (lead.status === 'booked') {
+        logger.info({ leadId: lead.id, currentMessage }, 'User requesting new time while marked as booked - checking for actual appointment');
+
+        // If no actual appointment exists (booking failed), allow new booking
+        if (!existingAppointment) {
+          logger.info({ leadId: lead.id }, 'No actual appointment found despite booked status - allowing new booking');
+          await supabase.from('leads').update({
+            status: 'qualified'
+          }).eq('id', lead.id);
+          lead.status = 'qualified';
+        }
+      }
+
+      // Use intelligent booking with conversation context
+      const consultationNotes = `Intent: ${lead.intent || 'Not specified'}, Budget: ${lead.budget || 'Not specified'}`;
+
+      const result = await this._findAndBookWithContext({
+        leadId: lead.id,
+        agentId,
+        aiInstructions,
+        conversationHistory,
+        currentMessage,
+        leadName: lead.full_name,
+        consultationNotes
+      });
+
+      if (result.success) {
+        // Update lead status
+        await supabase.from('leads').update({
+          status: 'booked'
+        }).eq('id', lead.id);
+
+        return {
+          success: true,
+          message: result.message
+        };
+      } else {
+        return result;
+      }
+    } catch (error) {
+      logger.error({ err: error, leadId: lead.id }, 'Error in intelligent new booking');
+      return {
+        success: false,
+        message: "I'm having trouble booking your appointment. Let me have our consultant contact you directly."
+      };
+    }
+  }
+
+  /**
+   * Find and book appointment using conversation context
+   * @private
+   */
+  async _findAndBookWithContext({ leadId, agentId, aiInstructions, conversationHistory, currentMessage, leadName, consultationNotes }) {
+    try {
+      // Extract preferred time from AI instructions and conversation context
+      const preferredTime = this._extractPreferredTimeFromContext(aiInstructions, conversationHistory, currentMessage);
+
+      logger.info({
+        leadId,
+        preferredTime: preferredTime?.toISOString(),
+        contextSummary: aiInstructions?.context_summary,
+        confidence: aiInstructions?.user_intent_confidence
+      }, 'Extracted time preference from conversation context');
+
+      // Use the existing appointment service but with intelligent time extraction
+      if (preferredTime) {
+        // Check if the preferred time is available
+        const isAvailable = await this._checkTimeAvailability(agentId, preferredTime);
+
+        if (isAvailable) {
+          // Book the preferred time directly
+          const result = await this.appointmentService.createAppointment({
+            leadId,
+            agentId,
+            appointmentTime: preferredTime,
+            leadName,
+            consultationNotes
+          });
+
+          const formattedTime = formatForDisplay(toSgTime(preferredTime));
+          return {
+            success: true,
+            message: `Perfect! I've booked your consultation for ${formattedTime}.\n\nZoom Link: ${result.zoomMeeting.joinUrl}\n\nLooking forward to speaking with you soon! 😊`
+          };
+        } else {
+          // Find nearby alternatives
+          const alternatives = await this._findNearbyAlternatives(agentId, preferredTime);
+
+          if (alternatives.length > 0) {
+            const nearestAlternative = alternatives[0];
+            const formattedAlternative = formatForDisplay(toSgTime(nearestAlternative));
+            const formattedPreferred = formatForDisplay(toSgTime(preferredTime));
+
+            // Store the alternative for potential booking
+            await supabase.from('leads').update({
+              status: 'booking_alternatives_offered',
+              booking_alternatives: JSON.stringify([nearestAlternative])
+            }).eq('id', leadId);
+
+            return {
+              success: true,
+              message: `I see that ${formattedPreferred} is already taken! 😅\n\nHow about ${formattedAlternative} instead? That's the closest available slot.\n\nOr if you have another preferred time in mind, just let me know! 😊`
+            };
+          } else {
+            return {
+              success: false,
+              message: "I'm having trouble finding available slots around your preferred time. Let me have our consultant contact you directly to arrange a suitable time."
+            };
+          }
+        }
+      } else {
+        // No specific time mentioned, offer next available slots
+        const availableSlots = await this._findNextAvailableSlots(agentId, 3);
+
+        if (availableSlots.length > 0) {
+          const slotOptions = availableSlots.map((slot, index) =>
+            `${index + 1}. ${formatForDisplay(toSgTime(slot))}`
+          ).join('\n');
+
+          // Store alternatives for selection
+          await supabase.from('leads').update({
+            status: 'booking_alternatives_offered',
+            booking_alternatives: JSON.stringify(availableSlots)
+          }).eq('id', leadId);
+
+          return {
+            success: true,
+            message: `I'd love to set up a consultation for you! Here are some available times:\n\n${slotOptions}\n\nWhich one works best for you? Just let me know! 😊`
+          };
+        } else {
+          return {
+            success: false,
+            message: "I'm having trouble finding available consultation slots. Let me have our consultant contact you directly to arrange a suitable time."
+          };
+        }
+      }
+    } catch (error) {
+      logger.error({ err: error, leadId }, 'Error in context-aware booking');
+      return {
+        success: false,
+        message: "I'm having trouble booking your appointment. Let me have our consultant contact you directly."
+      };
+    }
+  }
+
+  /**
+   * Extract preferred time from conversation context and AI instructions
+   * @private
+   */
+  _extractPreferredTimeFromContext(aiInstructions, conversationHistory, currentMessage) {
+    try {
+      // First try to get time from AI instructions
+      if (aiInstructions?.preferred_time) {
+        const { parsePreferredTime } = require('../api/bookingHelper');
+        const parsedTime = parsePreferredTime(aiInstructions.preferred_time);
+        if (parsedTime) {
+          logger.info({
+            extractedTime: parsedTime.toISOString(),
+            source: 'ai_instructions',
+            originalText: aiInstructions.preferred_time
+          }, 'Extracted time from AI instructions');
+          return parsedTime;
+        }
+      }
+
+      // Fallback: analyze conversation history for time mentions
+      const allMessages = [...conversationHistory, { sender: 'lead', message: currentMessage }];
+      const recentMessages = allMessages.slice(-5); // Last 5 messages for context
+
+      for (let i = recentMessages.length - 1; i >= 0; i--) {
+        const msg = recentMessages[i];
+        if (msg.sender === 'lead') {
+          const { parsePreferredTime } = require('../api/bookingHelper');
+          const parsedTime = parsePreferredTime(msg.message);
+          if (parsedTime) {
+            logger.info({
+              extractedTime: parsedTime.toISOString(),
+              source: 'conversation_history',
+              originalMessage: msg.message,
+              messageIndex: i
+            }, 'Extracted time from conversation history');
+            return parsedTime;
+          }
+        }
+      }
+
+      logger.info({ aiInstructions, currentMessage }, 'No specific time found in context');
+      return null;
+    } catch (error) {
+      logger.error({ err: error }, 'Error extracting time from context');
+      return null;
+    }
+  }
+
+  /**
+   * Check if a specific time is available
+   * @private
+   */
+  async _checkTimeAvailability(agentId, appointmentTime) {
+    try {
+      const { isTimeSlotAvailable } = require('../api/bookingHelper');
+      return await isTimeSlotAvailable(agentId, appointmentTime);
+    } catch (error) {
+      logger.error({ err: error, agentId, appointmentTime }, 'Error checking time availability');
+      return false;
+    }
+  }
+
+  /**
+   * Find nearby alternatives to a preferred time
+   * @private
+   */
+  async _findNearbyAlternatives(agentId, preferredTime, maxAlternatives = 3) {
+    try {
+      const { findNearbyAvailableSlots } = require('../api/bookingHelper');
+      const nearbySlots = await findNearbyAvailableSlots(agentId, preferredTime);
+      return nearbySlots.slice(0, maxAlternatives);
+    } catch (error) {
+      logger.error({ err: error, agentId, preferredTime }, 'Error finding nearby alternatives');
+      return [];
+    }
+  }
+
+  /**
+   * Find next available slots
+   * @private
+   */
+  async _findNextAvailableSlots(agentId, maxSlots = 3) {
+    try {
+      const { findNextAvailableSlots } = require('../api/bookingHelper');
+      return await findNextAvailableSlots(agentId, null, maxSlots);
+    } catch (error) {
+      logger.error({ err: error, agentId }, 'Error finding next available slots');
+      return [];
+    }
+  }
+
+  /**
+   * Handle intelligent tentative booking confirmation
+   * @private
+   */
+  async _handleIntelligentTentativeConfirmation({ lead, agentId, aiInstructions }) {
+    try {
+      // Check if lead has a tentative booking
+      if (lead.status !== 'tentative_booking_offered' || !lead.tentative_booking_time) {
+        logger.warn({ leadId: lead.id, status: lead.status }, 'No tentative booking found to confirm');
+        return {
+          success: false,
+          message: "I don't see any tentative booking to confirm. Would you like to schedule a new consultation?"
+        };
+      }
+
+      const tentativeTime = new Date(lead.tentative_booking_time);
+      const consultationNotes = `Intent: ${lead.intent || 'Not specified'}, Budget: ${lead.budget || 'Not specified'}`;
+
+      // Create the actual appointment
+      const result = await this.appointmentService.createAppointment({
+        leadId: lead.id,
+        agentId,
+        appointmentTime: tentativeTime,
+        leadName: lead.full_name,
+        consultationNotes
+      });
+
+      // Update lead status and clear tentative booking
+      await supabase.from('leads').update({
+        status: 'booked',
+        tentative_booking_time: null
+      }).eq('id', lead.id);
+
+      const formattedTime = formatForDisplay(toSgTime(tentativeTime));
+      return {
+        success: true,
+        message: `Perfect! I've confirmed your consultation for ${formattedTime}.\n\nZoom Link: ${result.zoomMeeting.joinUrl}\n\nLooking forward to speaking with you soon! 😊`
+      };
+    } catch (error) {
+      logger.error({ err: error, leadId: lead.id }, 'Error confirming tentative booking');
+      return {
+        success: false,
+        message: "I'm having trouble confirming your appointment. Let me have our consultant contact you directly."
+      };
+    }
+  }
+
+  /**
+   * Handle intelligent alternative selection
+   * @private
+   */
+  async _handleIntelligentAlternativeSelection({ lead, agentId, aiInstructions }) {
+    try {
+      if (!lead.booking_alternatives) {
+        return {
+          success: false,
+          message: "I don't see any alternative times to choose from. Would you like me to check availability for a specific time?"
+        };
+      }
+
+      const storedAlternatives = JSON.parse(lead.booking_alternatives);
+      if (!Array.isArray(storedAlternatives) || storedAlternatives.length === 0) {
+        return {
+          success: false,
+          message: "I don't see any alternative times available. Would you like me to check for new availability?"
+        };
+      }
+
+      // Use AI instructions to determine which alternative they want
+      let selectedSlot = null;
+
+      if (aiInstructions?.preferred_time) {
+        // Try to match their preference to one of the alternatives
+        const preferredTime = this._extractPreferredTimeFromContext(aiInstructions, [], '');
+        if (preferredTime) {
+          // Find the closest alternative to their preference
+          selectedSlot = storedAlternatives.reduce((closest, current) => {
+            const currentTime = new Date(current);
+            const closestTime = new Date(closest);
+            const currentDiff = Math.abs(currentTime.getTime() - preferredTime.getTime());
+            const closestDiff = Math.abs(closestTime.getTime() - preferredTime.getTime());
+            return currentDiff < closestDiff ? current : closest;
+          });
+        }
+      }
+
+      // If no intelligent selection possible, take the first alternative
+      if (!selectedSlot) {
+        selectedSlot = storedAlternatives[0];
+      }
+
+      const appointmentTime = new Date(selectedSlot);
+      const consultationNotes = `Intent: ${lead.intent || 'Not specified'}, Budget: ${lead.budget || 'Not specified'}`;
+
+      // Book the selected alternative
+      const result = await this.appointmentService.createAppointment({
+        leadId: lead.id,
+        agentId,
+        appointmentTime,
+        leadName: lead.full_name,
+        consultationNotes
+      });
+
+      // Update lead status and clear alternatives
+      await supabase.from('leads').update({
+        status: 'booked',
+        booking_alternatives: null
+      }).eq('id', lead.id);
+
+      const formattedTime = formatForDisplay(toSgTime(appointmentTime));
+      return {
+        success: true,
+        message: `Perfect! I've booked your consultation for ${formattedTime}.\n\nZoom Link: ${result.zoomMeeting.joinUrl}\n\nLooking forward to speaking with you soon! 😊`
+      };
+    } catch (error) {
+      logger.error({ err: error, leadId: lead.id }, 'Error in intelligent alternative selection');
+      return {
+        success: false,
+        message: "I'm having trouble booking your selected time slot. Let me have our consultant contact you directly."
+      };
+    }
+  }
+
+  /**
+   * Handle intelligent reschedule
+   * @private
+   */
+  async _handleIntelligentReschedule({ lead, agentId, aiInstructions, existingAppointment }) {
+    try {
+      // Extract new preferred time from context
+      const newPreferredTime = this._extractPreferredTimeFromContext(aiInstructions, [], '');
+
+      if (newPreferredTime) {
+        // Check if the new time is available
+        const isAvailable = await this._checkTimeAvailability(agentId, newPreferredTime);
+
+        if (isAvailable) {
+          // Update the existing appointment
+          await this.appointmentService.rescheduleAppointment({
+            appointmentId: existingAppointment.id,
+            newAppointmentTime: newPreferredTime,
+            reason: `Rescheduled via WhatsApp: ${aiInstructions?.context_summary || 'User requested reschedule'}`
+          });
+
+          const formattedTime = formatForDisplay(toSgTime(newPreferredTime));
+          return {
+            success: true,
+            message: `Perfect! I've rescheduled your consultation to ${formattedTime}.\n\nYour Zoom link remains the same: ${existingAppointment.zoom_join_url}\n\nLooking forward to speaking with you soon! 😊`
+          };
+        } else {
+          // Find alternatives near the requested time
+          const alternatives = await this._findNearbyAlternatives(agentId, newPreferredTime, 1);
+
+          if (alternatives.length > 0) {
+            const nearestAlternative = alternatives[0];
+            const formattedAlternative = formatForDisplay(toSgTime(nearestAlternative));
+            const formattedRequested = formatForDisplay(toSgTime(newPreferredTime));
+
+            // Store the alternative for potential booking
+            await supabase.from('leads').update({
+              status: 'booking_alternatives_offered',
+              booking_alternatives: JSON.stringify([nearestAlternative])
+            }).eq('id', lead.id);
+
+            return {
+              success: true,
+              message: `I see that ${formattedRequested} is already taken! 😅\n\nHow about ${formattedAlternative} instead? That's the closest available slot.\n\nOr if you have another preferred time in mind, just let me know! 😊`
+            };
+          } else {
+            return {
+              success: false,
+              message: "I'm having trouble finding available slots around your preferred time. Let me have our consultant contact you directly to arrange a suitable time."
+            };
+          }
+        }
+      } else {
+        return {
+          success: false,
+          message: "I'd be happy to reschedule your appointment! What time would work better for you?"
+        };
+      }
+    } catch (error) {
+      logger.error({ err: error, leadId: lead.id }, 'Error in intelligent reschedule');
+      return {
+        success: false,
+        message: "I'm having trouble rescheduling your appointment. Let me have our consultant contact you directly."
+      };
+    }
+  }
+
+  /**
+   * Handle appointment actions and return structured result (DEPRECATED - keeping for compatibility)
    * @private
    */
   async _handleAppointmentAction({ action, lead, userMessage }) {
@@ -1431,7 +1933,7 @@ Respond with appropriate messages and actions based on the conversation context.
   async healthCheck() {
     try {
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4.1',
         messages: [{ role: 'user', content: 'Say "OK" if you can respond.' }],
         max_tokens: 10,
         temperature: 0
@@ -1439,7 +1941,7 @@ Respond with appropriate messages and actions based on the conversation context.
 
       return {
         status: 'healthy',
-        model: 'gpt-4o-mini',
+        model: 'gpt-4.1',
         response: response.choices[0]?.message?.content || 'No response'
       };
     } catch (error) {
