@@ -531,7 +531,7 @@ class AppointmentService {
           successMessage += `\n\nOur consultant will contact you with meeting details.`;
         }
 
-        successMessage += `\n\nI'll send you a reminder before the meeting!`;
+
 
         return {
           success: true,
@@ -554,15 +554,11 @@ class AppointmentService {
             message: `I see that time slot is already taken! 😅\n\nHow about ${formattedAlternative} instead? That's the closest available slot.\n\nOr if you have another preferred time in mind, just let me know! 😊`
           };
         } else {
-          // User didn't specify a time - offer general availability
-          const nearestAlternative = alternatives[0];
-          const formattedAlternative = formatForDisplay(toSgTime(nearestAlternative));
-
+          // User didn't specify a time - ask for their preference directly
           return {
             success: false,
-            type: 'general_availability_offered',
-            alternatives: [nearestAlternative],
-            message: `Absolutely! I'd be happy to connect you with one of our consultants! 😊\n\nThe earliest available slot is ${formattedAlternative}. Does that work for you?\n\nOr if you have a preferred time in mind, just let me know and I'll check if it's available! 👍`
+            type: 'ask_for_time_preference',
+            message: `Absolutely! I'd be happy to set up a consultation with one of our consultants! 😊\n\nWhat time works best for you? Just let me know your preferred day and time, and I'll check if it's available! 👍`
           };
         }
       } else {
@@ -576,8 +572,8 @@ class AppointmentService {
         } else {
           return {
             success: false,
-            type: 'no_general_availability',
-            message: `I'd love to connect you with one of our consultants! 😊\n\nLet me check our availability and get back to you with some time options. What time of day generally works best for you? Morning, afternoon, or evening?\n\nOr if you have a specific time in mind, just let me know! 👍`
+            type: 'ask_for_time_preference',
+            message: `I'd love to connect you with one of our consultants! 😊\n\nWhat time works best for you? Just let me know your preferred day and time, and I'll check if it's available! 👍`
           };
         }
       }
