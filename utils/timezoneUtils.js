@@ -82,16 +82,33 @@ function formatForDisplay(date, options = {}) {
 function formatForGoogleCalendar(date) {
   const sgDate = toSgTime(date);
 
-  // Create local time string without timezone suffix
+  // Create local time string in Singapore timezone for Google Calendar
+  // Google Calendar expects local time when timezone is specified separately
   const pad = (num) => num.toString().padStart(2, '0');
-  const year = sgDate.getFullYear();
-  const month = pad(sgDate.getMonth() + 1);
-  const day = pad(sgDate.getDate());
-  const hours = pad(sgDate.getHours());
-  const minutes = pad(sgDate.getMinutes());
-  const seconds = pad(sgDate.getSeconds());
 
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+  // Use Singapore time components directly
+  const sgTimeString = sgDate.toLocaleString('en-CA', {
+    timeZone: 'Asia/Singapore',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+
+  // Convert "2025-07-01, 19:00:00" to "2025-07-01T19:00:00"
+  const isoString = sgTimeString.replace(', ', 'T');
+
+  logger.info({
+    inputDate: date,
+    sgDate: sgDate.toISOString(),
+    sgTimeString,
+    finalIsoString: isoString
+  }, 'Formatted date for Google Calendar');
+
+  return isoString;
 }
 
 /**

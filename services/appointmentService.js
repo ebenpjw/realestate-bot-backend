@@ -85,9 +85,21 @@ class AppointmentService {
       try {
         if (agent && agent.zoom_user_id) {
           // Use new Server-to-Server OAuth service
+          // Format start time for Zoom API (needs Singapore local time)
+          const zoomStartTime = appointmentStart.toLocaleString('sv-SE', {
+            timeZone: 'Asia/Singapore'
+          }).replace(' ', 'T');
+
+          logger.info({
+            appointmentStartISO: appointmentStart.toISOString(),
+            appointmentStartSG: appointmentStart.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+            zoomStartTime,
+            timezone: 'Asia/Singapore'
+          }, 'Zoom meeting time formatting debug');
+
           zoomMeeting = await createZoomMeetingForUser(agent.zoom_user_id, {
             topic: `Property Consultation: ${leadName}`,
-            startTime: appointmentStart.toISOString(),
+            startTime: zoomStartTime,
             duration: this.APPOINTMENT_DURATION,
             agenda: enhancedConsultationNotes
           });
