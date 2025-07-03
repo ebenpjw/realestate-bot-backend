@@ -558,7 +558,7 @@ class AppointmentService {
           return {
             success: false,
             type: 'ask_for_time_preference',
-            message: `Absolutely! I'd be happy to set up a consultation with one of our consultants! 😊\n\nWhat time works best for you? Just let me know your preferred day and time, and I'll check if it's available! 👍`
+            message: `Sure! Can set up a call with one of our consultants.\n\nWhat time works for you? Just let me know your preferred day and time.`
           };
         }
       } else {

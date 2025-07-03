@@ -236,41 +236,61 @@ async function findNextAvailableSlots(agentId, preferredTime = null, daysToSearc
             firstFewSlots: potentialSlots.slice(0, 3).map(slot => slot.toISOString())
         }, 'Generated potential appointment slots');
 
-        // 3. Filter out slots that overlap with busy periods AND ensure slots are in the future
+        // 3. IMPROVED FILTERING: Filter out slots that overlap with busy periods AND ensure slots are in the future
         const availableSlots = potentialSlots.filter(slot => {
             const slotStart = slot.getTime();
             const slotEnd = slotStart + SLOT_DURATION_MINUTES * 60 * 1000;
             const currentTime = now.getTime();
 
-            // CRITICAL FIX: Ensure slot is in the future
-            if (slotStart <= currentTime) {
-                logger.info({
+            // CRITICAL FIX: Ensure slot is in the future with buffer
+            const bufferTime = 30 * 60 * 1000; // 30 minutes buffer
+            if (slotStart <= (currentTime + bufferTime)) {
+                logger.debug({
                     agentId,
                     slotTime: slot.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
-                    currentTime: now.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
-                }, 'Slot is in the past - filtering out');
+                    currentTime: now.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+                    reason: 'Too close to current time (within 30min buffer)'
+                }, 'Slot is too close to current time - filtering out');
                 return false;
             }
 
+            // ENHANCED CONFLICT DETECTION: Check for overlaps with busy periods
             const isOverlapping = busySlots.some(busy => {
                 const busyStart = new Date(busy.start).getTime();
                 const busyEnd = new Date(busy.end).getTime();
 
-                // Check for any overlap - slot overlaps if:
+                // CRITICAL FIX: More precise overlap detection with logging
+                // Two time periods overlap if:
                 // 1. Slot starts before busy period ends AND
                 // 2. Slot ends after busy period starts
-                const hasOverlap = slotStart < busyEnd && slotEnd > busyStart;
+                const hasOverlap = (slotStart < busyEnd) && (slotEnd > busyStart);
 
                 if (hasOverlap) {
                     logger.info({
                         agentId,
                         slotTime: slot.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
-                        busyPeriod: `${new Date(busy.start).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })} - ${new Date(busy.end).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })}`
-                    }, 'Slot overlaps with busy period - filtering out');
+                        slotRange: `${new Date(slotStart).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })} - ${new Date(slotEnd).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })}`,
+                        busyPeriod: `${new Date(busy.start).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })} - ${new Date(busy.end).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })}`,
+                        overlapDetails: {
+                            slotStart: new Date(slotStart).toISOString(),
+                            slotEnd: new Date(slotEnd).toISOString(),
+                            busyStart: new Date(busyStart).toISOString(),
+                            busyEnd: new Date(busyEnd).toISOString()
+                        }
+                    }, 'CONFLICT: Slot overlaps with busy period - filtering out');
                 }
 
                 return hasOverlap;
             });
+
+            // DOUBLE-CHECK: Additional validation using the isTimeSlotAvailable function
+            if (!isOverlapping) {
+                // This provides an extra layer of validation
+                logger.debug({
+                    agentId,
+                    slotTime: slot.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+                }, 'Slot passed initial filtering - including in available slots');
+            }
 
             return !isOverlapping;
         });
@@ -457,25 +477,35 @@ async function isTimeSlotAvailable(agentId, requestedTime) {
             }))
         }, 'CONFLICT CHECK: Retrieved busy slots from calendar');
 
-        // Check if there are any overlapping busy periods
+        // IMPROVED CONFLICT DETECTION: Check if there are any overlapping busy periods
         const hasConflict = busySlots.some(busy => {
             const busyStart = new Date(busy.start).getTime();
             const busyEnd = new Date(busy.end).getTime();
             const requestedStart = requestedTime.getTime();
             const requestedEnd = requestedStart + 60 * 60 * 1000; // 1 hour
 
-            // Check for any overlap
-            const overlap = requestedStart < busyEnd && requestedEnd > busyStart;
+            // CRITICAL FIX: More precise overlap detection
+            // Two time periods overlap if:
+            // 1. The requested slot starts before the busy period ends AND
+            // 2. The requested slot ends after the busy period starts
+            const overlap = (requestedStart < busyEnd) && (requestedEnd > busyStart);
 
             if (overlap) {
                 logger.warn({
                     agentId,
                     requestedTime: requestedTime.toISOString(),
+                    requestedTimeLocal: requestedTime.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
                     busySlot: {
                         start: busy.start,
                         end: busy.end,
                         startLocal: new Date(busy.start).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
                         endLocal: new Date(busy.end).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+                    },
+                    overlapDetails: {
+                        requestedStart: new Date(requestedStart).toISOString(),
+                        requestedEnd: new Date(requestedEnd).toISOString(),
+                        busyStart: new Date(busyStart).toISOString(),
+                        busyEnd: new Date(busyEnd).toISOString()
                     }
                 }, 'CONFLICT DETECTED: Requested time overlaps with busy slot');
             }

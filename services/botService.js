@@ -214,21 +214,137 @@ class BotService {
   }
 
   /**
-   * Get conversation history
+   * Get enhanced conversation history with context analysis
    * @private
    */
   async _getConversationHistory(leadId) {
     const { data: history } = await this.supabase
       .from('messages')
-      .select('sender, message')
+      .select('sender, message, created_at')
       .eq('lead_id', leadId)
       .order('created_at', { ascending: false })
-      .limit(10);
-    
-    return history ? history.map(entry => ({ 
-      sender: entry.sender, 
-      message: entry.message 
-    })).reverse() : [];
+      .limit(15); // Get more messages for better context
+
+    if (!history) {
+      return [];
+    }
+
+    // ENHANCED: Add conversation context analysis
+    const processedHistory = history.map(entry => ({
+      sender: entry.sender,
+      message: entry.message,
+      created_at: entry.created_at
+    })).reverse();
+
+    // ENHANCED: Analyze conversation patterns for better context
+    const conversationContext = this._analyzeConversationContext(processedHistory);
+
+    logger.debug({
+      leadId,
+      messageCount: processedHistory.length,
+      conversationContext
+    }, 'Retrieved enhanced conversation history with context analysis');
+
+    return processedHistory;
+  }
+
+  /**
+   * Analyze conversation context for patterns and intent
+   * @private
+   */
+  _analyzeConversationContext(messages) {
+    try {
+      const context = {
+        hasTimeReferences: false,
+        hasConsultantRequests: false,
+        hasConfirmationPatterns: false,
+        recentTimeReferences: [],
+        recentConsultantRequests: [],
+        conversationFlow: 'unknown'
+      };
+
+      const timePatterns = [
+        /\d{1,2}(:\d{2})?\s*(am|pm)/i,
+        /\d{1,2}\s*(am|pm)/i,
+        /(today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i,
+        /(morning|afternoon|evening|night)/i,
+        /(next week|this week)/i
+      ];
+
+      const consultantPatterns = [
+        /speak.*consultant/i,
+        /talk.*someone/i,
+        /meet.*consultant/i,
+        /consultation/i,
+        /appointment/i,
+        /schedule.*meeting/i
+      ];
+
+      const confirmationPatterns = [
+        /yes.*that.*works?/i,
+        /sounds?.*good/i,
+        /perfect/i,
+        /ok.*that/i,
+        /^(yes|ok|sure|alright)$/i
+      ];
+
+      // Analyze recent messages (last 8)
+      const recentMessages = messages.slice(-8);
+
+      for (let i = 0; i < recentMessages.length; i++) {
+        const msg = recentMessages[i];
+
+        // Check for time references
+        const hasTime = timePatterns.some(pattern => pattern.test(msg.message));
+        if (hasTime) {
+          context.hasTimeReferences = true;
+          context.recentTimeReferences.push({
+            message: msg.message,
+            sender: msg.sender,
+            index: i
+          });
+        }
+
+        // Check for consultant requests
+        const hasConsultantRequest = consultantPatterns.some(pattern => pattern.test(msg.message));
+        if (hasConsultantRequest && msg.sender === 'lead') {
+          context.hasConsultantRequests = true;
+          context.recentConsultantRequests.push({
+            message: msg.message,
+            index: i
+          });
+        }
+
+        // Check for confirmation patterns
+        const hasConfirmation = confirmationPatterns.some(pattern => pattern.test(msg.message));
+        if (hasConfirmation && msg.sender === 'lead') {
+          context.hasConfirmationPatterns = true;
+        }
+      }
+
+      // Determine conversation flow
+      if (context.hasConsultantRequests && context.hasTimeReferences) {
+        context.conversationFlow = 'booking_in_progress';
+      } else if (context.hasConsultantRequests) {
+        context.conversationFlow = 'consultant_requested';
+      } else if (context.hasConfirmationPatterns && context.hasTimeReferences) {
+        context.conversationFlow = 'confirming_time';
+      } else {
+        context.conversationFlow = 'general_conversation';
+      }
+
+      return context;
+    } catch (error) {
+      logger.error({ err: error }, 'Error analyzing conversation context');
+      return {
+        hasTimeReferences: false,
+        hasConsultantRequests: false,
+        hasConfirmationPatterns: false,
+        recentTimeReferences: [],
+        recentConsultantRequests: [],
+        conversationFlow: 'unknown'
+      };
+    }
   }
 
   /**
@@ -407,6 +523,18 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
     • Don't recommend older developments as "new" - be accurate about launch status and completion dates
     • If unsure about development status, focus on market trends and let consultants provide specific development details
     • Use terms like "upcoming launches" or "recent launches" instead of just "new" to be more precise
+
+    WEB SEARCH CAPABILITIES:
+    • You have access to web search for ANY information you need - not just market data
+    • Use web search to get current information about:
+      - Recent property launches, prices, and market trends in Singapore
+      - Current interest rates, government policies, cooling measures
+      - Specific developments, locations, or property types the user asks about
+      - Recent news that might affect property decisions
+      - Verification of facts or claims you want to make
+    • When you need current information, search for it and use the results naturally in conversation
+    • Don't mention that you're searching - just incorporate the information smoothly
+    • Use real, current data to make your responses more credible and helpful
   </local_context>
 
   <conversation_approach>
@@ -419,10 +547,11 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
     • Plant seeds of FOMO without being pushy: "The consultants have been really busy with this area lately"
     • If they seem hesitant, share relevant market insights that create gentle urgency
     • When leads don't have specific preferences, don't keep asking - pivot to market insights or timing
-    • NEVER offer to "ask consultants about something" - instead find persuasive angles for direct consultation
-    • Use FOMO and market insights to create desire for consultant meetings: "The consultants are seeing some interesting opportunities in that area lately"
-    • Instead of "I'll ask them", say "They'd have better insights if you chat directly - they're really up to date on market movements"
-    • Create urgency: "The consultants mentioned this area's getting really popular" / "They've been really busy with similar enquiries lately"
+    • NEVER offer to "ask consultants about something" - instead find persuasive angles for direct Zoom consultation
+    • Use scare tactics about going solo: "Most first-time buyers overpay by 10-15% without proper guidance"
+    • Highlight dangers: "The consultants recently saved a client from a $50k mistake"
+    • Emphasize Zoom convenience: "It's just a 30-60 minute Zoom call - completely low-pressure"
+    • Create urgency: "Every month you spend researching alone, prices go up and good units get snapped up"
   </conversation_approach>
 
   <response_guidelines>
@@ -440,17 +569,34 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
     User: "I want to buy a property"
     Good: "Nice! Are you thinking own stay or investment?"
 
+    User: "I want to speak to a consultant" or "Can I talk to someone"
+    Good: "Sure! I can set up a call for you. When would work?"
+    Follow-up: "Are you free this week or next week better?"
+    DON'T: Ask qualification questions first - go straight to scheduling
+
+    User: "Can I get a consultation?"
+    Good: "Yeah, can arrange that. What time works for you?"
+    Follow-up: "We do it over Zoom, so quite convenient. When suits you?"
+
+    User: "I'd like to meet with someone"
+    Good: "No problem. When are you available?"
+    Follow-up: "Morning, afternoon, or evening?"
+
+    User: "Can we do 7pm today please"
+    Good: [This triggers appointment_intent="book_new" with preferred_time="7pm today"]
+    Response: Check availability and either book or offer alternatives
+
     User: "Everything seems so expensive"
     Good: "Yeah, the market's been pretty active lately."
     Follow-up: "Have you been looking at any particular areas? The consultants have been seeing some interesting opportunities recently."
 
     User: "I'm not sure if I'm ready"
     Good: "Fair enough, it's a big decision."
-    Follow-up: "What's got you thinking about property now though?"
+    Follow-up: "What's got you thinking about property now though? The consultants have been warning that waiting too long could cost tens of thousands - the market's moving pretty fast."
 
     User: "Just browsing"
     Good: "Right, always good to stay updated."
-    Follow-up: "The consultants mentioned this area's been getting a lot of interest lately - have you noticed that too?"
+    Follow-up: "The consultants mentioned this area's been getting a lot of interest lately. Have you noticed how competitive it's getting?"
 
     User: "I don't have any specific preferences" or "I don't really know"
     Good: "That's totally normal - most people start that way."
@@ -459,7 +605,7 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
 
     User: "Can you ask your consultants about X?"
     AVOID: "Sure, I'll ask them for you!"
-    BETTER: "The consultants have been seeing some interesting opportunities in that area lately. They'd probably have better insights if you chat with them directly - they're really up to date on the latest market movements."
+    BETTER: "The consultants have been seeing some interesting opportunities in that area lately. They'd probably have better insights if you chat with them directly - they're really up to date on market movements."
 
     User: "I don't have specific requirements" (second time)
     Good: "Fair enough! The market's been quite active lately."
@@ -483,13 +629,27 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
   </what_to_avoid>
 
   <sales_psychology>
-    • Create subtle FOMO through market insights: "The consultants have been really busy with this area"
-    • Use leading questions that make them curious: "Have you been following what's happening in that area?"
-    • Plant seeds of urgency without being pushy: "I've been hearing a lot about that location recently"
-    • Make them want to know more: "The consultants mentioned something interesting about that area"
-    • Build desire through scarcity: "Good units in that area don't stay on the market long"
-    • Only suggest speaking to consultants when they show genuine interest and engagement
-    • Let conversations flow naturally - no rigid sales scripts
+    STRATEGIC SCARE TACTICS: Highlight the dangers and pitfalls of going solo in property investment.
+
+    NATURAL SCARE TACTICS (use sparingly and naturally):
+    • "Most first-time buyers end up overpaying quite a bit"
+    • "The consultants have saved clients from some pretty costly mistakes"
+    • "Going solo means you might miss out on off-market deals"
+    • "There are quite a few hidden costs that catch people off-guard"
+    • "Without insider knowledge, you might buy at the wrong time"
+    • "The financing can be tricky - easy to make mistakes there"
+
+    GENTLE URGENCY (weave into conversation naturally):
+    • "Prices have been moving up quite a bit lately"
+    • "Good units don't stay on the market very long"
+    • "The consultants have been quite busy with this area"
+    • "Other buyers are moving pretty fast these days"
+
+    CONSULTATION VALUE (mention once, then reference naturally):
+    • "We do it over Zoom, so quite convenient"
+    • "Usually takes about 30-60 minutes"
+    • "If it's not helpful, you can just leave the call"
+    • "They can share screen to show you the data"
   </sales_psychology>
 
   <legal_compliance>
@@ -513,56 +673,96 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
   </natural_communication>
 
   <consultation_approach>
-    • Think of the consultants as experts who could genuinely help them
-    • Only suggest meeting when they seem interested and engaged
-    • Frame it naturally: "Our consultants might have some good insights for you"
-    • Use FOMO: "The consultants have been really busy with clients in that area lately"
-    • Don't push - let them express interest first through leading questions
-    • If they seem hesitant, share market insights that create gentle urgency
-    • Make it feel like an opportunity they might miss out on, not a sales pitch
+    NATURAL CONSULTATION APPROACH: Keep it casual and helpful, not pushy.
+
+    STREAMLINED BOOKING FLOW:
+    1. Acknowledge their request casually
+    2. Ask for time preference immediately
+    3. Mention Zoom once to set expectations
+    4. Keep it low-pressure
+
+    NATURAL EXAMPLES:
+    • "Sure, I can set up a call for you. When would work?"
+    • "Yeah, can arrange that. What time suits you?"
+    • "No problem. When are you free?"
+    • "Can do. This week or next week better?"
+
+    ZOOM MENTION (once per conversation):
+    • "We do it over Zoom, so quite convenient"
+    • "It's just a Zoom call, so no need to travel"
+    • After first mention, just say "call" or "chat"
+
+    KEEP IT NATURAL:
+    • Don't repeat "Zoom consultation" every time
+    • Use casual Singaporean expressions
+    • Avoid overly enthusiastic language
+    • Let conversation flow naturally
   </consultation_approach>
 
   <conversation_flow>
-    • Read the full conversation history to understand where you are
-    • Respond naturally to what they just said - don't ignore their message
-    • Ask leading questions that create curiosity about market opportunities
-    • Share relevant market insights that create gentle urgency
-    • Build interest through FOMO before suggesting consultants
-    • Only mention consultants when they seem ready for expert advice or show genuine interest
+    NATURAL CONVERSATION STYLE:
+
+    • Keep messages short and conversational - like texting a friend
+    • Break long responses into multiple short messages (system will add natural delays)
+    • Use casual Singaporean expressions naturally, don't force it
+    • Respond to what they just said - don't ignore their message
+
+    MESSAGE STRUCTURE:
+    • If you have a lot to say, break it into 2-3 short messages
+    • Each message should be 1-2 sentences max
+    • Let the system add natural typing delays between messages
+    • Don't use overly enthusiastic language ("Perfect!" "Absolutely!")
+
+    WHEN USERS WANT TO SPEAK TO CONSULTANTS:
+    • Keep it casual: "Sure, can set up a call for you"
+    • Ask for time immediately: "When would work?"
+    • Mention Zoom once if needed, then just say "call"
+
+    BEFORE THEY EXPRESS CONSULTANT INTEREST:
+    • Share market insights naturally in conversation
+    • Use gentle urgency, not aggressive scare tactics
+    • Build interest through casual observations
   </conversation_flow>
 
   <appointment_intelligence>
-    You are now responsible for understanding the FULL conversation context and making intelligent decisions about appointment booking.
+    CONSERVATIVE APPOINTMENT DETECTION: Only trigger appointment booking when users explicitly mention specific times or dates, or are responding to direct booking-related questions.
 
-    Instead of rigid action classifications, analyze the conversation and determine if the user wants to book/reschedule/confirm an appointment.
+    DO NOT trigger appointment booking for:
+    - General requests like "I want to speak to a consultant" or "Can I talk to someone"
+    - Vague expressions of interest without specific time mentions
+    - Questions about availability without specific time requests
+    - General inquiries about consultations
 
-    When you detect appointment intent, set "appointment_intent" to one of:
-    - "book_new": User wants to schedule a new appointment
-    - "reschedule_existing": User wants to change an existing appointment
-    - "confirm_tentative": User is confirming a previously offered slot
-    - "select_alternative": User is choosing from offered alternatives
-    - "cancel_appointment": User wants to cancel
+    ONLY trigger appointment booking when:
+    - User mentions specific times: "7pm today", "tomorrow at 3pm", "next Tuesday morning"
+    - User is selecting from previously offered time slots: "I'll take option 2", "the 3pm slot works"
+    - User is confirming a specific time: "yes, 7pm works" (only if 7pm was previously discussed)
+    - User is explicitly rescheduling: "can we change my appointment to 5pm"
+    - User is canceling: "I need to cancel my appointment"
 
-    Also provide "booking_instructions" with:
-    - "preferred_time": The time they want (extracted from conversation context, not just current message)
-    - "context_summary": Brief summary of what led to this booking request
-    - "user_intent_confidence": How confident you are about their intent (high/medium/low)
+    When you DO detect genuine appointment intent, set "appointment_intent" to one of:
+    - "book_new": User specified a specific time for new appointment
+    - "reschedule_existing": User wants to change existing appointment to specific time
+    - "confirm_tentative": User confirming a specific previously offered time
+    - "select_alternative": User selecting specific option from offered alternatives
+    - "cancel_appointment": User explicitly wants to cancel
 
-    CRITICAL: Look at the ENTIRE conversation, not just the last message. If someone said "7pm today" earlier and now says "yes that works", understand they're confirming 7pm today.
+    Provide "booking_instructions" ONLY when appointment_intent is set:
+    - "preferred_time": The specific time mentioned (be precise)
+    - "context_summary": What specific time-related request led to this
+    - "user_intent_confidence": high (only trigger if you're confident)
 
-    Examples:
-    - If conversation shows: User: "can we do 7pm today please" → Bot: "That time is taken, how about 8pm?" → User: "ok that works"
-      Then: appointment_intent="book_new", preferred_time="8pm today", context_summary="User agreed to 8pm alternative after 7pm was unavailable"
+    CRITICAL RULE: If no specific time is mentioned and user just wants to "speak to consultant", DO NOT set appointment_intent. Instead, ask for their preferred time first.
 
-    - If User says: "yes" after being offered a tentative booking
-      Then: appointment_intent="confirm_tentative", context_summary="User confirming previously offered tentative slot"
+    STREAMLINED BOOKING TRIGGER: Only set appointment_intent when users provide specific time information, not when they just express general interest in speaking to consultants.
   </appointment_intelligence>
 
   <response_format>
     Respond ONLY in valid JSON format:
     {
-      "message1": "Natural, conversational response",
-      "message2": "Second message if needed (like a follow-up text)",
+      "message1": "Natural, conversational response (keep short - 1-2 sentences)",
+      "message2": "Second message if needed (system adds natural delay)",
+      "message3": "Third message if needed (for longer responses)",
       "lead_updates": {
         "intent": "own_stay|investment (if naturally discovered)",
         "budget": "budget_range (if naturally shared)",
@@ -576,6 +776,13 @@ ${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: $
         "user_intent_confidence": "high|medium|low"
       }
     }
+
+    MULTIPLE MESSAGES USAGE:
+    - Use message1 for main response
+    - Use message2 for follow-up thoughts (system adds 1.5s delay)
+    - Use message3 for additional context if needed
+    - Keep each message short and natural
+    - Don't repeat "Zoom consultation" in every message
   </response_format>
 </master_prompt>
 
@@ -671,33 +878,59 @@ Respond with appropriate messages and actions based on the conversation context.
       logger.warn({ err: error, leadId }, 'Error checking appointment status');
     }
 
-    // CRITICAL FIX: Check for database inconsistencies and fix them
-    // If lead status is 'booked' but no appointment exists, this is a data inconsistency
+    // ENHANCED DATABASE CONSISTENCY CHECK: Fix inconsistencies between lead status and actual appointments
     if (leadStatus === 'booked') {
-      logger.warn({ leadId, leadStatus }, 'INCONSISTENCY DETECTED: Lead marked as booked but no appointment found - fixing status');
+      logger.warn({ leadId, leadStatus }, 'INCONSISTENCY DETECTED: Lead marked as booked but no appointment found - investigating and fixing');
 
-      // Check if there are stored alternatives that should be processed
-      const { data: leadData } = await this.supabase
+      // Get full lead data to understand the inconsistency
+      const { data: leadData, error: leadDataError } = await this.supabase
         .from('leads')
-        .select('booking_alternatives')
+        .select('booking_alternatives, tentative_booking_time, updated_at')
         .eq('id', leadId)
         .single();
 
-      if (leadData?.booking_alternatives) {
-        // Lead has alternatives but is marked as booked - should be waiting for selection
-        await this.supabase.from('leads').update({
-          status: 'booking_alternatives_offered'
-        }).eq('id', leadId);
-
-        return 'Has been offered alternative time slots - waiting for selection';
-      } else {
-        // No alternatives and no appointment - reset to qualified
-        await this.supabase.from('leads').update({
-          status: 'qualified'
-        }).eq('id', leadId);
-
-        return 'No appointment scheduled yet - ready to book consultation';
+      if (leadDataError) {
+        logger.error({ err: leadDataError, leadId }, 'Error fetching lead data for consistency check');
+        return 'Database error - please try again';
       }
+
+      // Determine the correct status based on available data
+      let correctStatus = 'qualified';
+      let statusReason = 'No appointment scheduled yet - ready to book consultation';
+
+      if (leadData?.booking_alternatives) {
+        try {
+          const alternatives = JSON.parse(leadData.booking_alternatives);
+          if (Array.isArray(alternatives) && alternatives.length > 0) {
+            correctStatus = 'booking_alternatives_offered';
+            statusReason = 'Has been offered alternative time slots - waiting for selection';
+          }
+        } catch (parseError) {
+          logger.warn({ err: parseError, leadId, alternatives: leadData.booking_alternatives }, 'Error parsing booking alternatives');
+        }
+      } else if (leadData?.tentative_booking_time) {
+        correctStatus = 'tentative_booking_offered';
+        statusReason = 'Has tentative booking waiting for confirmation';
+      }
+
+      // Update the lead status to reflect reality
+      const { error: updateError } = await this.supabase.from('leads').update({
+        status: correctStatus,
+        updated_at: new Date().toISOString()
+      }).eq('id', leadId);
+
+      if (updateError) {
+        logger.error({ err: updateError, leadId, correctStatus }, 'Error fixing lead status inconsistency');
+      } else {
+        logger.info({
+          leadId,
+          oldStatus: leadStatus,
+          newStatus: correctStatus,
+          reason: 'Fixed database inconsistency'
+        }, 'Successfully corrected lead status');
+      }
+
+      return statusReason;
     }
 
     // Fall back to lead status with accurate descriptions
@@ -849,6 +1082,8 @@ Respond with appropriate messages and actions based on the conversation context.
     return validatedUpdates;
   }
 
+
+
   /**
    * Handle intelligent appointment booking based on conversation context
    * @private
@@ -903,8 +1138,7 @@ Respond with appropriate messages and actions based on the conversation context.
         case 'confirm_tentative':
           return await this._handleIntelligentTentativeConfirmation({
             lead,
-            agentId,
-            aiInstructions
+            agentId
           });
 
         case 'select_alternative':
@@ -918,9 +1152,9 @@ Respond with appropriate messages and actions based on the conversation context.
           if (!existingAppointment) {
             return { success: false, message: "I don't see any appointment to cancel." };
           }
-          return await this._handleAppointmentCancellation({
+          return await this._handleCancelAppointment({
             lead,
-            appointment: existingAppointment
+            existingAppointment
           });
 
         default:
@@ -981,16 +1215,50 @@ Respond with appropriate messages and actions based on the conversation context.
       });
 
       if (result.success) {
-        // Update lead status
-        await supabase.from('leads').update({
-          status: 'booked'
+        // ENHANCED STATE MANAGEMENT: Update lead status with validation
+        const { error: statusUpdateError } = await supabase.from('leads').update({
+          status: 'booked',
+          booking_alternatives: null, // Clear any stored alternatives
+          tentative_booking_time: null, // Clear any tentative booking
+          updated_at: new Date().toISOString()
         }).eq('id', lead.id);
+
+        if (statusUpdateError) {
+          logger.error({
+            err: statusUpdateError,
+            leadId: lead.id,
+            appointmentResult: result
+          }, 'Error updating lead status after successful booking');
+
+          // Even if status update fails, the appointment was created successfully
+          // Log this for manual review but don't fail the booking
+        } else {
+          logger.info({
+            leadId: lead.id,
+            newStatus: 'booked',
+            reason: 'Successful appointment booking'
+          }, 'Lead status updated after successful booking');
+        }
 
         return {
           success: true,
           message: result.message
         };
       } else {
+        // ENHANCED ERROR HANDLING: Ensure lead status reflects booking failure
+        if (lead.status === 'booked') {
+          logger.warn({
+            leadId: lead.id,
+            currentStatus: lead.status,
+            bookingResult: result
+          }, 'Booking failed but lead was marked as booked - correcting status');
+
+          await supabase.from('leads').update({
+            status: 'qualified',
+            updated_at: new Date().toISOString()
+          }).eq('id', lead.id);
+        }
+
         return result;
       }
     } catch (error) {
@@ -1036,7 +1304,7 @@ Respond with appropriate messages and actions based on the conversation context.
           const formattedTime = formatForDisplay(toSgTime(preferredTime));
           return {
             success: true,
-            message: `Perfect! I've booked your consultation for ${formattedTime}.\n\nZoom Link: ${result.zoomMeeting.joinUrl}\n\nLooking forward to speaking with you soon! 😊`
+            message: `Done! Booked you for ${formattedTime}.\n\nZoom Link: ${result.zoomMeeting.joinUrl}\n\nSee you then!`
           };
         } else {
           // Find nearby alternatives
@@ -1047,7 +1315,25 @@ Respond with appropriate messages and actions based on the conversation context.
             const formattedAlternative = formatForDisplay(toSgTime(nearestAlternative));
             const formattedPreferred = formatForDisplay(toSgTime(preferredTime));
 
-            // Store the alternative for potential booking
+            // CRITICAL FIX: Validate the alternative before storing it
+            const { isTimeSlotAvailable } = require('../api/bookingHelper');
+            const isAlternativeValid = await isTimeSlotAvailable(agentId, nearestAlternative);
+
+            if (!isAlternativeValid) {
+              logger.error({
+                leadId,
+                agentId,
+                alternativeTime: nearestAlternative.toISOString(),
+                preferredTime: preferredTime.toISOString()
+              }, 'CRITICAL ERROR: Alternative slot validation failed - should not offer invalid slot');
+
+              return {
+                success: false,
+                message: "I'm having trouble finding available slots around your preferred time. Let me have our consultant contact you directly to arrange a suitable time."
+              };
+            }
+
+            // Store the validated alternative for potential booking
             await supabase.from('leads').update({
               status: 'booking_alternatives_offered',
               booking_alternatives: JSON.stringify([nearestAlternative])
@@ -1055,7 +1341,7 @@ Respond with appropriate messages and actions based on the conversation context.
 
             return {
               success: true,
-              message: `I see that ${formattedPreferred} is already taken! 😅\n\nHow about ${formattedAlternative} instead? That's the closest available slot.\n\nOr if you have another preferred time in mind, just let me know! 😊`
+              message: `Ah, ${formattedPreferred} is taken.\n\nHow about ${formattedAlternative} instead? Or let me know if you have another time in mind.`
             };
           } else {
             return {
@@ -1069,19 +1355,49 @@ Respond with appropriate messages and actions based on the conversation context.
         const availableSlots = await this._findNextAvailableSlots(agentId, 3);
 
         if (availableSlots.length > 0) {
-          const slotOptions = availableSlots.map((slot, index) =>
+          // ADDITIONAL VALIDATION: Double-check all slots before offering to user
+          const { isTimeSlotAvailable } = require('../api/bookingHelper');
+          const finalValidatedSlots = [];
+
+          for (const slot of availableSlots) {
+            const isValid = await isTimeSlotAvailable(agentId, slot);
+            if (isValid) {
+              finalValidatedSlots.push(slot);
+            } else {
+              logger.warn({
+                leadId,
+                agentId,
+                slotTime: slot.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+              }, 'FINAL VALIDATION FAILED: Removing slot from user options');
+            }
+          }
+
+          if (finalValidatedSlots.length === 0) {
+            logger.error({
+              leadId,
+              agentId,
+              originalSlotCount: availableSlots.length
+            }, 'CRITICAL: All slots failed final validation - no slots to offer');
+
+            return {
+              success: false,
+              message: "I'm having trouble finding available consultation slots. Let me have our consultant contact you directly to arrange a suitable time."
+            };
+          }
+
+          const slotOptions = finalValidatedSlots.map((slot, index) =>
             `${index + 1}. ${formatForDisplay(toSgTime(slot))}`
           ).join('\n');
 
-          // Store alternatives for selection
+          // Store validated alternatives for selection
           await supabase.from('leads').update({
             status: 'booking_alternatives_offered',
-            booking_alternatives: JSON.stringify(availableSlots)
+            booking_alternatives: JSON.stringify(finalValidatedSlots)
           }).eq('id', leadId);
 
           return {
             success: true,
-            message: `I'd love to set up a consultation for you! Here are some available times:\n\n${slotOptions}\n\nWhich one works best for you? Just let me know! 😊`
+            message: `Sure, can set up a call for you. Here are some available times:\n\n${slotOptions}\n\nWhich one works for you?`
           };
         } else {
           return {
@@ -1100,50 +1416,133 @@ Respond with appropriate messages and actions based on the conversation context.
   }
 
   /**
-   * Extract preferred time from conversation context and AI instructions
+   * Enhanced conversation context analysis for time extraction
    * @private
    */
   _extractPreferredTimeFromContext(aiInstructions, conversationHistory, currentMessage) {
     try {
-      // First try to get time from AI instructions
-      if (aiInstructions?.preferred_time) {
+      logger.info({
+        aiInstructions,
+        conversationHistoryLength: conversationHistory.length,
+        currentMessage,
+        contextSummary: aiInstructions?.context_summary
+      }, 'Starting enhanced time extraction from conversation context');
+
+      // ENHANCED: First try to get time from AI instructions with confidence check
+      if (aiInstructions?.preferred_time && aiInstructions?.user_intent_confidence === 'high') {
         const { parsePreferredTime } = require('../api/bookingHelper');
         const parsedTime = parsePreferredTime(aiInstructions.preferred_time);
         if (parsedTime) {
           logger.info({
             extractedTime: parsedTime.toISOString(),
-            source: 'ai_instructions',
-            originalText: aiInstructions.preferred_time
-          }, 'Extracted time from AI instructions');
+            source: 'ai_instructions_high_confidence',
+            originalText: aiInstructions.preferred_time,
+            confidence: aiInstructions.user_intent_confidence,
+            contextSummary: aiInstructions.context_summary
+          }, 'Extracted time from high-confidence AI instructions');
           return parsedTime;
         }
       }
 
-      // Fallback: analyze conversation history for time mentions
+      // ENHANCED: Analyze full conversation context for time references
       const allMessages = [...conversationHistory, { sender: 'lead', message: currentMessage }];
-      const recentMessages = allMessages.slice(-5); // Last 5 messages for context
 
-      for (let i = recentMessages.length - 1; i >= 0; i--) {
-        const msg = recentMessages[i];
+      // Look for time patterns in recent conversation with context awareness
+      const timeExtractionResults = [];
+
+      for (let i = allMessages.length - 1; i >= Math.max(0, allMessages.length - 8); i--) {
+        const msg = allMessages[i];
         if (msg.sender === 'lead') {
           const { parsePreferredTime } = require('../api/bookingHelper');
           const parsedTime = parsePreferredTime(msg.message);
           if (parsedTime) {
-            logger.info({
-              extractedTime: parsedTime.toISOString(),
-              source: 'conversation_history',
-              originalMessage: msg.message,
-              messageIndex: i
-            }, 'Extracted time from conversation history');
-            return parsedTime;
+            timeExtractionResults.push({
+              time: parsedTime,
+              message: msg.message,
+              messageIndex: i,
+              recency: allMessages.length - 1 - i // 0 = most recent
+            });
           }
         }
       }
 
-      logger.info({ aiInstructions, currentMessage }, 'No specific time found in context');
+      // ENHANCED: Context-aware time selection
+      if (timeExtractionResults.length > 0) {
+        // Sort by recency (most recent first)
+        timeExtractionResults.sort((a, b) => a.recency - b.recency);
+
+        const selectedTime = timeExtractionResults[0];
+
+        // ENHANCED: Validate the time makes sense in current context
+        const now = new Date();
+        const timeDiff = selectedTime.time.getTime() - now.getTime();
+        const isReasonableTime = timeDiff > 0 && timeDiff < (7 * 24 * 60 * 60 * 1000); // Within next 7 days
+
+        if (isReasonableTime) {
+          logger.info({
+            extractedTime: selectedTime.time.toISOString(),
+            source: 'enhanced_conversation_analysis',
+            originalMessage: selectedTime.message,
+            messageRecency: selectedTime.recency,
+            totalTimeReferences: timeExtractionResults.length,
+            timeDifferenceHours: Math.round(timeDiff / (1000 * 60 * 60))
+          }, 'Extracted time from enhanced conversation analysis');
+          return selectedTime.time;
+        } else {
+          logger.warn({
+            extractedTime: selectedTime.time.toISOString(),
+            timeDifferenceHours: Math.round(timeDiff / (1000 * 60 * 60)),
+            reason: 'Time is not reasonable (too far in past/future)'
+          }, 'Rejected extracted time - not reasonable');
+        }
+      }
+
+      // ENHANCED: Check for confirmation patterns
+      if (currentMessage && conversationHistory.length > 0) {
+        const confirmationPatterns = [
+          /yes.*that.*works?/i,
+          /yes.*sounds?.*good/i,
+          /that.*works?.*for.*me/i,
+          /perfect/i,
+          /ok.*that.*time/i,
+          /^yes$/i,
+          /^ok$/i,
+          /^sure$/i
+        ];
+
+        const isConfirmation = confirmationPatterns.some(pattern => pattern.test(currentMessage.toLowerCase()));
+
+        if (isConfirmation) {
+          // Look for time mentioned by bot in recent messages
+          const recentBotMessages = conversationHistory
+            .filter(msg => msg.sender === 'assistant')
+            .slice(-3); // Last 3 bot messages
+
+          for (const botMsg of recentBotMessages) {
+            const { parsePreferredTime } = require('../api/bookingHelper');
+            const mentionedTime = parsePreferredTime(botMsg.message);
+            if (mentionedTime) {
+              logger.info({
+                extractedTime: mentionedTime.toISOString(),
+                source: 'confirmation_context',
+                userConfirmation: currentMessage,
+                botMessage: botMsg.message
+              }, 'Extracted time from confirmation context');
+              return mentionedTime;
+            }
+          }
+        }
+      }
+
+      logger.info({
+        aiInstructions,
+        currentMessage,
+        timeExtractionResults: timeExtractionResults.length,
+        conversationLength: conversationHistory.length
+      }, 'No specific time found in enhanced context analysis');
       return null;
     } catch (error) {
-      logger.error({ err: error }, 'Error extracting time from context');
+      logger.error({ err: error }, 'Error in enhanced time extraction from context');
       return null;
     }
   }
@@ -1163,14 +1562,40 @@ Respond with appropriate messages and actions based on the conversation context.
   }
 
   /**
-   * Find nearby alternatives to a preferred time
+   * Find nearby alternatives to a preferred time with validation
    * @private
    */
   async _findNearbyAlternatives(agentId, preferredTime, maxAlternatives = 3) {
     try {
-      const { findNearbyAvailableSlots } = require('../api/bookingHelper');
+      const { findNearbyAvailableSlots, isTimeSlotAvailable } = require('../api/bookingHelper');
       const nearbySlots = await findNearbyAvailableSlots(agentId, preferredTime);
-      return nearbySlots.slice(0, maxAlternatives);
+
+      // CRITICAL FIX: Validate each alternative before offering to user
+      const validatedAlternatives = [];
+      for (const slot of nearbySlots) {
+        const isActuallyAvailable = await isTimeSlotAvailable(agentId, slot);
+        if (isActuallyAvailable) {
+          validatedAlternatives.push(slot);
+          if (validatedAlternatives.length >= maxAlternatives) {
+            break;
+          }
+        } else {
+          logger.warn({
+            agentId,
+            preferredTime: preferredTime.toISOString(),
+            alternativeSlot: slot.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+          }, 'VALIDATION FAILED: Alternative slot failed availability check - filtering out');
+        }
+      }
+
+      logger.info({
+        agentId,
+        preferredTime: preferredTime.toISOString(),
+        nearbySlotCount: nearbySlots.length,
+        validatedAlternativeCount: validatedAlternatives.length
+      }, 'Completed alternative slot validation');
+
+      return validatedAlternatives;
     } catch (error) {
       logger.error({ err: error, agentId, preferredTime }, 'Error finding nearby alternatives');
       return [];
@@ -1178,13 +1603,40 @@ Respond with appropriate messages and actions based on the conversation context.
   }
 
   /**
-   * Find next available slots
+   * Find next available slots with double validation
    * @private
    */
   async _findNextAvailableSlots(agentId, maxSlots = 3) {
     try {
-      const { findNextAvailableSlots } = require('../api/bookingHelper');
-      return await findNextAvailableSlots(agentId, null, maxSlots);
+      const { findNextAvailableSlots, isTimeSlotAvailable } = require('../api/bookingHelper');
+      const potentialSlots = await findNextAvailableSlots(agentId, null, maxSlots * 2); // Get more slots for validation
+
+      // CRITICAL FIX: Double-check each slot's availability before offering to user
+      const validatedSlots = [];
+      for (const slot of potentialSlots) {
+        const isActuallyAvailable = await isTimeSlotAvailable(agentId, slot);
+        if (isActuallyAvailable) {
+          validatedSlots.push(slot);
+          if (validatedSlots.length >= maxSlots) {
+            break; // We have enough validated slots
+          }
+        } else {
+          logger.warn({
+            agentId,
+            slotTime: slot.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+            slotISO: slot.toISOString()
+          }, 'VALIDATION FAILED: Slot appeared available but failed double-check - filtering out');
+        }
+      }
+
+      logger.info({
+        agentId,
+        potentialSlotsCount: potentialSlots.length,
+        validatedSlotsCount: validatedSlots.length,
+        requestedMaxSlots: maxSlots
+      }, 'Completed slot validation process');
+
+      return validatedSlots;
     } catch (error) {
       logger.error({ err: error, agentId }, 'Error finding next available slots');
       return [];
@@ -1195,7 +1647,7 @@ Respond with appropriate messages and actions based on the conversation context.
    * Handle intelligent tentative booking confirmation
    * @private
    */
-  async _handleIntelligentTentativeConfirmation({ lead, agentId, aiInstructions }) {
+  async _handleIntelligentTentativeConfirmation({ lead, agentId }) {
     try {
       // Check if lead has a tentative booking
       if (lead.status !== 'tentative_booking_offered' || !lead.tentative_booking_time) {
@@ -1227,7 +1679,7 @@ Respond with appropriate messages and actions based on the conversation context.
       const formattedTime = formatForDisplay(toSgTime(tentativeTime));
       return {
         success: true,
-        message: `Perfect! I've confirmed your consultation for ${formattedTime}.\n\nZoom Link: ${result.zoomMeeting.joinUrl}\n\nLooking forward to speaking with you soon! 😊`
+        message: `Confirmed for ${formattedTime}.\n\nZoom Link: ${result.zoomMeeting.joinUrl}\n\nSee you then!`
       };
     } catch (error) {
       logger.error({ err: error, leadId: lead.id }, 'Error confirming tentative booking');
@@ -1303,7 +1755,7 @@ Respond with appropriate messages and actions based on the conversation context.
       const formattedTime = formatForDisplay(toSgTime(appointmentTime));
       return {
         success: true,
-        message: `Perfect! I've booked your consultation for ${formattedTime}.\n\nZoom Link: ${result.zoomMeeting.joinUrl}\n\nLooking forward to speaking with you soon! 😊`
+        message: `Booked for ${formattedTime}.\n\nZoom Link: ${result.zoomMeeting.joinUrl}\n\nSee you then!`
       };
     } catch (error) {
       logger.error({ err: error, leadId: lead.id }, 'Error in intelligent alternative selection');
@@ -1338,7 +1790,7 @@ Respond with appropriate messages and actions based on the conversation context.
           const formattedTime = formatForDisplay(toSgTime(newPreferredTime));
           return {
             success: true,
-            message: `Perfect! I've rescheduled your consultation to ${formattedTime}.\n\nYour Zoom link remains the same: ${existingAppointment.zoom_join_url}\n\nLooking forward to speaking with you soon! 😊`
+            message: `Rescheduled to ${formattedTime}.\n\nSame Zoom link: ${existingAppointment.zoom_join_url}`
           };
         } else {
           // Find alternatives near the requested time
@@ -1381,124 +1833,7 @@ Respond with appropriate messages and actions based on the conversation context.
     }
   }
 
-  /**
-   * Handle appointment actions and return structured result (DEPRECATED - keeping for compatibility)
-   * @private
-   */
-  async _handleAppointmentAction({ action, lead, userMessage }) {
-    try {
-      // Validate agent assignment
-      const agentValidation = this._validateAgentAssignment(lead);
-      if (!agentValidation.valid) {
-        return agentValidation.result;
-      }
 
-      const { agentId } = agentValidation;
-
-      // Check existing appointments
-      const appointmentCheck = await this._checkExistingAppointments(lead);
-      if (!appointmentCheck.valid) {
-        return appointmentCheck.result;
-      }
-
-      const { existingAppointment } = appointmentCheck;
-
-      // Log the current appointment state for debugging
-      logger.info({
-        leadId: lead.id,
-        action,
-        hasExistingAppointment: !!existingAppointment,
-        appointmentId: existingAppointment?.id,
-        appointmentTime: existingAppointment?.appointment_time,
-        leadStatus: lead.status
-      }, 'Processing appointment action with current state');
-
-      switch (action) {
-        case 'initiate_booking':
-          // Only allow new booking if no existing appointment
-          if (existingAppointment) {
-            logger.info({ leadId: lead.id, appointmentId: existingAppointment.id }, 'Attempted new booking but appointment already exists');
-            const appointmentTime = toSgTime(existingAppointment.appointment_time);
-            const formattedTime = formatForDisplay(appointmentTime);
-            return {
-              success: false,
-              message: `You already have a consultation scheduled for ${formattedTime}. Would you like to reschedule it instead?`
-            };
-          }
-          return await this._handleInitialBooking({ lead, agentId, userMessage });
-
-        case 'reschedule_appointment':
-          // Only allow reschedule if appointment exists
-          if (!existingAppointment) {
-            logger.info({ leadId: lead.id }, 'Attempted reschedule but no appointment exists - treating as new booking');
-            return await this._handleInitialBooking({ lead, agentId, userMessage });
-          }
-          return await this._handleRescheduleAppointment({ lead, agentId, userMessage, existingAppointment });
-
-        case 'cancel_appointment':
-          // Only allow cancel if appointment exists
-          if (!existingAppointment) {
-            logger.info({ leadId: lead.id }, 'Attempted cancel but no appointment exists');
-            return {
-              success: false,
-              message: "I couldn't find an existing appointment to cancel. Would you like to book a new consultation instead?"
-            };
-          }
-          // Verify the appointment belongs to the correct agent
-          if (existingAppointment.agent_id !== agentId) {
-            logger.warn({ leadId: lead.id, appointmentAgentId: existingAppointment.agent_id, currentAgentId: agentId }, 'Agent mismatch for appointment cancellation');
-            return {
-              success: false,
-              message: "I found your appointment, but there seems to be an issue with the consultant assignment. Let me have someone help you with this."
-            };
-          }
-          return await this._handleCancelAppointment({ lead, existingAppointment });
-
-        case 'select_alternative':
-          // Validate that alternatives were actually offered
-          if (lead.status !== 'booking_alternatives_offered' || !lead.booking_alternatives) {
-            logger.info({
-              leadId: lead.id,
-              leadStatus: lead.status,
-              hasAlternatives: !!lead.booking_alternatives,
-              userMessage
-            }, 'Attempted alternative selection but no alternatives were offered - treating as new booking request');
-
-            // Instead of failing, treat this as a new booking request
-            return await this._handleInitialBooking({ lead, agentId, userMessage });
-          }
-          // Ensure no existing appointment before processing alternative selection
-          if (existingAppointment) {
-            logger.info({ leadId: lead.id, appointmentId: existingAppointment.id }, 'Attempted alternative selection but appointment already exists');
-            const appointmentTime = toSgTime(existingAppointment.appointment_time);
-            const formattedTime = formatForDisplay(appointmentTime);
-            return {
-              success: false,
-              message: `You already have a consultation scheduled for ${formattedTime}. Would you like to reschedule it instead?`
-            };
-          }
-          return await this._handleAlternativeSelection({ lead, agentId, userMessage });
-
-        case 'tentative_booking':
-          // Handle tentative booking requests
-          return await this._handleTentativeBooking({ lead, agentId, userMessage });
-
-        case 'confirm_tentative_booking':
-          // Handle confirmation of tentative booking
-          return await this._handleTentativeBookingConfirmation({ lead, agentId, userMessage });
-
-        default:
-          logger.warn({ action, leadId: lead.id }, 'Unknown appointment action');
-          return { success: false, message: '' };
-      }
-    } catch (error) {
-      logger.error({ err: error, action, leadId: lead.id }, 'Error handling appointment action');
-      return {
-        success: false,
-        message: "Sorry, I had an issue processing your appointment request. Please try again or let me know if you need help."
-      };
-    }
-  }
 
   /**
    * Handle initial booking
@@ -1643,7 +1978,7 @@ Respond with appropriate messages and actions based on the conversation context.
         const formattedTime = formatForDisplay(toSgTime(exactMatch));
         return {
           success: true,
-          message: `Perfect! I've rescheduled your consultation to ${formattedTime}.\n\nYour Zoom link remains the same: ${appointment.zoom_join_url}\n\nLooking forward to speaking with you soon!`
+          message: `Rescheduled to ${formattedTime}.\n\nSame Zoom link: ${appointment.zoom_join_url}`
         };
       } else if (alternatives.length > 0) {
         // Offer alternatives for rescheduling - limit to 1 nearby slot + lead's preferred time option
@@ -1779,7 +2114,7 @@ Respond with appropriate messages and actions based on the conversation context.
    * Handle confirmation of tentative booking
    * @private
    */
-  async _handleTentativeBookingConfirmation({ lead, agentId, userMessage }) {
+  async _handleTentativeBookingConfirmation({ lead, agentId }) {
     try {
       // Check if lead has a tentative booking
       if (lead.status !== 'tentative_booking_offered' || !lead.tentative_booking_time) {
@@ -1901,16 +2236,32 @@ Respond with appropriate messages and actions based on the conversation context.
           consultationNotes
         });
 
-        // Update lead status and clear alternatives
-        await supabase.from('leads').update({
+        // ENHANCED STATE MANAGEMENT: Update lead status with full cleanup
+        const { error: statusUpdateError } = await supabase.from('leads').update({
           status: 'booked',
-          booking_alternatives: null
+          booking_alternatives: null,
+          tentative_booking_time: null,
+          updated_at: new Date().toISOString()
         }).eq('id', lead.id);
+
+        if (statusUpdateError) {
+          logger.error({
+            err: statusUpdateError,
+            leadId: lead.id,
+            selectedSlot: selectedSlot.toISOString()
+          }, 'Error updating lead status after alternative selection booking');
+        } else {
+          logger.info({
+            leadId: lead.id,
+            selectedSlot: selectedSlot.toISOString(),
+            newStatus: 'booked'
+          }, 'Lead status updated after alternative selection booking');
+        }
 
         const formattedTime = formatForDisplay(toSgTime(selectedSlot));
         return {
           success: true,
-          message: `Perfect! I've booked your consultation for ${formattedTime}.\n\nZoom Link: ${result.zoomMeeting.joinUrl}`
+          message: `Booked for ${formattedTime}.\n\nZoom Link: ${result.zoomMeeting.joinUrl}`
         };
       } else {
         return {
