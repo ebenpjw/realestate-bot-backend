@@ -66,6 +66,11 @@ const config = {
   OPENAI_MAX_TOKENS: parseInteger(process.env.OPENAI_MAX_TOKENS, 1200),
   OPENAI_TIMEOUT: parseInteger(process.env.OPENAI_TIMEOUT, 30000),
 
+  // Google Custom Search API Configuration
+  GOOGLE_SEARCH_API_KEY: process.env.GOOGLE_SEARCH_API_KEY,
+  GOOGLE_SEARCH_ENGINE_ID: process.env.GOOGLE_SEARCH_ENGINE_ID,
+  GOOGLE_SEARCH_TIMEOUT: parseInteger(process.env.GOOGLE_SEARCH_TIMEOUT, 10000),
+
   // Google OAuth Configuration
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
