@@ -100,7 +100,8 @@ async function checkAvailability(agentId, startTimeISO, endTimeISO) {
 
         const { authClient } = await getAuthenticatedClient(agentId);
         if (!authClient) {
-            throw new Error('Could not authenticate with Google Calendar.');
+            logger.warn({ agentId }, 'Could not authenticate with Google Calendar - proceeding without calendar check');
+            return [];
         }
 
         const calendar = google.calendar({ version: 'v3', auth: authClient });
@@ -146,14 +147,34 @@ async function checkAvailability(agentId, startTimeISO, endTimeISO) {
         return busySlots;
 
     } catch (error) {
-        logger.error({
-            err: error,
-            agentId,
-            startTimeISO,
-            endTimeISO,
-            errorMessage: error.message,
-            errorCode: error.code
-        }, 'Error checking Google Calendar availability');
+        // Handle specific authentication errors
+        if (error.message?.includes('invalid_grant') || error.code === 400) {
+            logger.warn({
+                agentId,
+                errorMessage: error.message,
+                errorCode: error.code
+            }, 'Google Calendar authentication failed - token may be expired. Proceeding without calendar check.');
+
+            // Mark agent's Google token as needing refresh
+            try {
+                await supabase.from('agents').update({
+                    google_token_status: 'needs_refresh',
+                    google_token_last_error: error.message,
+                    google_token_error_at: new Date().toISOString()
+                }).eq('id', agentId);
+            } catch (updateError) {
+                logger.error({ err: updateError, agentId }, 'Failed to update agent token status');
+            }
+        } else {
+            logger.error({
+                err: error,
+                agentId,
+                startTimeISO,
+                endTimeISO,
+                errorMessage: error.message,
+                errorCode: error.code
+            }, 'Error checking Google Calendar availability');
+        }
 
         // Return empty array so appointment booking can continue
         // This allows the system to show all slots as available if calendar check fails
@@ -228,14 +249,34 @@ async function createEvent(agentId, eventDetails) {
 
         return response.data;
     } catch (error) {
-        logger.error({
-            err: error,
-            agentId,
-            eventDetails,
-            errorMessage: error.message,
-            errorCode: error.code,
-            errorStatus: error.status
-        }, 'Failed to create Google Calendar event - DETAILED ERROR');
+        // Handle specific authentication errors
+        if (error.message?.includes('invalid_grant') || error.code === 400) {
+            logger.warn({
+                agentId,
+                errorMessage: error.message,
+                errorCode: error.code
+            }, 'Google Calendar authentication failed during event creation - token may be expired');
+
+            // Mark agent's Google token as needing refresh
+            try {
+                await supabase.from('agents').update({
+                    google_token_status: 'needs_refresh',
+                    google_token_last_error: error.message,
+                    google_token_error_at: new Date().toISOString()
+                }).eq('id', agentId);
+            } catch (updateError) {
+                logger.error({ err: updateError, agentId }, 'Failed to update agent token status');
+            }
+        } else {
+            logger.error({
+                err: error,
+                agentId,
+                eventDetails,
+                errorMessage: error.message,
+                errorCode: error.code,
+                errorStatus: error.status
+            }, 'Failed to create Google Calendar event - DETAILED ERROR');
+        }
         throw error;
     }
 }

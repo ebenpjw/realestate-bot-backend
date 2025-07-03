@@ -8,6 +8,35 @@ const config = require('../config');
 const logger = require('../logger');
 
 /**
+ * Sanitize and limit agenda content for Zoom API
+ * @param {string} agenda - Raw agenda content
+ * @returns {string} Sanitized agenda
+ */
+function sanitizeZoomAgenda(agenda) {
+    if (!agenda) return '';
+
+    // Remove problematic Unicode characters and special symbols
+    let sanitized = agenda
+        // Remove Unicode characters that cause issues
+        .replace(/[^\x00-\x7F]/g, ' ') // Remove all non-ASCII characters
+        // Remove special characters except basic punctuation
+        .replace(/[^\w\s\-.,!?():=\n]/g, ' ') // Keep only basic characters
+        // Clean up formatting
+        .replace(/\*\*/g, '') // Remove markdown bold
+        .replace(/===/g, '') // Remove section dividers
+        .replace(/\s+/g, ' ') // Collapse multiple spaces
+        .replace(/\n\s*\n/g, '\n') // Remove empty lines
+        .trim();
+
+    // Limit to 1500 characters to be safe (Zoom's limit is around 2000)
+    if (sanitized.length > 1500) {
+        sanitized = sanitized.substring(0, 1497) + '...';
+    }
+
+    return sanitized;
+}
+
+/**
  * Get Server-to-Server access token using account credentials grant type
  * @returns {Promise<string>} Access token
  */
@@ -111,7 +140,7 @@ async function createZoomMeetingForUser(userEmail, meetingDetails) {
             start_time: meetingDetails.startTime, // ISO 8601 format
             duration: meetingDetails.duration || 60, // Duration in minutes
             timezone: 'Asia/Singapore',
-            agenda: meetingDetails.agenda || '',
+            agenda: sanitizeZoomAgenda(meetingDetails.agenda),
             settings: {
                 host_video: true,
                 participant_video: true,
@@ -267,5 +296,6 @@ module.exports = {
     getZoomUser,
     createZoomMeetingForUser,
     updateZoomMeetingForUser,
-    deleteZoomMeetingForUser
+    deleteZoomMeetingForUser,
+    sanitizeZoomAgenda
 };

@@ -60,7 +60,7 @@ class BotService {
         if (typeof value !== 'string') return false;
         const validStatuses = [
           'new', 'qualified', 'booked', 'booking_alternatives_offered',
-          'appointment_cancelled', 'needs_human_handoff', 'converted', 'lost'
+          'tentative_booking_offered', 'appointment_cancelled', 'needs_human_handoff', 'converted', 'lost'
         ];
         return validStatuses.includes(value.toLowerCase().trim());
       },
@@ -3662,10 +3662,21 @@ Plan the response strategy in JSON format with these exact keys:
   "consultation_offer": "none|soft|direct",
 
   "action": "continue|offer_consultation",
-  "lead_updates": {"status": "new_status", "intent": "discovered_intent"},
+  "lead_updates": {"status": "qualified|new|needs_human_handoff", "intent": "own_stay|investment|hybrid"},
   "message_count": "1|2|3",
   "tone": "casual|educational|professional"
-}`;
+}
+
+IMPORTANT: For lead_updates.status, ONLY use these valid values:
+- "qualified" (when lead shows genuine interest)
+- "new" (when lead needs more qualification)
+- "needs_human_handoff" (when complex situation requires human agent)
+- DO NOT use: "ready", "researching", "exploring_options", "interested" or any other values
+
+For lead_updates.intent, ONLY use:
+- "own_stay" (buying to live in)
+- "investment" (buying for rental/investment)
+- "hybrid" (both own stay and investment)`;
 
       const response = await this.openai.chat.completions.create({
         model: "gpt-4.1",
