@@ -146,21 +146,7 @@ async function retryWithBackoff(operation, config = DEFAULT_RETRY_CONFIG, operat
   throw lastError;
 }
 
-/**
- * Retry specifically for calendar operations
- * @param {Function} operation - Calendar operation to retry
- * @param {string} operationName - Name for logging
- * @returns {Promise} Result of successful operation
- */
-async function retryCalendarOperation(operation, operationName = 'calendar operation') {
-  return retryWithBackoff(operation, {
-    maxAttempts: 3,
-    baseDelay: 1000,
-    maxDelay: 5000,
-    backoffMultiplier: 2,
-    jitter: true
-  }, operationName);
-}
+
 
 /**
  * Retry specifically for Zoom operations
@@ -194,25 +180,12 @@ async function retryDatabaseOperation(operation, operationName = 'database opera
   }, operationName);
 }
 
-/**
- * Create a retryable version of a function
- * @param {Function} fn - Function to make retryable
- * @param {Object} config - Retry configuration
- * @param {string} operationName - Name for logging
- * @returns {Function} Retryable version of the function
- */
-function makeRetryable(fn, config = DEFAULT_RETRY_CONFIG, operationName = 'operation') {
-  return async (...args) => {
-    return retryWithBackoff(() => fn(...args), config, operationName);
-  };
-}
+
 
 module.exports = {
   retryWithBackoff,
-  retryCalendarOperation,
   retryZoomOperation,
   retryDatabaseOperation,
-  makeRetryable,
   isRetryableError,
   calculateDelay,
   DEFAULT_RETRY_CONFIG

@@ -4,7 +4,7 @@ const supabase = require('../supabaseClient');
 const logger = require('../logger');
 const botService = require('../services/botService');
 const whatsappService = require('../services/whatsappService');
-const { findOrCreateLead } = require('./leadManager');
+const databaseService = require('../services/databaseService');
 
 router.post('/simulate-inbound', async (req, res, next) => {
   try {
@@ -17,7 +17,7 @@ router.post('/simulate-inbound', async (req, res, next) => {
     const senderName = name || 'Test Lead';
     logger.info({ senderWaId, senderName, userText }, '[SIMULATION] Simulating inbound message.');
 
-    const lead = await findOrCreateLead({
+    const lead = await databaseService.findOrCreateLead({
       phoneNumber: senderWaId,
       fullName: senderName,
       source: 'WA Simulation'

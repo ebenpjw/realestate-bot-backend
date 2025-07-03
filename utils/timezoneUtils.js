@@ -84,7 +84,6 @@ function formatForGoogleCalendar(date) {
 
   // Create local time string in Singapore timezone for Google Calendar
   // Google Calendar expects local time when timezone is specified separately
-  const pad = (num) => num.toString().padStart(2, '0');
 
   // Use Singapore time components directly
   const sgTimeString = sgDate.toLocaleString('en-CA', {
@@ -139,106 +138,9 @@ function createSgDate(year, month, day, hour = 0, minute = 0, second = 0) {
   return date;
 }
 
-/**
- * Parse time string and create Date object
- * @param {string} timeString - Time string like "2:30 PM" or "14:30"
- * @param {Date} baseDate - Base date to apply time to (defaults to today)
- * @returns {Date} Date object
- */
-function parseSgTime(timeString, baseDate = null) {
-  const base = baseDate ? toSgTime(baseDate) : getNowInSg();
 
-  // Common time patterns
-  const patterns = [
-    /(\d{1,2}):(\d{2})\s*(am|pm)/i,  // 2:30 PM
-    /(\d{1,2})\s*(am|pm)/i,          // 2 PM
-    /(\d{1,2}):(\d{2})/,             // 14:30
-    /(\d{1,2})/                      // 14
-  ];
 
-  for (const pattern of patterns) {
-    const match = timeString.toLowerCase().match(pattern);
-    if (match) {
-      let hour = parseInt(match[1]);
-      const minute = parseInt(match[2] || '0');
-      const ampm = match[3];
 
-      // Convert to 24-hour format
-      if (ampm) {
-        if (ampm === 'pm' && hour !== 12) hour += 12;
-        if (ampm === 'am' && hour === 12) hour = 0;
-      }
-
-      return createSgDate(
-        base.getFullYear(),
-        base.getMonth() + 1,
-        base.getDate(),
-        hour,
-        minute
-      );
-    }
-  }
-
-  throw new Error(`Unable to parse time string: ${timeString}`);
-}
-
-/**
- * Check if a date is in business hours
- * @param {Date|string} date - Date to check
- * @param {Object} businessHours - Business hours configuration
- * @returns {boolean} True if in business hours
- */
-function isInSgBusinessHours(date, businessHours = {}) {
-  const sgDate = toSgTime(date);
-  const hour = sgDate.getHours();
-  const day = sgDate.getDay(); // 0 = Sunday, 6 = Saturday
-
-  const defaultHours = {
-    weekdayStart: 9,    // 9 AM
-    weekdayEnd: 18,     // 6 PM
-    weekendStart: 10,   // 10 AM
-    weekendEnd: 16,     // 4 PM
-    excludeSunday: true
-  };
-
-  const hours = { ...defaultHours, ...businessHours };
-
-  // Check if Sunday and excluded
-  if (day === 0 && hours.excludeSunday) {
-    return false;
-  }
-
-  // Determine start/end times based on day
-  const isWeekend = day === 0 || day === 6;
-  const startHour = isWeekend ? hours.weekendStart : hours.weekdayStart;
-  const endHour = isWeekend ? hours.weekendEnd : hours.weekdayEnd;
-
-  return hour >= startHour && hour < endHour;
-}
-
-/**
- * Add business days to a date
- * @param {Date|string} date - Starting date
- * @param {number} days - Number of business days to add
- * @returns {Date} New date with business days added
- */
-function addSgBusinessDays(date, days) {
-  const sgDate = toSgTime(date);
-  const result = new Date(sgDate);
-  let addedDays = 0;
-
-  while (addedDays < days) {
-    result.setDate(result.getDate() + 1);
-    const dayOfWeek = result.getDay();
-
-    // Skip weekends (Saturday = 6, Sunday = 0)
-    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-      addedDays++;
-    }
-  }
-
-  return result;
-}
 
 // Legacy function aliases for backward compatibility
 const formatToLocalISO = formatForGoogleCalendar;
@@ -253,11 +155,6 @@ module.exports = {
   formatForDisplay,
   formatForGoogleCalendar,
   createSgDate,
-  parseSgTime,
-
-  // Business logic helpers
-  isInSgBusinessHours,
-  addSgBusinessDays,
 
   // Constants
   SINGAPORE_TIMEZONE,

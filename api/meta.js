@@ -5,7 +5,6 @@ const router = express.Router();
 const crypto = require('crypto');
 const config = require('../config');
 const logger = require('../logger');
-// const supabase = require('../supabaseClient'); // Disabled - pages table removed
 
 // This is the background processing function for Meta leads
 // NOTE: Currently disabled as pages table was removed during database cleanup
@@ -19,7 +18,6 @@ async function processMetaLead(changeValue) {
         // Will need to recreate pages table and configure page access tokens
         logger.warn('Meta lead processing is currently disabled - pages table removed during cleanup');
         return;
-        // Placeholder for future Facebook Lead Ads implementation
 
     } catch (error) {
         logger.error({ err: error }, 'Meta webhook processing error.');

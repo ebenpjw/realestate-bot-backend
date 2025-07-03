@@ -174,10 +174,7 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Apply rate limiting to different route groups
-// app.use('/api/gupshup/webhook', rateLimits.webhook); // Removed for high-volume messaging
-// app.use('/api/meta/webhook', rateLimits.webhook); // Removed for high-volume lead generation
-// app.use('/api/auth', rateLimits.auth); // Removed auth rate limiting
+// Apply rate limiting to API routes
 app.use('/api', rateLimits.api);
 
 // --- API Routes ---

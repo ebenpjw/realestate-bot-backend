@@ -383,6 +383,11 @@ function parsePreferredTime(message) {
                     targetDate.setDate(targetDate.getDate() + 1);
                 } else if (lowerMessage.includes('today')) {
                     // Keep current date - already set above
+                    // But ensure we're using today's date in Singapore timezone
+                    const todayInSg = getNowInSg();
+                    targetDate.setFullYear(todayInSg.getFullYear());
+                    targetDate.setMonth(todayInSg.getMonth());
+                    targetDate.setDate(todayInSg.getDate());
                 } else {
                     // Handle day names (Monday, Tuesday, etc.)
                     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];

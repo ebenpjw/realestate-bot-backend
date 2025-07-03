@@ -36,9 +36,9 @@ describe('Appointment Booking System - Holistic Fixes', () => {
       ];
 
       for (const userMessage of testCases) {
-        const response = await botService._generateAIResponse(mockLead, [
+        const response = await botService._processMessageStrategically(mockLead, [
           { sender: 'lead', message: userMessage }
-        ]);
+        ], userMessage);
 
         expect(response.appointment_intent).toBeUndefined();
         expect(response.messages[0]).toMatch(/when.*work.*best|what.*time|available/i);
@@ -53,9 +53,9 @@ describe('Appointment Booking System - Holistic Fixes', () => {
       ];
 
       for (const testCase of testCases) {
-        const response = await botService._generateAIResponse(mockLead, [
+        const response = await botService._processMessageStrategically(mockLead, [
           { sender: 'lead', message: testCase.message }
-        ]);
+        ], testCase.message);
 
         expect(response.appointment_intent).toBe('book_new');
         expect(response.booking_instructions?.preferred_time).toContain(testCase.expectedTime);
@@ -184,9 +184,9 @@ describe('Appointment Booking System - Holistic Fixes', () => {
     test('Should provide streamlined booking experience', async () => {
       const userMessage = 'I want to speak to a consultant';
       
-      const response = await botService._generateAIResponse(mockLead, [
+      const response = await botService._processMessageStrategically(mockLead, [
         { sender: 'lead', message: userMessage }
-      ]);
+      ], userMessage);
 
       // Should immediately ask for time preference
       expect(response.messages[0]).toMatch(/when.*work.*best|what.*time|available/i);
@@ -241,9 +241,9 @@ const testHelpers = {
   },
 
   validateBookingFlow: async (botService, userMessage, expectedOutcome) => {
-    const response = await botService._generateAIResponse(mockLead, [
+    const response = await botService._processMessageStrategically(mockLead, [
       { sender: 'lead', message: userMessage }
-    ]);
+    ], userMessage);
 
     return {
       hasAppointmentIntent: !!response.appointment_intent,

@@ -13,11 +13,7 @@ const APP_CONSTANTS = {
     API: {
       WINDOW_MS: 15 * 60 * 1000, // 15 minutes
       MAX_REQUESTS: 1000
-    },
-    // AUTH: {
-    //   WINDOW_MS: 15 * 60 * 1000, // 15 minutes
-    //   MAX_REQUESTS: 5
-    // } // Disabled for testing
+    }
   },
   
   // Message processing
@@ -32,16 +28,7 @@ const APP_CONSTANTS = {
     }
   },
   
-  // Calendar and booking
-  CALENDAR: {
-    SLOT_DURATION_MINUTES: 20,
-    SEARCH_DAYS_AHEAD: 5,
-    WORKING_HOURS: {
-      START: 9, // 9 AM
-      END: 18   // 6 PM
-    },
-    TIMEZONE: 'Asia/Singapore'
-  },
+
   
   // Lead management
   LEAD: {
@@ -67,9 +54,7 @@ const APP_CONSTANTS = {
     RETRY_ATTEMPTS: 3,
     RETRY_DELAY: 1000 // 1 second
   },
-  
 
-  
   // Validation rules
   VALIDATION: {
     PHONE: {

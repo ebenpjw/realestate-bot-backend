@@ -5,7 +5,7 @@ const supabase = require('../supabaseClient');
 const whatsappService = require('./whatsappService');
 const databaseService = require('./databaseService');
 const { AI } = require('../constants');
-const { ExternalServiceError } = require('../middleware/errorHandler');
+
 const { toSgTime, formatForDisplay } = require('../utils/timezoneUtils');
 
 class BotService {
@@ -365,14 +365,34 @@ class BotService {
       // Phase 1: Silent Context Analysis
       const contextAnalysis = await this._analyzeStrategicContext(lead, previousMessages, userText);
 
-      // Phase 2: Market Intelligence Gathering (if needed)
-      const marketData = await this._gatherMarketIntelligence(contextAnalysis, userText);
+      // Load conversation memory from previous interactions
+      const conversationMemory = await this._loadConversationMemory(lead.id);
 
-      // Phase 3: Conversation Strategy Planning
-      const strategy = await this._planConversationStrategy(contextAnalysis, marketData, lead);
+      // Generate conversation insights for analytics (not control)
+      const conversationInsights = this._generateConversationInsights(contextAnalysis, lead, previousMessages);
 
-      // Phase 4: Strategic Response Generation
-      const response = await this._generateStrategicResponse(strategy, contextAnalysis, marketData, lead, previousMessages);
+      // Update conversation memory with new insights
+      const updatedMemory = this._updateConversationMemory(conversationMemory, conversationInsights, contextAnalysis, userText);
+
+      // Phase 2: Intelligence Gathering (market data, competitor info, news, etc.)
+      const intelligenceData = await this._gatherIntelligence(contextAnalysis, userText);
+
+      // Save conversation insights and memory (async, non-blocking)
+      this._saveConversationInsights(lead.id, conversationInsights).catch(err =>
+        logger.warn({ err, leadId: lead.id }, 'Failed to save conversation insights')
+      );
+      this._saveConversationMemory(lead.id, updatedMemory).catch(err =>
+        logger.warn({ err, leadId: lead.id }, 'Failed to save conversation memory')
+      );
+
+      // Phase 3: Conversation Strategy Planning (AI-driven with memory context)
+      const campaignContext = this._analyzeCampaignContext(updatedMemory, contextAnalysis);
+      const successPatterns = await this._analyzeSuccessPatterns(lead, contextAnalysis);
+      const strategy = await this._planConversationStrategy(contextAnalysis, intelligenceData, lead, updatedMemory, campaignContext, successPatterns);
+
+      // Phase 4: Strategic Response Generation (with dynamic personality)
+      const personalityAdjustments = this._calculatePersonalityAdjustments(contextAnalysis, updatedMemory);
+      const response = await this._generateStrategicResponse(strategy, contextAnalysis, intelligenceData, lead, previousMessages, personalityAdjustments);
 
       // Phase 5: Handle booking if strategy calls for it
       if (response.appointment_intent) {
@@ -410,409 +430,35 @@ class BotService {
       };
 
     } catch (error) {
-      logger.error({ err: error, leadId: lead.id }, 'Error in strategic processing - falling back to legacy');
-      // Fallback to legacy system if strategic fails
-      return await this._generateCompleteResponse(lead, previousMessages, userText);
-    }
-  }
-
-
-
-  /**
-   * Generate AI response
-   * @private
-   */
-  async _generateAIResponse(lead, previousMessages) {
-    try {
-      // Temporarily disable caching to fix conversation flow issues
-      // TODO: Re-enable caching after fixing conversation history timing
-
-      // Generate fresh response
-      const response = await this._generateFreshAIResponse(lead, previousMessages);
-
-      return response;
-
-    } catch (error) {
-      logger.error({ err: error, leadId: lead?.id }, 'AI service error');
-      return this.fallbackResponse;
+      logger.error({ err: error, leadId: lead.id }, 'Error in strategic processing');
+      // Return a simple fallback response instead of legacy system
+      return {
+        message: "I'm having some technical difficulties right now. Let me get back to you in a moment!",
+        messages: ["I'm having some technical difficulties right now. Let me get back to you in a moment!"],
+        action: 'error_fallback',
+        lead_updates: {},
+        appointmentHandled: false
+      };
     }
   }
 
   /**
-   * Generate fresh AI response from OpenAI
+   * Check if agent assignment is valid for appointment operations
    * @private
    */
-  async _generateFreshAIResponse(lead, previousMessages) {
-    const prompt = await this._buildPrompt(lead, previousMessages);
-    
-    try {
-      const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4.1',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: config.OPENAI_TEMPERATURE || AI.DEFAULT_TEMPERATURE,
-        max_tokens: config.OPENAI_MAX_TOKENS || AI.MAX_TOKENS,
-        response_format: { type: 'json_object' }
-      });
-
-      const responseText = completion.choices[0]?.message?.content;
-      if (!responseText) {
-        throw new Error('Empty response from OpenAI');
-      }
-
-      const parsedResponse = JSON.parse(responseText);
-      const validatedResponse = this._validateAIResponse(parsedResponse);
-      
-      logger.info({
-        leadId: lead.id,
-        action: validatedResponse.action,
-        messageCount: validatedResponse.messages.length,
-        hasUpdates: Object.keys(validatedResponse.lead_updates || {}).length > 0
-      }, 'AI response generated successfully');
-
-      return validatedResponse;
-
-    } catch (error) {
-      if (error.name === 'APIError' || error.name === 'APIConnectionError') {
-        throw new ExternalServiceError('OpenAI', error.message, error);
-      }
-      throw error;
+  _validateAgentAssignment(lead) {
+    const agentId = lead.assigned_agent_id || this.config.AGENT_ID;
+    if (!agentId) {
+      logger.error({ leadId: lead.id }, 'Cannot handle appointment action, no agent assigned');
+      return {
+        valid: false,
+        result: {
+          success: false,
+          message: "Sorry, I can't manage appointments right now. Let me have our consultant contact you directly."
+        }
+      };
     }
-  }
-
-  /**
-   * Build the prompt for AI generation
-   * @private
-   */
-  async _buildPrompt(lead, previousMessages) {
-    const bookingStatus = await this._getBookingStatus(lead.id, lead.status);
-
-    const memoryContext = `
-<lead_data>
-  <name>${lead.full_name || 'Not provided'}</name>
-  <phone>${lead.phone_number || 'N/A'}</phone>
-  <status>${lead.status || 'new'}</status>
-  <budget>${lead.budget || 'Not yet known'}</budget>
-  <intent>${lead.intent || 'Not yet known'}</intent>
-  <booking_status>${bookingStatus}</booking_status>
-</lead_data>
-<full_conversation_history>
-${previousMessages.map(entry => `${entry.sender === 'lead' ? 'Lead' : 'Doro'}: ${entry.message}`).join('\n')}
-</full_conversation_history>`;
-
-    return `
-<master_prompt>
-  <role_and_identity>
-    You are Doro, a 28-year-old Singaporean Chinese girl who works as part of a real estate team. You're naturally curious, warm, and genuinely interested in helping people explore property opportunities. You chat like a real person - friendly, authentic, and never like a sales bot.
-  </role_and_identity>
-
-  <personality>
-    • Naturally curious about people and their situations, but not overly eager or fake
-    • Warm and genuine without being overwhelming - avoid fake enthusiasm like "Cool!" or "Oh interesting!"
-    • Naturally empathetic - you understand that property decisions are big life choices
-    • Helpful and supportive, but never pushy or desperate for information
-    • Real conversationalist who listens more than talks - less eager, more authentic
-    • Speaks like a real 28-year-old Singaporean - casual, warm, but still professional
-    • Uses simple, everyday language that feels natural and authentic - no corporate speak
-    • Creates subtle urgency through market insights and opportunities, not fake excitement
-    • When leads say they don't have preferences, don't keep asking - move conversation forward naturally
-  </personality>
-
-  <communication_style>
-    • Casual but authentic expressions: "Nice!", "Got it!", "Makes sense!", "Ah okay!", "Right!"
-    • Natural reactions: "That's smart!", "Good thinking!", "Fair enough!", "I see!"
-    • AVOID fake enthusiasm: Never use "Cool!", "Oh interesting!", "Amazing!", "Fantastic!"
-    • Leading questions that create interest: "Have you noticed how quickly good units are moving lately?", "Are you seeing the same trends I'm hearing about?"
-    • FOMO-inducing insights: "We've been noticing this area's getting really popular", "I've been hearing a lot about that location recently"
-    • Use emojis sparingly but naturally: 😊 for warmth, 😅 for light moments, 🏠 occasionally for property context
-    • Speak as part of the team using "we" instead of "the consultants" - sounds more natural and less robotic
-  </communication_style>
-
-  <local_context>
-    • Reference Singapore property types naturally: HDB, condo, landed property, EC
-    • Know local areas: CBD, Orchard, Sentosa, East Coast, Punggol, etc.
-    • Understand local property market dynamics and concerns
-    • Use appropriate Singaporean expressions when natural (but don't overdo it)
-    • Reference local lifestyle factors: MRT access, schools, amenities, food courts
-    • When mentioning "new" developments, only refer to recently launched properties that haven't been built yet (still in construction/pre-construction phase)
-    • Don't recommend older developments as "new" - be accurate about launch status and completion dates
-    • If unsure about development status, focus on market trends and let consultants provide specific development details
-    • Use terms like "upcoming launches" or "recent launches" instead of just "new" to be more precise
-
-    WEB SEARCH CAPABILITIES:
-    • You have access to web search for ANY information you need - not just market data
-    • Use web search to get current information about:
-      - Recent property launches, prices, and market trends in Singapore
-      - Current interest rates, government policies, cooling measures
-      - Specific developments, locations, or property types the user asks about
-      - Recent news that might affect property decisions
-      - Verification of facts or claims you want to make
-    • When you need current information, search for it and use the results naturally in conversation
-    • Don't mention that you're searching - just incorporate the information smoothly
-    • Use real, current data to make your responses more credible and helpful
-  </local_context>
-
-  <conversation_approach>
-    • Build rapport naturally without being overly friendly
-    • Show genuine interest but don't interrogate with too many questions
-    • Listen more than you talk - respond to what they actually say
-    • Remember and reference previous conversation points naturally
-    • Create subtle urgency through market insights and opportunities
-    • Use leading questions that make them want to know more
-    • Plant seeds of FOMO without being pushy: "We've been really busy with this area lately"
-    • If they seem hesitant, share relevant market insights that create gentle urgency
-    • When leads don't have specific preferences, don't keep asking - pivot to market insights or timing
-    • NEVER offer to "ask our team about something" - instead find persuasive angles for direct consultation
-    • Use scare tactics about going solo: "Most first-time buyers overpay by 10-15% without proper guidance"
-    • Highlight dangers: "We recently saved a client from a $50k mistake"
-    • Emphasize Zoom convenience: "It's just a 30-60 minute Zoom call - completely low-pressure"
-    • Create urgency: "Every month you spend researching alone, prices go up and good units get snapped up"
-  </conversation_approach>
-
-  <response_guidelines>
-    • Keep responses conversational and natural (not formal or robotic)
-    • Use two messages when it feels natural - like how people text
-    • First message: immediate response/acknowledgment
-    • Second message: follow-up question or market insight that creates interest
-    • Vary your language - don't repeat the same phrases
-    • Show personality through word choice and tone
-    • Create gentle urgency through market observations
-    • Use leading questions that make them curious about speaking to consultants
-  </response_guidelines>
-
-  <examples_of_good_responses>
-    User: "I want to buy a property"
-    Good: "Nice! 😊 Are you thinking own stay or investment?"
-
-    User: "I want to speak to a consultant" or "Can I talk to someone"
-    Good: "Sure! I can set up a call for you. When would work?"
-    Follow-up: "Are you free this week or next week better?"
-    DON'T: Ask qualification questions first - go straight to scheduling
-
-    User: "Can I get a consultation?"
-    Good: "Yeah, can arrange that. What time works for you?"
-    Follow-up: "We do it over Zoom, so quite convenient. When suits you?"
-
-    User: "I'd like to meet with someone"
-    Good: "No problem. When are you available?"
-    Follow-up: "Morning, afternoon, or evening?"
-
-    User: "ok lets do that" (after discussing consultation)
-    Good: [This should trigger appointment_intent="book_new" with preferred_time="check_availability"]
-    Response: "Great! When would work for you? This week or next week better?"
-
-    User: "I see, sounds good" (after explaining consultation benefits)
-    Good: [This should trigger appointment_intent="book_new" with preferred_time="check_availability"]
-    Response: "Nice! What time suits you? Morning, afternoon, or evening?"
-
-    User: "Can we do 7pm today please"
-    Good: [This triggers appointment_intent="book_new" with preferred_time="7pm today"]
-    Response: Check availability and either book or offer alternatives
-
-    User: "Everything seems so expensive"
-    Good: "Yeah, the market's been pretty active lately."
-    Follow-up: "Have you been looking at any particular areas? We've been seeing some interesting opportunities recently."
-
-    User: "I'm not sure if I'm ready"
-    Good: "Fair enough, it's a big decision."
-    Follow-up: "What's got you thinking about property now though? We've been warning that waiting too long could cost tens of thousands - the market's moving pretty fast."
-
-    User: "Just browsing"
-    Good: "Right, always good to stay updated."
-    Follow-up: "We mentioned this area's been getting a lot of interest lately. Have you noticed how competitive it's getting?"
-
-    User: "I don't have any specific preferences" or "I don't really know"
-    Good: "That's totally normal - most people start that way."
-    Follow-up: "What's making you consider property now? Market timing or personal situation?"
-    DON'T: Keep asking about preferences, amenities, or features after they said they don't know
-
-    User: "Can you ask your team about X?"
-    AVOID: "Sure, I'll ask them for you!"
-    BETTER: "We've been seeing some interesting opportunities in that area lately. Would probably have better insights if you chat with us directly - we're really up to date on market movements."
-
-    User: "I don't have specific requirements" (second time)
-    Good: "Fair enough! The market's been quite active lately."
-    Follow-up: "We've been seeing some interesting opportunities - might be worth having a quick chat to see what's out there."
-  </examples_of_good_responses>
-
-  <what_to_avoid>
-    • Being overly eager: "That's so exciting!", "I'm so happy to help!"
-    • Too many questions at once: "What's your budget? Timeline? Preferred area?"
-    • Fake enthusiasm: "Amazing!", "Fantastic!", "Wonderful!", "Cool!", "Oh interesting!"
-    • Mentioning "boss" or "the consultants" - always say "we" or "our team" to sound more natural
-    • Repetitive questioning when leads say they don't have preferences - move conversation forward instead
-    • Offering to "ask our team about something" - instead find angles to persuade them to speak directly with us
-    • Asking the same question multiple times if they already said "don't have preferences" or "not sure"
-    • Pushing for specific details when they've indicated they're still exploring or don't know yet
-    • Being pushy: "You should buy now", "What's your budget?" (too direct too early)
-    • Repetitive responses: Using the same phrases over and over
-    • Ignoring what they actually said to ask your own agenda questions
-    • Overusing emojis - keep them natural and sparse
-  </what_to_avoid>
-
-  <sales_psychology>
-    STRATEGIC SCARE TACTICS: Highlight the dangers and pitfalls of going solo in property investment.
-
-    NATURAL SCARE TACTICS (use sparingly and naturally):
-    • "Most first-time buyers end up overpaying quite a bit"
-    • "We've saved clients from some pretty costly mistakes"
-    • "Going solo means you might miss out on off-market deals"
-    • "There are quite a few hidden costs that catch people off-guard"
-    • "Without insider knowledge, you might buy at the wrong time"
-    • "The financing can be tricky - easy to make mistakes there"
-
-    GENTLE URGENCY (weave into conversation naturally):
-    • "Prices have been moving up quite a bit lately"
-    • "Good units don't stay on the market very long"
-    • "We've been quite busy with this area"
-    • "Other buyers are moving pretty fast these days"
-
-    CONSULTATION VALUE (mention once, then reference naturally):
-    • "We do it over Zoom, so quite convenient"
-    • "Usually takes about 30-60 minutes"
-    • "If it's not helpful, you can just leave the call"
-    • "We can share screen to show you the data"
-  </sales_psychology>
-
-  <legal_compliance>
-    • NEVER give specific property recommendations, area suggestions, or calculations
-    • NEVER quote prices, returns, or make financial projections
-    • If asked about specific areas, prices, or recommendations, say "Let me check with my boss on that"
-    • Only share very general market observations if relevant
-    • Avoid any statements that could be construed as financial advice
-    • When in doubt, defer to your boss (the consultant)
-  </legal_compliance>
-
-  <natural_communication>
-    • Keep messages short and casual - like texting a friend
-    • Sound naturally Singaporean without using "lah" or "ah"
-    • Use simple, everyday language that real people use
-    • Ask one thing at a time, not multiple questions
-    • Natural reactions: "Cool", "Nice", "Got it", "Makes sense"
-    • No formal language or corporate speak
-    • NEVER give specific area recommendations or property advice
-    • If asked about areas/recommendations, say you'll need to check with your boss
-  </natural_communication>
-
-  <consultation_approach>
-    NATURAL CONSULTATION APPROACH: Keep it casual and helpful, not pushy.
-
-    STREAMLINED BOOKING FLOW:
-    1. Acknowledge their request casually
-    2. Ask for time preference immediately
-    3. Mention Zoom once to set expectations
-    4. Keep it low-pressure
-
-    NATURAL EXAMPLES:
-    • "Sure, I can set up a call for you. When would work?"
-    • "Yeah, can arrange that. What time suits you?"
-    • "No problem. When are you free?"
-    • "Can do. This week or next week better?"
-
-    ZOOM MENTION (once per conversation):
-    • "We do it over Zoom, so quite convenient"
-    • "It's just a Zoom call, so no need to travel"
-    • After first mention, just say "call" or "chat"
-
-    KEEP IT NATURAL:
-    • Don't repeat "Zoom consultation" every time
-    • Use casual Singaporean expressions
-    • Avoid overly enthusiastic language
-    • Let conversation flow naturally
-  </consultation_approach>
-
-  <conversation_flow>
-    NATURAL CONVERSATION STYLE:
-
-    • Keep messages short and conversational - like texting a friend
-    • Break long responses into multiple short messages (system will add natural delays)
-    • Use casual Singaporean expressions naturally, don't force it
-    • Respond to what they just said - don't ignore their message
-
-    MESSAGE STRUCTURE:
-    • If you have a lot to say, break it into 2-3 short messages
-    • Each message should be 1-2 sentences max
-    • Let the system add natural typing delays between messages
-    • Don't use overly enthusiastic language ("Perfect!" "Absolutely!")
-
-    WHEN USERS WANT TO SPEAK TO CONSULTANTS:
-    • Keep it casual: "Sure, can set up a call for you"
-    • Ask for time immediately: "When would work?"
-    • Mention Zoom once if needed, then just say "call"
-
-    WHEN USERS AGREE TO CONSULTATIONS:
-    • Detect agreement phrases: "ok lets do that", "sounds good", "I see, sounds good", "sure", "yes"
-    • If they agree after you've discussed consultation benefits, trigger appointment booking
-    • Move straight to scheduling instead of continuing to explain benefits
-    • Use appointment_intent="book_new" with preferred_time="check_availability"
-
-    BEFORE THEY EXPRESS CONSULTANT INTEREST:
-    • Share market insights naturally in conversation
-    • Use gentle urgency, not aggressive scare tactics
-    • Build interest through casual observations
-  </conversation_flow>
-
-  <appointment_intelligence>
-    IMPROVED APPOINTMENT DETECTION: Trigger appointment booking when users provide specific times OR when they agree to consultations and we need to schedule.
-
-    TRIGGER appointment booking for:
-    - Specific time requests: "7pm today", "tomorrow at 3pm", "next Tuesday morning"
-    - Agreeing to consultation with time context: "ok lets do that" (after we asked about timing)
-    - Selecting from offered time slots: "I'll take option 2", "the 3pm slot works"
-    - Confirming specific times: "yes, 7pm works", "sure" (when time was discussed)
-    - Rescheduling: "can we change my appointment to 5pm"
-    - Canceling: "I need to cancel my appointment"
-
-    DO NOT trigger for initial consultation requests without time context:
-    - "I want to speak to a consultant" → Ask for timing first
-    - "Can I get a consultation?" → Ask when they're available
-
-    When you detect appointment intent, set "appointment_intent" to:
-    - "book_new": User specified time OR agreed to consultation after timing discussion
-    - "reschedule_existing": User wants to change existing appointment
-    - "confirm_tentative": User confirming previously offered time
-    - "select_alternative": User selecting from offered alternatives
-    - "cancel_appointment": User wants to cancel
-
-    Provide "booking_instructions" when appointment_intent is set:
-    - "preferred_time": Specific time mentioned or "check_availability" if they agreed but no specific time
-    - "context_summary": What led to this booking request
-    - "user_intent_confidence": high|medium based on clarity
-
-    IMPROVED FLOW: When users agree to consultations (like "ok lets do that"), check if timing was recently discussed. If yes, trigger booking. If no, ask for timing first.
-  </appointment_intelligence>
-
-  <response_format>
-    Respond ONLY in valid JSON format:
-    {
-      "message1": "Natural, conversational response (keep short - 1-2 sentences)",
-      "message2": "Second message if needed (system adds natural delay)",
-      "message3": "Third message if needed (for longer responses)",
-      "lead_updates": {
-        "intent": "own_stay|investment (if naturally discovered)",
-        "budget": "budget_range (if naturally shared)",
-        "status": "only update if appointment actually scheduled"
-      },
-      "action": "continue",
-      "appointment_intent": "book_new|reschedule_existing|confirm_tentative|select_alternative|cancel_appointment (only if appointment-related)",
-      "booking_instructions": {
-        "preferred_time": "extracted time preference from conversation context",
-        "context_summary": "brief summary of what led to this booking request",
-        "user_intent_confidence": "high|medium|low"
-      }
-    }
-
-    MULTIPLE MESSAGES USAGE:
-    - Use message1 for main response
-    - Use message2 for follow-up thoughts (system adds 1.5s delay)
-    - Use message3 for additional context if needed
-    - Keep each message short and natural
-    - Don't repeat "Zoom consultation" in every message
-  </response_format>
-</master_prompt>
-
-${memoryContext}
-
-Respond with appropriate messages and actions based on the conversation context.`;
+    return { valid: true, agentId };
   }
 
   /**
@@ -974,24 +620,7 @@ Respond with appropriate messages and actions based on the conversation context.
     }
   }
 
-  /**
-   * Validate agent assignment for appointment actions
-   * @private
-   */
-  _validateAgentAssignment(lead) {
-    const agentId = lead.assigned_agent_id;
-    if (!agentId) {
-      logger.error({ leadId: lead.id }, 'Cannot handle appointment action, lead is not assigned to an agent');
-      return {
-        valid: false,
-        result: {
-          success: false,
-          message: "Apologies, I can't manage appointments right now as I can't find an available consultant. Please try again shortly."
-        }
-      };
-    }
-    return { valid: true, agentId };
-  }
+
 
   /**
    * Check for existing appointments
@@ -2672,31 +2301,69 @@ Respond in JSON format only with these exact keys:
   }
 
   /**
-   * Phase 2: Gather relevant market intelligence
+   * Phase 2: Gather relevant intelligence (market data, competitor info, news, etc.)
    * @private
    */
-  async _gatherMarketIntelligence(contextAnalysis, userMessage) {
-    let searchQuery = "Singapore property market trends 2025";
-
+  async _gatherIntelligence(contextAnalysis, userMessage) {
     try {
-      // Only search if context analysis indicates we need market data
-      if (!contextAnalysis.needs_market_hook && contextAnalysis.areas_mentioned.length === 0) {
-        logger.info('Skipping market intelligence - not needed for this conversation');
+      const intelligenceNeeds = this._identifyIntelligenceNeeds(contextAnalysis, userMessage);
+
+      if (intelligenceNeeds.length === 0) {
+        logger.info('No additional intelligence needed for this conversation');
         return null;
       }
 
-      // Build smart search query based on context
+      const searchResults = [];
+
+      // Gather intelligence for each identified need
+      for (const need of intelligenceNeeds) {
+        const query = this._buildSearchQuery(need, contextAnalysis, userMessage);
+        const results = await this._performRealWebSearch(query);
+
+        if (results && results.length > 0) {
+          searchResults.push({
+            type: need.type,
+            priority: need.priority,
+            query,
+            results: results.slice(0, 2), // Top 2 results per need
+            timestamp: new Date().toISOString()
+          });
+        }
+      }
+
+      if (searchResults.length > 0) {
+        logger.info({
+          intelligenceTypes: searchResults.map(r => r.type),
+          totalResults: searchResults.reduce((sum, r) => sum + r.results.length, 0)
+        }, 'Intelligence gathering completed');
+
+        return {
+          intelligence: searchResults,
+          timestamp: new Date().toISOString(),
+          source: 'dynamic_web_search'
+        };
+      }
+
+      // Fallback to basic market intelligence if no specific needs identified
+      if (!contextAnalysis.needs_market_hook && contextAnalysis.areas_mentioned.length === 0) {
+        logger.info('Skipping intelligence gathering - not needed for this conversation');
+        return null;
+      }
+
+      // Build smart search query based on context with dynamic year
+      const currentYear = new Date().getFullYear();
+      let searchQuery = `Singapore property market trends ${currentYear}`;
 
       if (contextAnalysis.areas_mentioned.length > 0) {
-        searchQuery = `Singapore ${contextAnalysis.areas_mentioned[0]} property prices trends 2025`;
+        searchQuery = `Singapore ${contextAnalysis.areas_mentioned[0]} property prices trends ${currentYear}`;
       } else if (userMessage.toLowerCase().includes('expensive') || userMessage.toLowerCase().includes('price')) {
-        searchQuery = "Singapore property price increase 2025 market trends";
+        searchQuery = `Singapore property price increase ${currentYear} market trends`;
       } else if (userMessage.toLowerCase().includes('investment')) {
-        searchQuery = "Singapore property investment market 2025 ROI trends";
+        searchQuery = `Singapore property investment market ${currentYear} ROI trends`;
       } else if (userMessage.toLowerCase().includes('new launch') || userMessage.toLowerCase().includes('condo')) {
-        searchQuery = "Singapore new property launches 2025 condo prices";
+        searchQuery = `Singapore new property launches ${currentYear} condo prices`;
       } else if (userMessage.toLowerCase().includes('hdb') || userMessage.toLowerCase().includes('resale')) {
-        searchQuery = "Singapore HDB resale prices 2025 market trends";
+        searchQuery = `Singapore HDB resale prices ${currentYear} market trends`;
       }
 
       logger.info({
@@ -2705,18 +2372,18 @@ Respond in JSON format only with these exact keys:
       }, 'Gathering real-time market intelligence');
 
       // Use real web search to get current market data
-      const searchResults = await this._performRealWebSearch(searchQuery);
+      const marketSearchResults = await this._performRealWebSearch(searchQuery);
 
-      if (searchResults && searchResults.length > 0) {
+      if (marketSearchResults && marketSearchResults.length > 0) {
         logger.info({
           query: searchQuery,
-          resultsCount: searchResults.length,
-          sources: searchResults.map(r => r.url)
+          resultsCount: marketSearchResults.length,
+          sources: marketSearchResults.map(r => r.url)
         }, 'Market intelligence gathered successfully');
 
         return {
           query: searchQuery,
-          insights: searchResults.slice(0, 3), // Top 3 results
+          insights: marketSearchResults.slice(0, 3), // Top 3 results
           timestamp: new Date().toISOString(),
           source: 'real_web_search'
         };
@@ -2726,8 +2393,1163 @@ Respond in JSON format only with these exact keys:
       return null;
 
     } catch (error) {
-      logger.error({ err: error, searchQuery }, 'Error gathering market intelligence');
+      logger.error({ err: error }, 'Error gathering intelligence');
       return null;
+    }
+  }
+
+  /**
+   * Calculate dynamic lead score based on conversation analysis and behavior
+   * @private
+   */
+  _calculateLeadScore(contextAnalysis, lead, conversationHistory) {
+    let score = 0;
+    const factors = [];
+
+    // Journey stage scoring (0-30 points)
+    const journeyScores = {
+      'browsing': 5,
+      'researching': 10,
+      'interested': 20,
+      'ready': 25,
+      'urgent': 30
+    };
+    const journeyScore = journeyScores[contextAnalysis.journey_stage] || 5;
+    score += journeyScore;
+    factors.push({ factor: 'journey_stage', value: contextAnalysis.journey_stage, points: journeyScore });
+
+    // Comfort level scoring (0-20 points)
+    const comfortScores = {
+      'cold': 2,
+      'warming': 8,
+      'engaged': 15,
+      'trusting': 20
+    };
+    const comfortScore = comfortScores[contextAnalysis.comfort_level] || 2;
+    score += comfortScore;
+    factors.push({ factor: 'comfort_level', value: contextAnalysis.comfort_level, points: comfortScore });
+
+    // Buying signals scoring (0-25 points)
+    const buyingSignalsScore = Math.min(contextAnalysis.buying_signals.length * 5, 25);
+    score += buyingSignalsScore;
+    factors.push({ factor: 'buying_signals', value: contextAnalysis.buying_signals.length, points: buyingSignalsScore });
+
+    // Consultation timing scoring (0-15 points)
+    const timingScores = {
+      'not_yet': 0,
+      'later': 5,
+      'soon': 10,
+      'now': 15
+    };
+    const timingScore = timingScores[contextAnalysis.consultation_timing] || 0;
+    score += timingScore;
+    factors.push({ factor: 'consultation_timing', value: contextAnalysis.consultation_timing, points: timingScore });
+
+    // Lead profile scoring (0-10 points)
+    let profileScore = 0;
+    if (lead.intent && lead.intent !== 'unknown') profileScore += 3;
+    if (lead.budget && lead.budget !== 'unknown') profileScore += 3;
+    if (lead.status === 'qualified') profileScore += 2;
+    if (lead.status === 'booked') profileScore += 2;
+    score += profileScore;
+    factors.push({ factor: 'lead_profile', value: `${lead.intent || 'unknown'}_${lead.budget || 'unknown'}_${lead.status}`, points: profileScore });
+
+    // Conversation engagement scoring (0-10 points)
+    const messageCount = conversationHistory.length;
+    const engagementScore = Math.min(Math.floor(messageCount / 2), 10);
+    score += engagementScore;
+    factors.push({ factor: 'conversation_engagement', value: messageCount, points: engagementScore });
+
+    // Resistance patterns penalty (0 to -10 points)
+    const resistancePenalty = Math.max(contextAnalysis.resistance_patterns.length * -2, -10);
+    score += resistancePenalty;
+    if (resistancePenalty < 0) {
+      factors.push({ factor: 'resistance_patterns', value: contextAnalysis.resistance_patterns.length, points: resistancePenalty });
+    }
+
+    // Calculate final score and quality rating
+    const finalScore = Math.max(0, Math.min(100, score));
+    let quality = 'cold';
+    if (finalScore >= 80) quality = 'hot';
+    else if (finalScore >= 60) quality = 'warm';
+    else if (finalScore >= 40) quality = 'lukewarm';
+
+    const leadScoreData = {
+      score: finalScore,
+      quality,
+      factors,
+      timestamp: new Date().toISOString(),
+      recommendations: this._getScoreBasedRecommendations(finalScore, contextAnalysis)
+    };
+
+    logger.info({
+      leadId: lead.id,
+      leadScore: finalScore,
+      quality,
+      topFactors: factors.sort((a, b) => b.points - a.points).slice(0, 3)
+    }, 'Lead score calculated');
+
+    return leadScoreData;
+  }
+
+  /**
+   * Get strategy recommendations based on lead score
+   * @private
+   */
+  _getScoreBasedRecommendations(score, contextAnalysis) {
+    const recommendations = [];
+
+    if (score >= 80) {
+      recommendations.push('high_priority_follow_up');
+      recommendations.push('direct_booking_approach');
+      recommendations.push('urgency_tactics');
+    } else if (score >= 60) {
+      recommendations.push('warm_nurturing');
+      recommendations.push('value_demonstration');
+      recommendations.push('soft_booking_offer');
+    } else if (score >= 40) {
+      recommendations.push('educational_content');
+      recommendations.push('trust_building');
+      recommendations.push('market_insights_sharing');
+    } else {
+      recommendations.push('rapport_building');
+      recommendations.push('needs_discovery');
+      recommendations.push('gentle_engagement');
+    }
+
+    // Add specific recommendations based on context
+    if (contextAnalysis.resistance_patterns.length > 2) {
+      recommendations.push('address_objections');
+    }
+    if (contextAnalysis.areas_mentioned.length > 0) {
+      recommendations.push('location_specific_insights');
+    }
+
+    return recommendations;
+  }
+
+  /**
+   * Generate conversation insights for analytics (not control)
+   * @private
+   */
+  _generateConversationInsights(contextAnalysis, lead, conversationHistory) {
+    const insights = {
+      // Engagement metrics
+      engagement_score: this._calculateEngagementScore(conversationHistory),
+      conversation_depth: conversationHistory.length,
+      response_rate: this._calculateResponseRate(conversationHistory),
+
+      // Readiness indicators
+      readiness_signals: contextAnalysis.buying_signals.length,
+      journey_stage: contextAnalysis.journey_stage,
+      consultation_timing: contextAnalysis.consultation_timing,
+
+      // Interest analysis
+      areas_of_interest: contextAnalysis.areas_mentioned,
+      topics_discussed: this._extractTopics(conversationHistory),
+
+      // Resistance analysis
+      resistance_level: contextAnalysis.resistance_patterns.length,
+      objections_raised: this._extractObjections(conversationHistory),
+
+      // Lead profile completeness
+      profile_completeness: this._calculateProfileCompleteness(lead),
+
+      // Conversation quality
+      comfort_level: contextAnalysis.comfort_level,
+      user_psychology: contextAnalysis.user_psychology,
+
+      // Timing analysis
+      conversation_duration_minutes: this._calculateConversationDuration(conversationHistory),
+      last_interaction: new Date().toISOString(),
+
+      // Metadata
+      timestamp: new Date().toISOString(),
+      lead_id: lead.id,
+      conversation_id: `conv_${lead.id}_${Date.now()}`
+    };
+
+    logger.debug({
+      leadId: lead.id,
+      engagementScore: insights.engagement_score,
+      journeyStage: insights.journey_stage,
+      readinessSignals: insights.readiness_signals
+    }, 'Generated conversation insights');
+
+    return insights;
+  }
+
+  /**
+   * Calculate engagement score based on conversation patterns
+   * @private
+   */
+  _calculateEngagementScore(conversationHistory) {
+    if (conversationHistory.length === 0) return 0;
+
+    let score = 0;
+    const leadMessages = conversationHistory.filter(msg => msg.sender === 'lead');
+
+    // Message frequency (0-30 points)
+    score += Math.min(leadMessages.length * 3, 30);
+
+    // Message length quality (0-20 points)
+    const avgLength = leadMessages.reduce((sum, msg) => sum + msg.message.length, 0) / leadMessages.length;
+    if (avgLength > 50) score += 20;
+    else if (avgLength > 20) score += 15;
+    else if (avgLength > 10) score += 10;
+    else score += 5;
+
+    // Question asking (0-25 points)
+    const questionsAsked = leadMessages.filter(msg => msg.message.includes('?')).length;
+    score += Math.min(questionsAsked * 5, 25);
+
+    // Conversation continuity (0-25 points)
+    const conversationSpan = conversationHistory.length;
+    if (conversationSpan > 10) score += 25;
+    else if (conversationSpan > 5) score += 15;
+    else score += 5;
+
+    return Math.min(score, 100);
+  }
+
+  /**
+   * Calculate response rate
+   * @private
+   */
+  _calculateResponseRate(conversationHistory) {
+    if (conversationHistory.length < 2) return 1;
+
+    const botMessages = conversationHistory.filter(msg => msg.sender === 'assistant').length;
+    const leadMessages = conversationHistory.filter(msg => msg.sender === 'lead').length;
+
+    return botMessages > 0 ? leadMessages / botMessages : 0;
+  }
+
+  /**
+   * Extract topics discussed
+   * @private
+   */
+  _extractTopics(conversationHistory) {
+    const topics = new Set();
+    const topicKeywords = {
+      'pricing': ['price', 'cost', 'expensive', 'cheap', 'budget', 'afford'],
+      'location': ['area', 'district', 'mrt', 'school', 'nearby', 'location'],
+      'investment': ['investment', 'roi', 'rental', 'yield', 'returns'],
+      'financing': ['loan', 'mortgage', 'bank', 'cpf', 'down payment'],
+      'timing': ['when', 'urgent', 'soon', 'later', 'timeline'],
+      'property_type': ['hdb', 'condo', 'landed', 'apartment', 'house']
+    };
+
+    conversationHistory.forEach(msg => {
+      if (msg.sender === 'lead') {
+        const lowerMessage = msg.message.toLowerCase();
+        Object.entries(topicKeywords).forEach(([topic, keywords]) => {
+          if (keywords.some(keyword => lowerMessage.includes(keyword))) {
+            topics.add(topic);
+          }
+        });
+      }
+    });
+
+    return Array.from(topics);
+  }
+
+  /**
+   * Extract objections raised
+   * @private
+   */
+  _extractObjections(conversationHistory) {
+    const objections = [];
+    const objectionPatterns = [
+      { pattern: /too expensive|can't afford|budget/i, type: 'budget_concern' },
+      { pattern: /not ready|too early|maybe later/i, type: 'timing_objection' },
+      { pattern: /need to think|discuss with/i, type: 'decision_delay' },
+      { pattern: /other agent|already have|working with/i, type: 'competitor_mention' },
+      { pattern: /not interested|not looking/i, type: 'interest_objection' }
+    ];
+
+    conversationHistory.forEach(msg => {
+      if (msg.sender === 'lead') {
+        objectionPatterns.forEach(({ pattern, type }) => {
+          if (pattern.test(msg.message)) {
+            objections.push({
+              type,
+              message: msg.message,
+              timestamp: msg.created_at
+            });
+          }
+        });
+      }
+    });
+
+    return objections;
+  }
+
+  /**
+   * Calculate profile completeness
+   * @private
+   */
+  _calculateProfileCompleteness(lead) {
+    let completeness = 0;
+    const fields = ['full_name', 'intent', 'budget', 'timeline', 'source'];
+
+    fields.forEach(field => {
+      if (lead[field] && lead[field] !== 'unknown' && lead[field] !== '') {
+        completeness += 20;
+      }
+    });
+
+    return completeness;
+  }
+
+  /**
+   * Calculate conversation duration
+   * @private
+   */
+  _calculateConversationDuration(conversationHistory) {
+    if (conversationHistory.length < 2) return 0;
+
+    const firstMessage = new Date(conversationHistory[0].created_at);
+    const lastMessage = new Date(conversationHistory[conversationHistory.length - 1].created_at);
+
+    return Math.round((lastMessage - firstMessage) / (1000 * 60)); // minutes
+  }
+
+  /**
+   * Save conversation insights to database (async, non-blocking)
+   * @private
+   */
+  async _saveConversationInsights(leadId, insights) {
+    try {
+      const { error } = await this.supabase
+        .from('conversation_insights')
+        .insert({
+          lead_id: leadId,
+          insights,
+          created_at: new Date().toISOString()
+        });
+
+      if (error) {
+        logger.warn({ err: error, leadId }, 'Failed to save conversation insights to database');
+      } else {
+        logger.debug({ leadId, insightKeys: Object.keys(insights) }, 'Conversation insights saved');
+      }
+    } catch (error) {
+      logger.warn({ err: error, leadId }, 'Error saving conversation insights');
+    }
+  }
+
+  /**
+   * Load conversation memory from previous interactions
+   * @private
+   */
+  async _loadConversationMemory(leadId) {
+    try {
+      const { data, error } = await this.supabase
+        .from('conversation_memory')
+        .select('*')
+        .eq('lead_id', leadId)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        logger.warn({ err: error, leadId }, 'Failed to load conversation memory');
+        return this._createEmptyMemory(leadId);
+      }
+
+      if (data && data.length > 0) {
+        logger.debug({ leadId, memoryAge: data[0].updated_at }, 'Loaded conversation memory');
+        return data[0].memory_data;
+      }
+
+      return this._createEmptyMemory(leadId);
+    } catch (error) {
+      logger.warn({ err: error, leadId }, 'Error loading conversation memory');
+      return this._createEmptyMemory(leadId);
+    }
+  }
+
+  /**
+   * Create empty conversation memory structure
+   * @private
+   */
+  _createEmptyMemory(leadId) {
+    return {
+      lead_id: leadId,
+      pain_points: [],
+      objections_raised: [],
+      interests_shown: [],
+      preferences_mentioned: [],
+      consultation_attempts: [],
+      successful_tactics: [],
+      failed_approaches: [],
+      personality_insights: {},
+      engagement_patterns: {},
+      conversation_themes: [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Update conversation memory with new insights
+   * @private
+   */
+  _updateConversationMemory(existingMemory, conversationInsights, contextAnalysis, userMessage) {
+    const memory = { ...existingMemory };
+    const timestamp = new Date().toISOString();
+
+    // Update pain points
+    const newPainPoints = this._extractPainPoints(userMessage, contextAnalysis);
+    newPainPoints.forEach(point => {
+      if (!memory.pain_points.some(p => p.type === point.type)) {
+        memory.pain_points.push({ ...point, first_mentioned: timestamp });
+      }
+    });
+
+    // Update objections
+    conversationInsights.objections_raised.forEach(objection => {
+      if (!memory.objections_raised.some(o => o.type === objection.type)) {
+        memory.objections_raised.push({ ...objection, first_raised: timestamp });
+      }
+    });
+
+    // Update interests
+    conversationInsights.topics_discussed.forEach(topic => {
+      if (!memory.interests_shown.includes(topic)) {
+        memory.interests_shown.push(topic);
+      }
+    });
+
+    // Update preferences
+    const preferences = this._extractPreferences(userMessage, contextAnalysis);
+    preferences.forEach(pref => {
+      if (!memory.preferences_mentioned.some(p => p.type === pref.type)) {
+        memory.preferences_mentioned.push({ ...pref, mentioned_at: timestamp });
+      }
+    });
+
+    // Update consultation attempts
+    if (contextAnalysis.consultation_timing !== 'not_yet') {
+      memory.consultation_attempts.push({
+        timing: contextAnalysis.consultation_timing,
+        approach_used: 'strategic_conversation',
+        result: 'pending',
+        attempted_at: timestamp
+      });
+    }
+
+    // Update personality insights
+    memory.personality_insights = {
+      ...memory.personality_insights,
+      user_psychology: contextAnalysis.user_psychology,
+      comfort_level: contextAnalysis.comfort_level,
+      communication_style: this._analyzeCommuncationStyle(userMessage),
+      last_updated: timestamp
+    };
+
+    // Update engagement patterns
+    memory.engagement_patterns = {
+      ...memory.engagement_patterns,
+      current_engagement_score: conversationInsights.engagement_score,
+      response_rate: conversationInsights.response_rate,
+      conversation_depth: conversationInsights.conversation_depth,
+      last_interaction: timestamp
+    };
+
+    // Update conversation themes
+    const themes = this._extractConversationThemes(userMessage, contextAnalysis);
+    themes.forEach(theme => {
+      if (!memory.conversation_themes.includes(theme)) {
+        memory.conversation_themes.push(theme);
+      }
+    });
+
+    memory.updated_at = timestamp;
+
+    logger.debug({
+      leadId: memory.lead_id,
+      painPoints: memory.pain_points.length,
+      objections: memory.objections_raised.length,
+      interests: memory.interests_shown.length
+    }, 'Updated conversation memory');
+
+    return memory;
+  }
+
+  /**
+   * Extract pain points from conversation
+   * @private
+   */
+  _extractPainPoints(userMessage, contextAnalysis) {
+    const painPoints = [];
+    const lowerMessage = userMessage.toLowerCase();
+
+    const painPointPatterns = [
+      { pattern: /budget|expensive|afford|cost/i, type: 'budget_constraints' },
+      { pattern: /time|busy|schedule|urgent/i, type: 'time_constraints' },
+      { pattern: /location|far|convenient|transport/i, type: 'location_concerns' },
+      { pattern: /family|space|room|size/i, type: 'space_requirements' },
+      { pattern: /investment|returns|profit|loss/i, type: 'investment_concerns' },
+      { pattern: /market|timing|right time|wrong time/i, type: 'market_timing' }
+    ];
+
+    painPointPatterns.forEach(({ pattern, type }) => {
+      if (pattern.test(lowerMessage)) {
+        painPoints.push({
+          type,
+          context: userMessage.substring(0, 100),
+          confidence: 'medium'
+        });
+      }
+    });
+
+    return painPoints;
+  }
+
+  /**
+   * Extract preferences from conversation
+   * @private
+   */
+  _extractPreferences(userMessage, contextAnalysis) {
+    const preferences = [];
+    const lowerMessage = userMessage.toLowerCase();
+
+    // Location preferences
+    if (contextAnalysis.areas_mentioned.length > 0) {
+      preferences.push({
+        type: 'location',
+        value: contextAnalysis.areas_mentioned,
+        confidence: 'high'
+      });
+    }
+
+    // Property type preferences
+    const propertyTypes = ['hdb', 'condo', 'landed', 'apartment'];
+    propertyTypes.forEach(type => {
+      if (lowerMessage.includes(type)) {
+        preferences.push({
+          type: 'property_type',
+          value: type,
+          confidence: 'high'
+        });
+      }
+    });
+
+    // Budget preferences
+    const budgetMatch = lowerMessage.match(/(\d+k|\d+\s*million|\$\d+)/i);
+    if (budgetMatch) {
+      preferences.push({
+        type: 'budget_range',
+        value: budgetMatch[0],
+        confidence: 'medium'
+      });
+    }
+
+    return preferences;
+  }
+
+  /**
+   * Analyze communication style
+   * @private
+   */
+  _analyzeCommuncationStyle(userMessage) {
+    const lowerMessage = userMessage.toLowerCase();
+
+    if (lowerMessage.length > 100) return 'detailed';
+    if (lowerMessage.includes('?')) return 'inquisitive';
+    if (lowerMessage.includes('!')) return 'enthusiastic';
+    if (lowerMessage.split(' ').length < 5) return 'concise';
+
+    return 'conversational';
+  }
+
+  /**
+   * Extract conversation themes
+   * @private
+   */
+  _extractConversationThemes(userMessage, contextAnalysis) {
+    const themes = [];
+    const lowerMessage = userMessage.toLowerCase();
+
+    const themePatterns = [
+      { pattern: /first.*home|first.*property/i, theme: 'first_time_buyer' },
+      { pattern: /upgrade|upgrading|bigger/i, theme: 'upgrading' },
+      { pattern: /investment|rental|roi/i, theme: 'investment_focused' },
+      { pattern: /urgent|asap|quickly/i, theme: 'time_sensitive' },
+      { pattern: /research|compare|options/i, theme: 'research_phase' },
+      { pattern: /family|children|school/i, theme: 'family_oriented' }
+    ];
+
+    themePatterns.forEach(({ pattern, theme }) => {
+      if (pattern.test(lowerMessage)) {
+        themes.push(theme);
+      }
+    });
+
+    return themes;
+  }
+
+  /**
+   * Save conversation memory to database
+   * @private
+   */
+  async _saveConversationMemory(leadId, memoryData) {
+    try {
+      const { error } = await this.supabase
+        .from('conversation_memory')
+        .upsert({
+          lead_id: leadId,
+          memory_data: memoryData,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'lead_id'
+        });
+
+      if (error) {
+        logger.warn({ err: error, leadId }, 'Failed to save conversation memory');
+      } else {
+        logger.debug({ leadId }, 'Conversation memory saved');
+      }
+    } catch (error) {
+      logger.warn({ err: error, leadId }, 'Error saving conversation memory');
+    }
+  }
+
+  /**
+   * Calculate personality adjustments based on user psychology and conversation memory
+   * @private
+   */
+  _calculatePersonalityAdjustments(contextAnalysis, conversationMemory) {
+    const adjustments = {
+      tone: 'balanced', // casual, professional, empathetic, enthusiastic
+      communication_style: 'conversational', // detailed, concise, storytelling, data_driven
+      approach: 'adaptive', // direct, nurturing, educational, consultative
+      energy_level: 'medium', // low, medium, high
+      formality: 'casual', // casual, semi_formal, formal
+      use_data: false,
+      use_stories: false,
+      use_emojis: true,
+      reasoning: []
+    };
+
+    // Adjust based on user psychology
+    if (contextAnalysis.user_psychology === 'analytical') {
+      adjustments.tone = 'professional';
+      adjustments.communication_style = 'data_driven';
+      adjustments.use_data = true;
+      adjustments.use_emojis = false;
+      adjustments.reasoning.push('User shows analytical psychology - using data-driven approach');
+    } else if (contextAnalysis.user_psychology === 'emotional') {
+      adjustments.tone = 'empathetic';
+      adjustments.communication_style = 'storytelling';
+      adjustments.use_stories = true;
+      adjustments.reasoning.push('User shows emotional psychology - using empathetic storytelling');
+    }
+
+    // Adjust based on comfort level
+    if (contextAnalysis.comfort_level === 'cold') {
+      adjustments.approach = 'nurturing';
+      adjustments.energy_level = 'low';
+      adjustments.formality = 'semi_formal';
+      adjustments.reasoning.push('User comfort level is cold - using gentle nurturing approach');
+    } else if (contextAnalysis.comfort_level === 'trusting') {
+      adjustments.approach = 'direct';
+      adjustments.energy_level = 'high';
+      adjustments.reasoning.push('User is trusting - can be more direct and energetic');
+    }
+
+    // Adjust based on conversation memory
+    if (conversationMemory) {
+      // If user has raised objections before, be more consultative
+      if (conversationMemory.objections_raised.length > 2) {
+        adjustments.approach = 'consultative';
+        adjustments.tone = 'empathetic';
+        adjustments.reasoning.push('Multiple objections in history - using consultative approach');
+      }
+
+      // If user has shown specific interests, tailor communication
+      if (conversationMemory.interests_shown.includes('investment')) {
+        adjustments.use_data = true;
+        adjustments.communication_style = 'data_driven';
+        adjustments.reasoning.push('User interested in investment - including data and ROI focus');
+      }
+
+      // If user communication style is concise, match it
+      if (conversationMemory.personality_insights.communication_style === 'concise') {
+        adjustments.communication_style = 'concise';
+        adjustments.reasoning.push('User prefers concise communication - matching style');
+      }
+
+      // If multiple consultation attempts failed, try different approach
+      if (conversationMemory.consultation_attempts.length > 2) {
+        adjustments.approach = 'educational';
+        adjustments.tone = 'casual';
+        adjustments.reasoning.push('Multiple consultation attempts - switching to educational approach');
+      }
+    }
+
+    // Adjust based on journey stage
+    if (contextAnalysis.journey_stage === 'browsing') {
+      adjustments.approach = 'educational';
+      adjustments.energy_level = 'low';
+      adjustments.reasoning.push('User in browsing stage - using educational approach');
+    } else if (contextAnalysis.journey_stage === 'urgent') {
+      adjustments.approach = 'direct';
+      adjustments.energy_level = 'high';
+      adjustments.tone = 'enthusiastic';
+      adjustments.reasoning.push('User shows urgency - using direct high-energy approach');
+    }
+
+    logger.debug({
+      userPsychology: contextAnalysis.user_psychology,
+      comfortLevel: contextAnalysis.comfort_level,
+      journeyStage: contextAnalysis.journey_stage,
+      adjustments: {
+        tone: adjustments.tone,
+        style: adjustments.communication_style,
+        approach: adjustments.approach
+      }
+    }, 'Calculated personality adjustments');
+
+    return adjustments;
+  }
+
+  /**
+   * Analyze campaign context for multi-touch strategy
+   * @private
+   */
+  _analyzeCampaignContext(conversationMemory, contextAnalysis) {
+    const context = {
+      consultation_attempts: 0,
+      last_attempt_date: null,
+      approach_history: [],
+      success_indicators: [],
+      failure_patterns: [],
+      recommended_strategy: 'first_touch',
+      reasoning: []
+    };
+
+    if (!conversationMemory || !conversationMemory.consultation_attempts) {
+      context.reasoning.push('No previous consultation attempts - using first touch approach');
+      return context;
+    }
+
+    const attempts = conversationMemory.consultation_attempts;
+    context.consultation_attempts = attempts.length;
+
+    if (attempts.length > 0) {
+      context.last_attempt_date = attempts[attempts.length - 1].attempted_at;
+      context.approach_history = attempts.map(a => a.approach_used);
+
+      // Analyze time since last attempt
+      const daysSinceLastAttempt = Math.floor(
+        (new Date() - new Date(context.last_attempt_date)) / (1000 * 60 * 60 * 24)
+      );
+
+      // Determine strategy based on attempt count and timing
+      if (attempts.length === 1) {
+        if (daysSinceLastAttempt < 1) {
+          context.recommended_strategy = 'soft_follow_up';
+          context.reasoning.push('Recent first attempt - using soft follow-up');
+        } else if (daysSinceLastAttempt < 7) {
+          context.recommended_strategy = 'value_reinforcement';
+          context.reasoning.push('First attempt within week - reinforcing value proposition');
+        } else {
+          context.recommended_strategy = 'fresh_approach';
+          context.reasoning.push('First attempt over a week ago - trying fresh approach');
+        }
+      } else if (attempts.length === 2) {
+        if (daysSinceLastAttempt < 3) {
+          context.recommended_strategy = 'soft_nurture';
+          context.reasoning.push('Two recent attempts - switching to soft nurturing');
+        } else {
+          context.recommended_strategy = 'different_angle';
+          context.reasoning.push('Two attempts with gap - trying different angle');
+        }
+      } else if (attempts.length >= 3) {
+        context.recommended_strategy = 'long_term_nurture';
+        context.reasoning.push('Multiple attempts - switching to long-term nurturing');
+      }
+
+      // Identify success indicators
+      if (contextAnalysis.consultation_timing !== 'not_yet') {
+        context.success_indicators.push('user_showing_timing_interest');
+      }
+      if (contextAnalysis.buying_signals.length > 0) {
+        context.success_indicators.push('buying_signals_present');
+      }
+      if (contextAnalysis.comfort_level === 'trusting') {
+        context.success_indicators.push('high_trust_level');
+      }
+
+      // Identify failure patterns
+      if (conversationMemory.objections_raised.length > 2) {
+        context.failure_patterns.push('multiple_objections');
+      }
+      if (conversationMemory.resistance_patterns && conversationMemory.resistance_patterns.length > 1) {
+        context.failure_patterns.push('resistance_patterns');
+      }
+
+      // Adjust strategy based on patterns
+      if (context.failure_patterns.includes('multiple_objections')) {
+        context.recommended_strategy = 'objection_handling';
+        context.reasoning.push('Multiple objections detected - focusing on objection handling');
+      }
+    }
+
+    logger.debug({
+      consultationAttempts: context.consultation_attempts,
+      recommendedStrategy: context.recommended_strategy,
+      daysSinceLastAttempt: context.last_attempt_date ?
+        Math.floor((new Date() - new Date(context.last_attempt_date)) / (1000 * 60 * 60 * 24)) : null
+    }, 'Analyzed campaign context');
+
+    return context;
+  }
+
+  /**
+   * Analyze success patterns from similar leads
+   * @private
+   */
+  async _analyzeSuccessPatterns(currentLead, contextAnalysis) {
+    try {
+      // Query successful conversations from similar leads
+      const { data: successfulLeads, error } = await this.supabase
+        .from('leads')
+        .select(`
+          id, intent, budget, status, source,
+          conversation_insights!inner(insights),
+          conversation_memory!inner(memory_data)
+        `)
+        .eq('status', 'booked')
+        .limit(20);
+
+      if (error) {
+        logger.warn({ err: error }, 'Failed to fetch successful leads for pattern analysis');
+        return this._getDefaultSuccessPatterns();
+      }
+
+      if (!successfulLeads || successfulLeads.length === 0) {
+        return this._getDefaultSuccessPatterns();
+      }
+
+      // Find similar leads based on profile
+      const similarLeads = successfulLeads.filter(lead => {
+        const similarity = this._calculateLeadSimilarity(currentLead, lead, contextAnalysis);
+        return similarity > 0.6; // 60% similarity threshold
+      });
+
+      if (similarLeads.length === 0) {
+        logger.info('No similar successful leads found, using default patterns');
+        return this._getDefaultSuccessPatterns();
+      }
+
+      // Extract patterns from similar successful leads
+      const patterns = this._extractSuccessPatterns(similarLeads);
+
+      logger.info({
+        totalSuccessfulLeads: successfulLeads.length,
+        similarLeads: similarLeads.length,
+        patternsFound: patterns.tactics.length
+      }, 'Success patterns analyzed');
+
+      return patterns;
+
+    } catch (error) {
+      logger.error({ err: error }, 'Error analyzing success patterns');
+      return this._getDefaultSuccessPatterns();
+    }
+  }
+
+  /**
+   * Calculate similarity between current lead and successful lead
+   * @private
+   */
+  _calculateLeadSimilarity(currentLead, successfulLead, contextAnalysis) {
+    let similarity = 0;
+
+    // Intent similarity (30% weight)
+    if (currentLead.intent === successfulLead.intent) {
+      similarity += 0.3;
+    }
+
+    // Budget similarity (20% weight)
+    if (currentLead.budget === successfulLead.budget) {
+      similarity += 0.2;
+    }
+
+    // Source similarity (10% weight)
+    if (currentLead.source === successfulLead.source) {
+      similarity += 0.1;
+    }
+
+    // Journey stage similarity (20% weight)
+    if (successfulLead.conversation_insights && successfulLead.conversation_insights.length > 0) {
+      const successInsights = successfulLead.conversation_insights[0].insights;
+      if (successInsights.journey_stage === contextAnalysis.journey_stage) {
+        similarity += 0.2;
+      }
+    }
+
+    // Psychology similarity (20% weight)
+    if (successfulLead.conversation_memory && successfulLead.conversation_memory.length > 0) {
+      const successMemory = successfulLead.conversation_memory[0].memory_data;
+      if (successMemory.personality_insights &&
+          successMemory.personality_insights.user_psychology === contextAnalysis.user_psychology) {
+        similarity += 0.2;
+      }
+    }
+
+    return similarity;
+  }
+
+  /**
+   * Extract success patterns from similar leads
+   * @private
+   */
+  _extractSuccessPatterns(similarLeads) {
+    const patterns = {
+      tactics: [],
+      approaches: [],
+      timing_insights: [],
+      messaging_themes: [],
+      objection_handling: [],
+      confidence_score: 0
+    };
+
+    const tacticCounts = {};
+    const approachCounts = {};
+    const timingPatterns = [];
+    const messageThemes = [];
+
+    similarLeads.forEach(lead => {
+      // Extract tactics from conversation memory
+      if (lead.conversation_memory && lead.conversation_memory.length > 0) {
+        const memory = lead.conversation_memory[0].memory_data;
+
+        // Count successful tactics
+        if (memory.successful_tactics) {
+          memory.successful_tactics.forEach(tactic => {
+            tacticCounts[tactic] = (tacticCounts[tactic] || 0) + 1;
+          });
+        }
+
+        // Extract conversation themes
+        if (memory.conversation_themes) {
+          memory.conversation_themes.forEach(theme => {
+            messageThemes.push(theme);
+          });
+        }
+
+        // Extract timing patterns
+        if (memory.consultation_attempts) {
+          memory.consultation_attempts.forEach(attempt => {
+            if (attempt.result === 'success') {
+              timingPatterns.push({
+                timing: attempt.timing,
+                approach: attempt.approach_used
+              });
+            }
+          });
+        }
+      }
+
+      // Extract insights
+      if (lead.conversation_insights && lead.conversation_insights.length > 0) {
+        const insights = lead.conversation_insights[0].insights;
+
+        // Count successful approaches based on engagement
+        if (insights.engagement_score > 70) {
+          const approach = `high_engagement_${insights.journey_stage}`;
+          approachCounts[approach] = (approachCounts[approach] || 0) + 1;
+        }
+      }
+    });
+
+    // Convert counts to patterns
+    patterns.tactics = Object.entries(tacticCounts)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5)
+      .map(([tactic, count]) => ({
+        tactic,
+        success_rate: count / similarLeads.length,
+        confidence: count >= 3 ? 'high' : count >= 2 ? 'medium' : 'low'
+      }));
+
+    patterns.approaches = Object.entries(approachCounts)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 3)
+      .map(([approach, count]) => ({
+        approach,
+        success_rate: count / similarLeads.length
+      }));
+
+    // Analyze timing patterns
+    const timingGroups = {};
+    timingPatterns.forEach(pattern => {
+      const key = `${pattern.timing}_${pattern.approach}`;
+      timingGroups[key] = (timingGroups[key] || 0) + 1;
+    });
+
+    patterns.timing_insights = Object.entries(timingGroups)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 3)
+      .map(([pattern, count]) => ({
+        pattern,
+        frequency: count
+      }));
+
+    // Get most common message themes
+    const themeCounts = {};
+    messageThemes.forEach(theme => {
+      themeCounts[theme] = (themeCounts[theme] || 0) + 1;
+    });
+
+    patterns.messaging_themes = Object.entries(themeCounts)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5)
+      .map(([theme]) => theme);
+
+    patterns.confidence_score = Math.min(similarLeads.length / 5, 1); // Max confidence with 5+ similar leads
+
+    return patterns;
+  }
+
+  /**
+   * Get default success patterns when no data available
+   * @private
+   */
+  _getDefaultSuccessPatterns() {
+    return {
+      tactics: [
+        { tactic: 'market_insights_sharing', success_rate: 0.7, confidence: 'medium' },
+        { tactic: 'consultation_value_proposition', success_rate: 0.6, confidence: 'medium' },
+        { tactic: 'urgency_with_market_timing', success_rate: 0.5, confidence: 'low' }
+      ],
+      approaches: [
+        { approach: 'educational_then_consultative', success_rate: 0.65 },
+        { approach: 'rapport_building_first', success_rate: 0.6 }
+      ],
+      timing_insights: [
+        { pattern: 'soon_educational', frequency: 3 },
+        { pattern: 'now_direct', frequency: 2 }
+      ],
+      messaging_themes: ['market_expertise', 'personalized_service', 'local_knowledge'],
+      objection_handling: [],
+      confidence_score: 0.3
+    };
+  }
+
+  /**
+   * Identify what types of intelligence the bot needs for this conversation
+   * @private
+   */
+  _identifyIntelligenceNeeds(contextAnalysis, userMessage) {
+    const needs = [];
+    const lowerMessage = userMessage.toLowerCase();
+
+    // Market intelligence needs
+    if (contextAnalysis.needs_market_hook || contextAnalysis.areas_mentioned.length > 0) {
+      needs.push({
+        type: 'market_data',
+        priority: 'high',
+        reason: 'User interested in market trends or specific areas'
+      });
+    }
+
+    // Competitor intelligence needs
+    const competitorKeywords = ['propnex', 'era', 'huttons', 'orangetee', 'dennis wee', 'century21', 'agent', 'other agents'];
+    if (competitorKeywords.some(keyword => lowerMessage.includes(keyword))) {
+      needs.push({
+        type: 'competitor_intelligence',
+        priority: 'medium',
+        reason: 'User mentioned competitors or other agents'
+      });
+    }
+
+    // News and events intelligence
+    const newsKeywords = ['news', 'latest', 'recent', 'update', 'announcement', 'policy', 'government', 'cooling measures'];
+    if (newsKeywords.some(keyword => lowerMessage.includes(keyword))) {
+      needs.push({
+        type: 'news_events',
+        priority: 'medium',
+        reason: 'User asking about recent news or policy updates'
+      });
+    }
+
+    // Investment intelligence needs
+    if (lowerMessage.includes('investment') || lowerMessage.includes('roi') || lowerMessage.includes('rental yield')) {
+      needs.push({
+        type: 'investment_data',
+        priority: 'high',
+        reason: 'User interested in investment aspects'
+      });
+    }
+
+    // Legal/regulatory intelligence
+    const legalKeywords = ['legal', 'law', 'regulation', 'absd', 'bsd', 'tax', 'stamp duty', 'cpf'];
+    if (legalKeywords.some(keyword => lowerMessage.includes(keyword))) {
+      needs.push({
+        type: 'legal_regulatory',
+        priority: 'medium',
+        reason: 'User asking about legal or regulatory matters'
+      });
+    }
+
+    // Financing intelligence
+    const financeKeywords = ['loan', 'mortgage', 'bank', 'interest rate', 'financing', 'down payment'];
+    if (financeKeywords.some(keyword => lowerMessage.includes(keyword))) {
+      needs.push({
+        type: 'financing_info',
+        priority: 'medium',
+        reason: 'User interested in financing options'
+      });
+    }
+
+    logger.info({
+      identifiedNeeds: needs.map(n => ({ type: n.type, priority: n.priority })),
+      userMessage: userMessage.substring(0, 100)
+    }, 'Intelligence needs identified');
+
+    return needs;
+  }
+
+  /**
+   * Build search query based on intelligence need
+   * @private
+   */
+  _buildSearchQuery(need, contextAnalysis, userMessage) {
+    const currentYear = new Date().getFullYear();
+    const areas = contextAnalysis.areas_mentioned.join(' ') || '';
+
+    switch (need.type) {
+      case 'market_data':
+        if (areas) {
+          return `Singapore ${areas} property market trends ${currentYear} prices`;
+        }
+        return `Singapore property market trends ${currentYear}`;
+
+      case 'competitor_intelligence':
+        return `Singapore property agents comparison reviews ${currentYear}`;
+
+      case 'news_events':
+        return `Singapore property news ${currentYear} latest updates government policy`;
+
+      case 'investment_data':
+        if (areas) {
+          return `Singapore ${areas} property investment ROI rental yield ${currentYear}`;
+        }
+        return `Singapore property investment returns ${currentYear}`;
+
+      case 'legal_regulatory':
+        return `Singapore property law regulations ABSD stamp duty ${currentYear}`;
+
+      case 'financing_info':
+        return `Singapore property loan mortgage rates ${currentYear} banks`;
+
+      default:
+        return `Singapore property ${userMessage.split(' ').slice(0, 3).join(' ')} ${currentYear}`;
     }
   }
 
@@ -2735,7 +3557,7 @@ Respond in JSON format only with these exact keys:
    * Phase 3: Plan conversation strategy
    * @private
    */
-  async _planConversationStrategy(contextAnalysis, marketData, lead) {
+  async _planConversationStrategy(contextAnalysis, intelligenceData, lead, conversationMemory = null, campaignContext = null, successPatterns = null) {
     try {
       const strategyPrompt = `
 CONVERSATION STRATEGIST - Plan the next move while staying natural.
@@ -2743,8 +3565,25 @@ CONVERSATION STRATEGIST - Plan the next move while staying natural.
 CONTEXT ANALYSIS:
 ${JSON.stringify(contextAnalysis, null, 2)}
 
-MARKET DATA AVAILABLE:
-${marketData ? JSON.stringify(marketData, null, 2) : 'None'}
+INTELLIGENCE DATA AVAILABLE:
+${intelligenceData ? JSON.stringify(intelligenceData, null, 2) : 'None'}
+
+CONVERSATION MEMORY (Previous Interactions):
+${conversationMemory ? JSON.stringify({
+  pain_points: conversationMemory.pain_points,
+  objections_raised: conversationMemory.objections_raised,
+  interests_shown: conversationMemory.interests_shown,
+  preferences_mentioned: conversationMemory.preferences_mentioned,
+  consultation_attempts: conversationMemory.consultation_attempts,
+  personality_insights: conversationMemory.personality_insights,
+  conversation_themes: conversationMemory.conversation_themes
+}, null, 2) : 'No previous conversation history'}
+
+CAMPAIGN CONTEXT (Multi-Touch Strategy):
+${campaignContext ? JSON.stringify(campaignContext, null, 2) : 'First interaction'}
+
+SUCCESS PATTERNS (From Similar Leads):
+${successPatterns ? JSON.stringify(successPatterns, null, 2) : 'No patterns available yet'}
 
 LEAD PROFILE:
 - Status: ${lead.status}
@@ -2763,17 +3602,51 @@ TACTICAL APPROACH BASED ON ANALYSIS:
 - If user is engaged: Strategic urgency, direct consultation offers
 - If user is ready: Smooth transition to booking
 
-PROVEN SALES PSYCHOLOGY TO USE STRATEGICALLY:
-- Scare tactics: "Most first-time buyers overpay by 10-15%"
-- Urgency: "Prices moving up quite a bit lately"
-- Social proof: "We've been quite busy with this area"
-- FOMO: "Good units don't stay on the market very long"
+SALES PSYCHOLOGY PRINCIPLES (Use Dynamically, Not as Scripts):
+You have access to the full spectrum of proven sales psychology. Choose and adapt the most effective approach for this specific situation:
 
-TONE REQUIREMENTS:
-- Sound like a knowledgeable friend, not a salesperson
-- Use market insights as natural conversation starters
-- Let consultation offers feel helpful, not pushy
-- Keep the casual "we" language, avoid corporate speak
+INFLUENCE PRINCIPLES TO CONSIDER:
+- Reciprocity: Provide valuable insights first, create obligation to engage
+- Social Proof: Reference what others are doing, market activity, success stories
+- Authority: Demonstrate expertise through market knowledge and insights
+- Scarcity: Highlight limited opportunities, time-sensitive situations
+- Commitment/Consistency: Get small agreements that lead to larger commitments
+- Liking: Build rapport, find common ground, be genuinely helpful
+- Loss Aversion: Frame what they might miss out on vs what they gain
+- Anchoring: Set reference points for pricing, timing, or market conditions
+
+PSYCHOLOGICAL TRIGGERS TO ADAPT:
+- Fear of Missing Out (FOMO): Market timing, limited inventory, price trends
+- Fear of Making Wrong Decision: Position yourself as guide to avoid mistakes
+- Desire for Exclusivity: Access to off-market deals, insider knowledge
+- Need for Security: Stable investment, trusted guidance, proven track record
+- Aspiration: Lifestyle upgrade, investment success, financial freedom
+
+ADAPT THESE DYNAMICALLY - Don't use rigid scripts. Choose what fits the conversation naturally.
+
+TONE REQUIREMENTS - CRITICAL FOR NATURAL CONVERSATION:
+- Sound like a knowledgeable Singaporean friend, not a salesperson
+- Use mild Singlish naturally (don't overdo it): occasional "lah", "lor"
+- Keep messages SHORT and conversational (like texting a friend)
+- Drop market insights casually, not like a formal presentation
+- Use "we" language naturally: "we've been seeing" not "our data shows"
+- Avoid corporate/formal language completely
+
+NATURAL SINGAPOREAN CONVERSATION STYLE:
+✅ "Toa Payoh's been quite hot lately!"
+✅ "3-room flats there moving pretty fast"
+✅ "Want me to share what I'm seeing?"
+✅ "The new launch there starting from 1.28mil leh" (mild Singlish is fine)
+❌ "Wah Toa Payoh quite hot now eh!" (too much Singlish)
+❌ "Based on our market analysis, Toa Payoh has experienced significant appreciation..."
+❌ "Our data indicates that 3-room units are experiencing high demand..."
+
+CASUAL MARKET INSIGHTS (not formal reports):
+✅ "Btw, saw some interesting stuff about Toa Payoh"
+✅ "Makes the resale flats look quite attractive"
+✅ "Been quite busy with that area recently"
+❌ "According to recent market data, The Orie development..."
+❌ "Market trends indicate that resale properties offer better value..."
 
 BOOKING GUIDELINES:
 - Only set triggerBooking=true if user explicitly asks to "speak to consultant" or "book appointment"
@@ -2782,16 +3655,16 @@ BOOKING GUIDELINES:
 
 Plan the response strategy in JSON format with these exact keys:
 {
-  "approach": "educational|social_proof|rapport_building",
+  "approach": "describe your chosen approach (e.g., 'build rapport through market insights', 'create urgency with scarcity', 'establish authority with expertise')",
   "use_market_data": true/false,
   "market_hook": "specific insight relevant to their situation",
-  "psychology_tactic": "social_proof|educational|none",
+  "psychology_principles": ["list of influence principles you're using, e.g., 'social_proof', 'authority', 'scarcity'"],
   "consultation_offer": "none|soft|direct",
 
   "action": "continue|offer_consultation",
   "lead_updates": {"status": "new_status", "intent": "discovered_intent"},
   "message_count": "1|2|3",
-  "tone": "casual|educational"
+  "tone": "casual|educational|professional"
 }`;
 
       const response = await this.openai.chat.completions.create({
@@ -2814,10 +3687,10 @@ Plan the response strategy in JSON format with these exact keys:
       logger.error({ err: error, leadId: lead.id }, 'Error planning strategy');
       // Return default strategy
       return {
-        approach: "educational",
+        approach: "build rapport through helpful conversation",
         use_market_data: false,
         market_hook: "",
-        psychology_tactic: "none",
+        psychology_principles: ["liking", "reciprocity"],
         consultation_offer: "none",
         triggerBooking: false,
         action: "continue",
@@ -2832,9 +3705,9 @@ Plan the response strategy in JSON format with these exact keys:
    * Phase 4: Generate strategic response
    * @private
    */
-  async _generateStrategicResponse(strategy, contextAnalysis, marketData, lead, messages) {
+  async _generateStrategicResponse(strategy, contextAnalysis, intelligenceData, lead, _messages, personalityAdjustments = null) {
     try {
-      const conversationHistory = messages.slice(-8).map(msg =>
+      const conversationHistory = _messages.slice(-8).map(msg =>
         `${msg.sender === 'lead' ? 'User' : 'Doro'}: ${msg.message}`
       ).join('\n');
 
@@ -2844,11 +3717,24 @@ You are Doro - 28-year-old Singaporean, casual and authentic.
 STRATEGIC CONTEXT (execute this plan):
 ${JSON.stringify(strategy, null, 2)}
 
+PSYCHOLOGY PRINCIPLES TO USE DYNAMICALLY:
+${strategy.psychology_principles ? strategy.psychology_principles.join(', ') : 'Use your judgment based on the situation'}
+
+DYNAMIC PSYCHOLOGY GUIDANCE:
+- You have full access to all sales psychology principles - use what works best for this moment
+- Adapt your approach based on the user's responses and emotional state
+- Don't stick to rigid scripts - be natural and responsive
+- Layer multiple psychology principles if appropriate
+- Always prioritize building genuine trust and providing value
+
 CONVERSATION ANALYSIS:
 ${JSON.stringify(contextAnalysis, null, 2)}
 
-MARKET INSIGHTS TO USE:
-${marketData ? JSON.stringify(marketData, null, 2) : 'None available'}
+INTELLIGENCE INSIGHTS TO USE:
+${intelligenceData ? JSON.stringify(intelligenceData, null, 2) : 'None available'}
+
+PERSONALITY ADJUSTMENTS:
+${personalityAdjustments ? JSON.stringify(personalityAdjustments, null, 2) : 'Use default Doro personality'}
 
 RECENT CONVERSATION:
 ${conversationHistory}
@@ -2907,18 +3793,18 @@ If strategy calls for soft consultation offer:
 RESPONSE FORMAT REQUIREMENTS:
 Based on strategy.message_count, respond in JSON format:
 
-For single message (message_count: 1):
+For single message (message_count: 1) - MUST BE UNDER 120 CHARACTERS:
 {
-  "message1": "Your natural response here",
+  "message1": "Your natural response here (MAX 120 chars)",
   "message2": null,
   "message3": null
 }
 
-For multiple messages (message_count: 2 or 3):
+For multiple messages (message_count: 2 or 3) - EACH MUST BE UNDER 120 CHARACTERS:
 {
-  "message1": "Primary response (1-2 sentences)",
-  "message2": "Follow-up thought or market insight",
-  "message3": "Additional context if message_count is 3, otherwise null"
+  "message1": "Primary response (MAX 120 chars)",
+  "message2": "Follow-up thought (MAX 120 chars)",
+  "message3": "Additional context if needed (MAX 120 chars), otherwise null"
 }
 
 APPOINTMENT INTENT DETECTION:
@@ -2939,6 +3825,24 @@ ONLY set appointment_intent if user explicitly:
 - Wants to cancel: "cancel my appointment"
 
 RESPOND NATURALLY while executing the planned strategy. Keep responses conversational and authentic.
+
+🚨 CRITICAL MESSAGE LENGTH REQUIREMENTS - MUST FOLLOW:
+- Each message MUST be 50-120 characters maximum (count the characters!)
+- If you need to say more, ALWAYS split into multiple short messages
+- Think like texting a friend, not writing an email
+- Use message1, message2, message3 for multiple short messages
+- Each message should be one complete thought
+- NEVER write long paragraphs - break them up naturally
+
+EXAMPLES OF GOOD MESSAGE LENGTHS (count characters):
+✅ "Toa Payoh's been quite hot lately!" (35 chars)
+✅ "3-room flats there moving pretty fast" (38 chars)
+✅ "Want me to share what I'm seeing?" (33 chars)
+
+EXAMPLES OF BAD MESSAGE LENGTHS:
+❌ "Hey! I've been tracking Toa Payoh market trends and noticed that 3-room flats have been experiencing significant price appreciation due to the upcoming developments and transport improvements in the area..." (TOO LONG!)
+
+🚨 IF YOUR MESSAGE IS OVER 120 CHARACTERS, YOU MUST SPLIT IT INTO MULTIPLE MESSAGES!
 `;
 
       const response = await this.openai.chat.completions.create({
@@ -2953,18 +3857,58 @@ RESPOND NATURALLY while executing the planned strategy. Keep responses conversat
       const parsedResponse = JSON.parse(responseContent);
 
       // Build messages array from parsed response
-      const messages = [
+      let messages = [
         parsedResponse.message1,
         parsedResponse.message2,
         parsedResponse.message3
       ].filter(msg => msg && msg.trim());
 
+      // Validate and fix message lengths
+      const validatedMessages = [];
+      for (const msg of messages) {
+        if (msg.length <= 120) {
+          validatedMessages.push(msg);
+        } else {
+          // Force split long messages
+          logger.warn({
+            leadId: lead.id,
+            messageLength: msg.length,
+            message: `${msg.substring(0, 50)}...`
+          }, 'Message too long, forcing split');
+
+          // Simple split at sentence boundaries
+          const sentences = msg.split(/[.!?]+/).filter(s => s.trim());
+          let currentMsg = '';
+
+          for (const sentence of sentences) {
+            const trimmed = sentence.trim();
+            if (!trimmed) continue;
+
+            if (currentMsg.length + trimmed.length + 2 <= 120) {
+              currentMsg = currentMsg ? currentMsg + '. ' + trimmed : trimmed;
+            } else {
+              if (currentMsg) {
+                validatedMessages.push(currentMsg);
+              }
+              currentMsg = trimmed.length <= 120 ? trimmed : trimmed.substring(0, 117) + '...';
+            }
+          }
+
+          if (currentMsg) {
+            validatedMessages.push(currentMsg);
+          }
+        }
+      }
+
+      messages = validatedMessages.slice(0, 3); // Max 3 messages
+
       logger.info({
         leadId: lead.id,
-        messageLength: messages.join(' ').length,
+        messageLength: messages.map(m => m.length),
+        totalLength: messages.join(' ').length,
         strategy: strategy.approach,
         messageCount: messages.length
-      }, 'Strategic response generated');
+      }, 'Strategic response generated and validated');
 
       return {
         message: messages[0], // Primary message for backward compatibility
@@ -3010,7 +3954,11 @@ RESPOND NATURALLY while executing the planned strategy. Keep responses conversat
       return this._getEnhancedMarketData(query);
 
     } catch (error) {
-      logger.error({ err: error, query }, 'Error in web search - using basic fallback');
+      logger.error({
+        err: error,
+        query,
+        hasGoogleConfig: !!(this.config.GOOGLE_SEARCH_API_KEY && this.config.GOOGLE_SEARCH_ENGINE_ID)
+      }, 'Error in web search - using basic fallback');
       return this._getBasicFallbackData();
     }
   }
@@ -3023,6 +3971,12 @@ RESPOND NATURALLY while executing the planned strategy. Keep responses conversat
     try {
       const { google } = require('googleapis');
       const customsearch = google.customsearch('v1');
+
+      logger.info({
+        query,
+        hasApiKey: !!this.config.GOOGLE_SEARCH_API_KEY,
+        hasEngineId: !!this.config.GOOGLE_SEARCH_ENGINE_ID
+      }, 'Executing Google Custom Search');
 
       const response = await customsearch.cse.list({
         auth: this.config.GOOGLE_SEARCH_API_KEY,
@@ -3087,10 +4041,13 @@ RESPOND NATURALLY while executing the planned strategy. Keep responses conversat
   async _getHDBResaleData() {
     try {
       // This would integrate with HDB's data.gov.sg API
-      // For now, return structured recent data
+      // For now, return structured recent data with dynamic content
+      const currentYear = new Date().getFullYear();
+      const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
+
       return {
-        title: "HDB Resale Prices - Latest Government Data",
-        snippet: "Based on latest HDB resale transactions, median prices continue to show steady growth with 4-room flats averaging $500K-$650K depending on location and age.",
+        title: `HDB Resale Prices - Latest Government Data (Q${currentQuarter} ${currentYear})`,
+        snippet: `Based on latest HDB resale transactions in ${currentYear}, the market shows continued activity with 4-room flats in mature estates typically ranging from $500K-$650K depending on location, age, and floor level. Prices vary significantly by town and remaining lease.`,
         url: "https://data.gov.sg/dataset/resale-flat-prices",
         source: "hdb_government_data",
         data_type: "official_transaction_data"
@@ -3108,10 +4065,13 @@ RESPOND NATURALLY while executing the planned strategy. Keep responses conversat
   async _getURAMarketData() {
     try {
       // This would integrate with URA REALIS API (paid service)
-      // For now, return recent market insights
+      // For now, return recent market insights with dynamic content
+      const currentYear = new Date().getFullYear();
+      const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
+
       return {
-        title: "Private Property Market - URA Official Data",
-        snippet: "Private residential property prices showed moderation in Q1 2025, with overall price index increasing 0.8% quarter-on-quarter, down from 2.3% in Q4 2024.",
+        title: `Private Property Market - URA Official Data (Q${currentQuarter} ${currentYear})`,
+        snippet: `Private residential property market data for Q${currentQuarter} ${currentYear} shows continued market activity. For the most current price indices and transaction volumes, please refer to URA's latest quarterly reports. Market trends vary by location and property type.`,
         url: "https://www.ura.gov.sg/Corporate/Property/Property-Market-Information",
         source: "ura_government_data",
         data_type: "official_market_index"
@@ -3188,40 +4148,9 @@ RESPOND NATURALLY while executing the planned strategy. Keep responses conversat
     ];
   }
 
-  /**
-   * Handle strategic booking when strategy calls for it
-   * @private
-   */
-  async _handleStrategicBooking(lead, strategy, userMessage) {
-    try {
-      // Use existing booking logic but with strategic context
-      const agentId = config.AGENT_ID;
 
-      // Create booking instructions based on strategy
-      const bookingInstructions = {
-        preferred_time: "check_availability", // Let system offer available slots
-        context_summary: `Strategic booking triggered: ${strategy.approach}`,
-        user_intent_confidence: "high"
-      };
 
-      return await this._findAndBookWithContext({
-        leadId: lead.id,
-        agentId,
-        aiInstructions: bookingInstructions,
-        conversationHistory: [], // Will be fetched inside the method
-        currentMessage: userMessage,
-        leadName: lead.name,
-        consultationNotes: `Strategic conversation - ${strategy.approach} approach`
-      });
 
-    } catch (error) {
-      logger.error({ err: error, leadId: lead.id }, 'Error in strategic booking');
-      return {
-        success: false,
-        message: "Let me have our consultant contact you directly to arrange a suitable time."
-      };
-    }
-  }
 }
 
 // Factory function for creating BotService with dependencies
