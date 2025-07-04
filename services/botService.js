@@ -2,7 +2,7 @@ const OpenAI = require('openai');
 const config = require('../config');
 const logger = require('../logger');
 const supabase = require('../supabaseClient');
-const { DORO_PERSONALITY, getPersonalityPrompt, getToneForUser, getStageGuidelines, shouldUseMarketData } = require('../config/personality');
+const { DORO_PERSONALITY, getPersonalityPrompt, getToneForUser, getStageGuidelines, shouldUseMarketData, analyzeContextualIntent, getContextualGuidance } = require('../config/personality');
 const whatsappService = require('./whatsappService');
 const databaseService = require('./databaseService');
 const { AI } = require('../constants');
@@ -381,7 +381,6 @@ class BotService {
       const contextAnalysis = await this._analyzeStrategicContext(lead, previousMessages, userText);
 
       // Enhanced: Apply contextual inference to avoid redundant questions
-      const { analyzeContextualIntent } = require('../config/personality');
       const contextualInference = analyzeContextualIntent(userText, previousMessages);
       if (contextualInference) {
         contextAnalysis.contextual_inference = contextualInference;
