@@ -701,10 +701,23 @@ Respond naturally and conversationally:`;
         throw new Error('OpenAI API returned empty message content');
       }
 
-      // Extract any basic lead updates from natural conversation
-      const leadUpdates = this._extractBasicLeadUpdates(userText);
+      logger.info({
+        leadId: lead.id,
+        aiMessageLength: aiMessage.length,
+        aiMessagePreview: aiMessage.substring(0, 100)
+      }, 'OpenAI response received successfully in insufficient data mode');
 
-      return {
+      // Extract any basic lead updates from natural conversation
+      let leadUpdates;
+      try {
+        leadUpdates = this._extractBasicLeadUpdates(userText);
+        logger.debug({ leadId: lead.id, leadUpdates }, 'Lead updates extracted successfully');
+      } catch (extractError) {
+        logger.error({ err: extractError, leadId: lead.id }, 'Error extracting lead updates');
+        leadUpdates = {};
+      }
+
+      const finalResponse = {
         message: aiMessage,
         messages: [aiMessage],
         action: 'natural_conversation',
@@ -712,13 +725,26 @@ Respond naturally and conversationally:`;
         appointmentHandled: false
       };
 
+      logger.info({
+        leadId: lead.id,
+        responseAction: finalResponse.action,
+        hasMessage: !!finalResponse.message,
+        hasMessages: !!finalResponse.messages,
+        leadUpdatesCount: Object.keys(finalResponse.lead_updates).length
+      }, 'Insufficient data mode completed successfully - returning response');
+
+      return finalResponse;
+
     } catch (error) {
       logger.error({
         err: error,
         leadId: lead.id,
         errorMessage: error.message,
-        userText: userText?.substring(0, 100)
-      }, 'Error in insufficient data mode - attempting intelligent fallback');
+        errorType: error.constructor.name,
+        errorStack: error.stack,
+        userText: userText?.substring(0, 100),
+        previousMessagesCount: previousMessages?.length
+      }, 'CRITICAL: Error in insufficient data mode - this should not happen with our fixes');
 
       // Try to generate a contextual response based on user input
       try {
