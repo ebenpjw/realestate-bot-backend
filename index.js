@@ -22,6 +22,7 @@ const gupshupRouter = require('./api/gupshup');
 const metaRouter = require('./api/meta');
 const testRouter = require('./api/test');
 const authRouter = require('./api/auth');
+const testCalendarRouter = require('./api/testCalendar');
 
 
 // Initialize Express app
@@ -182,6 +183,7 @@ app.use('/api/gupshup', gupshupRouter);
 app.use('/api/meta', metaRouter);
 app.use('/api/test', testRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/test-calendar', testCalendarRouter);
 
 // Debug endpoint for Google Calendar integration
 app.get('/debug/calendar/:agentId', asyncHandler(async (req, res) => {

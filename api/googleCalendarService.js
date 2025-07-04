@@ -212,12 +212,12 @@ async function createEvent(agentId, eventDetails) {
             summary: eventDetails.summary,
             description: eventDetails.description,
             start: {
-                dateTime: eventDetails.startTimeISO,
-                timeZone: 'Asia/Singapore'
+                dateTime: eventDetails.startTimeISO
+                // timeZone removed since we're using RFC3339 format with timezone offset
             },
             end: {
-                dateTime: eventDetails.endTimeISO,
-                timeZone: 'Asia/Singapore'
+                dateTime: eventDetails.endTimeISO
+                // timeZone removed since we're using RFC3339 format with timezone offset
             },
             attendees: [
                 { email: agent.google_email } // Only add the agent to the event
@@ -231,9 +231,9 @@ async function createEvent(agentId, eventDetails) {
         logger.info({
             agentId,
             eventPayload: JSON.stringify(event, null, 2),
-            startTimeLocal: new Date(eventDetails.startTimeISO).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
-            endTimeLocal: new Date(eventDetails.endTimeISO).toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
-        }, 'Attempting to create Google Calendar event with payload - TIMEZONE DEBUG');
+            startTimeRFC3339: eventDetails.startTimeISO,
+            endTimeRFC3339: eventDetails.endTimeISO
+        }, 'Attempting to create Google Calendar event with RFC3339 payload');
 
         const response = await calendar.events.insert({
             calendarId: 'primary',
@@ -244,7 +244,10 @@ async function createEvent(agentId, eventDetails) {
         logger.info({
             agentId,
             eventId: response.data.id,
-            eventLink: response.data.htmlLink
+            eventLink: response.data.htmlLink,
+            eventStart: response.data.start,
+            eventEnd: response.data.end,
+            responseStatus: response.status
         }, 'Successfully created calendar event for agent.');
 
         return response.data;
@@ -274,7 +277,13 @@ async function createEvent(agentId, eventDetails) {
                 eventDetails,
                 errorMessage: error.message,
                 errorCode: error.code,
-                errorStatus: error.status
+                errorStatus: error.status,
+                errorResponse: error.response?.data,
+                errorConfig: error.config ? {
+                    method: error.config.method,
+                    url: error.config.url,
+                    data: error.config.data
+                } : null
             }, 'Failed to create Google Calendar event - DETAILED ERROR');
         }
         throw error;

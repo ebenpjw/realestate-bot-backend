@@ -75,39 +75,35 @@ function formatForDisplay(date, options = {}) {
 }
 
 /**
- * Format date for Google Calendar API (local time string + timezone)
+ * Format date for Google Calendar API (RFC3339 format with timezone)
  * @param {Date|string} date - Date to format
- * @returns {string} Local ISO string for Google Calendar
+ * @returns {string} RFC3339 formatted string for Google Calendar
  */
 function formatForGoogleCalendar(date) {
   const sgDate = toSgTime(date);
 
-  // Create local time string in Singapore timezone for Google Calendar
-  // Google Calendar expects local time when timezone is specified separately
+  // Google Calendar API expects RFC3339 format with timezone offset
+  // Convert to Singapore timezone and format as RFC3339
 
-  // Use Singapore time components directly
-  const sgTimeString = sgDate.toLocaleString('en-CA', {
-    timeZone: 'Asia/Singapore',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  });
+  // Get Singapore time components
+  const sgYear = sgDate.toLocaleString('en-CA', { timeZone: 'Asia/Singapore', year: 'numeric' });
+  const sgMonth = sgDate.toLocaleString('en-CA', { timeZone: 'Asia/Singapore', month: '2-digit' });
+  const sgDay = sgDate.toLocaleString('en-CA', { timeZone: 'Asia/Singapore', day: '2-digit' });
+  const sgHour = sgDate.toLocaleString('en-CA', { timeZone: 'Asia/Singapore', hour: '2-digit', hour12: false });
+  const sgMinute = sgDate.toLocaleString('en-CA', { timeZone: 'Asia/Singapore', minute: '2-digit' });
+  const sgSecond = sgDate.toLocaleString('en-CA', { timeZone: 'Asia/Singapore', second: '2-digit' });
 
-  // Convert "2025-07-01, 19:00:00" to "2025-07-01T19:00:00"
-  const isoString = sgTimeString.replace(', ', 'T');
+  // Create RFC3339 format with Singapore timezone offset (+08:00)
+  const rfc3339String = `${sgYear}-${sgMonth}-${sgDay}T${sgHour}:${sgMinute}:${sgSecond}+08:00`;
 
   logger.info({
     inputDate: date,
     sgDate: sgDate.toISOString(),
-    sgTimeString,
-    finalIsoString: isoString
-  }, 'Formatted date for Google Calendar');
+    sgComponents: { sgYear, sgMonth, sgDay, sgHour, sgMinute, sgSecond },
+    finalRfc3339String: rfc3339String
+  }, 'Formatted date for Google Calendar (RFC3339)');
 
-  return isoString;
+  return rfc3339String;
 }
 
 /**
