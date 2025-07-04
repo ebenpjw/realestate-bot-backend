@@ -217,4 +217,47 @@ router.get('/db-diagnostic', async (req, res) => {
   }
 });
 
+// Test endpoint for checking appointment booking results
+router.get('/appointments', async (req, res) => {
+  try {
+    const { data: appointments, error: appointmentsError } = await supabase
+      .from('appointments')
+      .select(`
+        *,
+        leads (
+          phone_number,
+          full_name,
+          status,
+          booking_alternatives,
+          tentative_booking_time
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (appointmentsError) throw appointmentsError;
+
+    const { data: testLeads, error: leadsError } = await supabase
+      .from('leads')
+      .select('*')
+      .in('phone_number', ['+6591234567', '+6591234568', '+6591234569', '+6591234570', '+6591234571'])
+      .order('created_at', { ascending: false });
+
+    if (leadsError) throw leadsError;
+
+    res.json({
+      success: true,
+      appointments,
+      testLeads,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error({ err: error }, 'Error in appointments test endpoint');
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
