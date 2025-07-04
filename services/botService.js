@@ -101,12 +101,33 @@ class BotService {
       });
 
       if (messageError) {
-        logger.error({ err: messageError, leadId: lead.id }, 'Failed to save user message');
-        // Continue processing but log the error
+        logger.error({
+          err: messageError,
+          leadId: lead.id,
+          errorCode: messageError.code,
+          errorMessage: messageError.message,
+          messageLength: userText?.length
+        }, 'Failed to save user message - this may affect conversation context');
+
+        // This is concerning as it affects conversation history
+        // Continue processing but this could impact AI context
       }
 
       // 3. Get conversation history (now includes current message)
-      const previousMessages = await this._getConversationHistory(lead.id);
+      let previousMessages;
+      try {
+        previousMessages = await this._getConversationHistory(lead.id);
+      } catch (historyError) {
+        logger.error({
+          err: historyError,
+          leadId: lead.id,
+          senderWaId
+        }, 'Failed to retrieve conversation history - using empty history for processing');
+
+        // Use empty history but continue processing
+        // This prevents complete failure while maintaining some functionality
+        previousMessages = [];
+      }
 
       // 4. Process message with strategic AI system
       const response = await this._processMessageStrategically(lead, previousMessages, userText);
@@ -141,7 +162,13 @@ class BotService {
         });
 
         if (assistantMessageError) {
-          logger.error({ err: assistantMessageError, leadId: lead.id }, 'Failed to save assistant message');
+          logger.error({
+            err: assistantMessageError,
+            leadId: lead.id,
+            errorCode: assistantMessageError.code,
+            errorMessage: assistantMessageError.message,
+            responseLength: response.message?.length
+          }, 'Failed to save assistant message - conversation history will be incomplete');
         }
       } else if (response.messages && response.messages.length > 0) {
         // Send multiple messages with natural timing
@@ -240,34 +267,71 @@ class BotService {
    * @private
    */
   async _getConversationHistory(leadId) {
-    const { data: history } = await this.supabase
-      .from('messages')
-      .select('sender, message, created_at')
-      .eq('lead_id', leadId)
-      .order('created_at', { ascending: false })
-      .limit(15); // Get more messages for better context
+    try {
+      if (!leadId) {
+        logger.error('Cannot retrieve conversation history - leadId is required');
+        throw new Error('Lead ID is required for conversation history retrieval');
+      }
 
-    if (!history) {
-      return [];
+      const { data: history, error } = await this.supabase
+        .from('messages')
+        .select('sender, message, created_at')
+        .eq('lead_id', leadId)
+        .order('created_at', { ascending: false })
+        .limit(15); // Get more messages for better context
+
+      if (error) {
+        logger.error({
+          err: error,
+          leadId,
+          errorCode: error.code,
+          errorMessage: error.message
+        }, 'Failed to retrieve conversation history from database');
+        throw new Error(`Conversation history retrieval failed: ${error.message}`);
+      }
+
+      if (!history || history.length === 0) {
+        logger.info({ leadId }, 'No conversation history found for lead');
+        return [];
+      }
+
+      // ENHANCED: Add conversation context analysis
+      const processedHistory = history.map(entry => ({
+        sender: entry.sender,
+        message: entry.message,
+        created_at: entry.created_at
+      })).reverse();
+
+      // ENHANCED: Analyze conversation patterns for better context
+      let conversationContext;
+      try {
+        conversationContext = this._analyzeConversationContext(processedHistory);
+      } catch (contextError) {
+        logger.warn({
+          err: contextError,
+          leadId
+        }, 'Failed to analyze conversation context - continuing with basic history');
+        conversationContext = { conversationFlow: 'unknown' };
+      }
+
+      logger.debug({
+        leadId,
+        messageCount: processedHistory.length,
+        conversationContext
+      }, 'Retrieved enhanced conversation history with context analysis');
+
+      return processedHistory;
+
+    } catch (error) {
+      logger.error({
+        err: error,
+        leadId,
+        errorMessage: error.message
+      }, 'Critical error in conversation history retrieval');
+
+      // Don't silently return empty array - this is a critical failure
+      throw error;
     }
-
-    // ENHANCED: Add conversation context analysis
-    const processedHistory = history.map(entry => ({
-      sender: entry.sender,
-      message: entry.message,
-      created_at: entry.created_at
-    })).reverse();
-
-    // ENHANCED: Analyze conversation patterns for better context
-    const conversationContext = this._analyzeConversationContext(processedHistory);
-
-    logger.debug({
-      leadId,
-      messageCount: processedHistory.length,
-      conversationContext
-    }, 'Retrieved enhanced conversation history with context analysis');
-
-    return processedHistory;
   }
 
   /**
@@ -377,8 +441,21 @@ class BotService {
     try {
       logger.info({ leadId: lead.id }, 'Starting strategic conversation processing');
 
-      // Phase 1: Silent Context Analysis (with new lead detection)
-      const contextAnalysis = await this._analyzeStrategicContext(lead, previousMessages, userText);
+      // Phase 1: Silent Context Analysis (with new lead detection and fallback)
+      let contextAnalysis;
+      try {
+        contextAnalysis = await this._analyzeStrategicContext(lead, previousMessages, userText);
+      } catch (contextError) {
+        logger.error({
+          err: contextError,
+          leadId: lead.id,
+          messageLength: userText?.length,
+          historyLength: previousMessages?.length
+        }, 'Strategic context analysis failed - using simplified analysis');
+
+        // Use simplified analysis instead of defaulting to insufficient data
+        contextAnalysis = this._performSimplifiedContextAnalysis(lead, previousMessages, userText);
+      }
 
       // Enhanced: Apply contextual inference to avoid redundant questions
       try {
@@ -427,13 +504,30 @@ class BotService {
 
       // Save conversation insights and memory (ensure completion before strategy planning)
       try {
-        await Promise.allSettled([
+        const saveResults = await Promise.allSettled([
           this._saveConversationInsights(lead.id, conversationInsights),
           this._saveConversationMemory(lead.id, updatedMemory)
         ]);
+
+        // Check for critical database failures
+        const failures = saveResults.filter(result => result.status === 'rejected');
+        if (failures.length > 0) {
+          logger.warn({
+            leadId: lead.id,
+            failureCount: failures.length,
+            failures: failures.map(f => f.reason?.message || 'Unknown error')
+          }, 'Database save operations failed - this may indicate connectivity issues');
+
+          // If both operations fail, this might indicate a serious database issue
+          if (failures.length === saveResults.length) {
+            logger.error({
+              leadId: lead.id
+            }, 'All database save operations failed - potential database connectivity issue');
+          }
+        }
       } catch (err) {
-        logger.warn({ err, leadId: lead.id }, 'Non-critical: Failed to save conversation data');
-        // Continue processing - memory saving failure shouldn't block response generation
+        logger.error({ err, leadId: lead.id }, 'Critical error in conversation data saving');
+        // Continue processing but log as error, not warning
       }
 
       // Phase 3: Conversation Strategy Planning (AI-driven with memory context)
@@ -537,14 +631,75 @@ ${Object.values(DORO_PERSONALITY.conversation.rules).map(rule => `- ${rule}`).jo
 
 Respond naturally and conversationally:`;
 
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-4.1",
-        messages: [{ role: "user", content: naturalPrompt }],
-        temperature: 0.7,
-        max_tokens: 150
-      });
+      // Retry logic for OpenAI API call
+      let response;
+      let lastError;
+      const maxRetries = 3;
 
-      const aiMessage = response.choices[0].message.content.trim();
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          logger.debug({
+            leadId: lead.id,
+            attempt,
+            maxRetries
+          }, 'Attempting OpenAI API call for insufficient data mode');
+
+          response = await this.openai.chat.completions.create({
+            model: "gpt-4.1",
+            messages: [{ role: "user", content: naturalPrompt }],
+            temperature: 0.7,
+            max_tokens: 150
+          });
+
+          // If we get here, the call succeeded
+          break;
+
+        } catch (apiError) {
+          lastError = apiError;
+          logger.warn({
+            err: apiError,
+            leadId: lead.id,
+            attempt,
+            maxRetries
+          }, 'OpenAI API call failed, will retry if attempts remaining');
+
+          // Don't retry on the last attempt
+          if (attempt === maxRetries) {
+            throw apiError;
+          }
+
+          // Wait before retrying (exponential backoff)
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+
+      // Validate OpenAI response structure
+      if (!response || !response.choices || response.choices.length === 0) {
+        logger.error({
+          leadId: lead.id,
+          response: response ? { choices: response.choices } : null
+        }, 'OpenAI returned empty or invalid response structure');
+        throw new Error('OpenAI API returned invalid response structure');
+      }
+
+      const choice = response.choices[0];
+      if (!choice || !choice.message || typeof choice.message.content !== 'string') {
+        logger.error({
+          leadId: lead.id,
+          choice: choice,
+          messageContent: choice?.message?.content
+        }, 'OpenAI response choice has invalid message structure');
+        throw new Error('OpenAI API returned invalid message content');
+      }
+
+      const aiMessage = choice.message.content.trim();
+
+      // Ensure we got a meaningful response
+      if (!aiMessage || aiMessage.length === 0) {
+        logger.error({ leadId: lead.id }, 'OpenAI returned empty message content');
+        throw new Error('OpenAI API returned empty message content');
+      }
 
       // Extract any basic lead updates from natural conversation
       const leadUpdates = this._extractBasicLeadUpdates(userText);
@@ -558,15 +713,174 @@ Respond naturally and conversationally:`;
       };
 
     } catch (error) {
-      logger.error({ err: error, leadId: lead.id }, 'Error in insufficient data mode');
-      return {
-        message: "Hey! 😊 How's it going?",
-        messages: ["Hey! 😊 How's it going?"],
-        action: 'natural_fallback',
-        lead_updates: {},
-        appointmentHandled: false
-      };
+      logger.error({
+        err: error,
+        leadId: lead.id,
+        errorMessage: error.message,
+        userText: userText?.substring(0, 100)
+      }, 'Error in insufficient data mode - attempting intelligent fallback');
+
+      // Try to generate a contextual response based on user input
+      try {
+        const contextualResponse = this._generateContextualFallback(userText, previousMessages);
+        logger.info({ leadId: lead.id }, 'Generated contextual fallback response');
+
+        return {
+          message: contextualResponse,
+          messages: [contextualResponse],
+          action: 'contextual_fallback',
+          lead_updates: this._extractBasicLeadUpdates(userText),
+          appointmentHandled: false
+        };
+      } catch (fallbackError) {
+        logger.error({
+          err: fallbackError,
+          leadId: lead.id
+        }, 'Failed to generate contextual fallback - using intelligent default');
+
+        // Intelligent default based on user input
+        const intelligentDefault = this._getIntelligentDefault(userText);
+
+        return {
+          message: intelligentDefault,
+          messages: [intelligentDefault],
+          action: 'intelligent_fallback',
+          lead_updates: this._extractBasicLeadUpdates(userText),
+          appointmentHandled: false
+        };
+      }
     }
+  }
+
+  /**
+   * Perform simplified context analysis when strategic analysis fails
+   * @private
+   */
+  _performSimplifiedContextAnalysis(lead, previousMessages, userText) {
+    const textLower = userText.toLowerCase();
+    const messageCount = previousMessages?.length || 0;
+
+    // Simple pattern-based analysis
+    const hasPropertyMention = /\b(condo|hdb|landed|house|apartment|flat|property|buy|invest)\b/.test(textLower);
+    const hasLocationMention = /\b(area|location|district|mrt|near|close|around)\b/.test(textLower);
+    const hasBudgetMention = /\b(budget|price|cost|afford|million|k|dollar)\b/.test(textLower);
+    const hasTimelineMention = /\b(urgent|soon|timeline|when|month|year|asap)\b/.test(textLower);
+    const isGreetingOnly = /^(hi|hello|hey|good morning|good afternoon|good evening)\.?$/i.test(userText.trim());
+
+    // Determine if we have sufficient data for strategic processing
+    const hasSufficientData = !isGreetingOnly && (
+      hasPropertyMention ||
+      hasLocationMention ||
+      hasBudgetMention ||
+      hasTimelineMention ||
+      messageCount >= 2 ||
+      lead.intent ||
+      lead.budget
+    );
+
+    logger.info({
+      leadId: lead.id,
+      hasSufficientData,
+      patterns: {
+        hasPropertyMention,
+        hasLocationMention,
+        hasBudgetMention,
+        hasTimelineMention,
+        isGreetingOnly,
+        messageCount
+      }
+    }, 'Performed simplified context analysis');
+
+    return {
+      insufficient_data: !hasSufficientData,
+      journey_stage: hasSufficientData ? "interested" : "browsing",
+      comfort_level: messageCount > 2 ? "warming" : "cold",
+      resistance_patterns: [],
+      buying_signals: hasPropertyMention || hasBudgetMention ? ["property_interest"] : [],
+      best_approach: hasSufficientData ? "educational" : "natural_conversation",
+      consultation_timing: hasSufficientData ? "later" : "not_yet",
+      user_psychology: "mixed",
+      areas_mentioned: [],
+      next_step: hasSufficientData ? "create_interest" : "build_rapport",
+      needs_market_hook: hasSufficientData && (hasPropertyMention || hasLocationMention),
+      analysis_method: "simplified_fallback"
+    };
+  }
+
+  /**
+   * Generate contextual fallback response when OpenAI fails
+   * @private
+   */
+  _generateContextualFallback(userText, previousMessages) {
+    const textLower = userText.toLowerCase();
+    const isFirstMessage = !previousMessages || previousMessages.length <= 1;
+
+    // Greeting responses
+    if (textLower.match(/^(hi|hello|hey|good morning|good afternoon|good evening)$/)) {
+      return isFirstMessage
+        ? "Hi there! 😊 Great to connect with you. What brings you to explore properties today?"
+        : "Hey! How can I help you with your property search?";
+    }
+
+    // Property type mentions
+    if (textLower.includes('condo') || textLower.includes('condominium')) {
+      return "Condos are really popular right now! What's driving your interest in condo living?";
+    }
+    if (textLower.includes('hdb') || textLower.includes('flat')) {
+      return "HDB flats offer great value! Are you looking at resale or BTO options?";
+    }
+    if (textLower.includes('landed') || textLower.includes('house')) {
+      return "Landed properties are fantastic for families! What size are you considering?";
+    }
+
+    // Location mentions
+    if (textLower.includes('area') || textLower.includes('location') || textLower.includes('district')) {
+      return "Location is so important! What factors are most important to you - proximity to work, schools, or lifestyle amenities?";
+    }
+
+    // Budget/price mentions
+    if (textLower.includes('budget') || textLower.includes('price') || textLower.includes('cost') || textLower.includes('afford')) {
+      return "Budget planning is smart! What range are you comfortable exploring?";
+    }
+
+    // Investment mentions
+    if (textLower.includes('investment') || textLower.includes('rental') || textLower.includes('yield')) {
+      return "Property investment can be really rewarding! Are you looking at rental yield or capital appreciation?";
+    }
+
+    // Timeline mentions
+    if (textLower.includes('timeline') || textLower.includes('when') || textLower.includes('urgent')) {
+      return "Timing can definitely impact your options! What's your ideal timeframe?";
+    }
+
+    // Default contextual response
+    return "That's interesting! Tell me more about what you're looking for - I'd love to understand your situation better.";
+  }
+
+  /**
+   * Get intelligent default response based on user input patterns
+   * @private
+   */
+  _getIntelligentDefault(userText) {
+    const textLower = userText.toLowerCase();
+
+    // Question patterns
+    if (textLower.includes('?')) {
+      return "That's a great question! Let me help you with that. Could you share a bit more about your specific situation?";
+    }
+
+    // Exploration patterns
+    if (textLower.includes('looking') || textLower.includes('searching') || textLower.includes('exploring')) {
+      return "Exciting! Property searching can be quite a journey. What's the main thing driving your search right now?";
+    }
+
+    // Interest patterns
+    if (textLower.includes('interested') || textLower.includes('considering')) {
+      return "That sounds promising! What aspects are you most interested in exploring?";
+    }
+
+    // Default intelligent response
+    return "Thanks for sharing that! I'd love to learn more about your property goals. What's most important to you in your search?";
   }
 
   /**
@@ -1926,6 +2240,71 @@ Format as clear, actionable notes for the property consultant.`;
     }
   }
 
+  /**
+   * Comprehensive health check including database connectivity
+   */
+  async comprehensiveHealthCheck() {
+    const results = {
+      overall: 'healthy',
+      components: {}
+    };
+
+    // Test OpenAI API
+    try {
+      const openaiResult = await this.healthCheck();
+      results.components.openai = openaiResult;
+    } catch (error) {
+      results.components.openai = { status: 'unhealthy', error: error.message };
+      results.overall = 'unhealthy';
+    }
+
+    // Test Database Connectivity
+    try {
+      const { data, error } = await this.supabase
+        .from('leads')
+        .select('count')
+        .limit(1);
+
+      if (error) {
+        results.components.database = {
+          status: 'unhealthy',
+          error: error.message,
+          errorCode: error.code
+        };
+        results.overall = 'unhealthy';
+      } else {
+        results.components.database = { status: 'healthy', connection: 'active' };
+      }
+    } catch (error) {
+      results.components.database = { status: 'unhealthy', error: error.message };
+      results.overall = 'unhealthy';
+    }
+
+    // Test Message History Retrieval
+    try {
+      const { data, error } = await this.supabase
+        .from('messages')
+        .select('id')
+        .limit(1);
+
+      if (error) {
+        results.components.message_history = {
+          status: 'unhealthy',
+          error: error.message,
+          errorCode: error.code
+        };
+        results.overall = 'degraded';
+      } else {
+        results.components.message_history = { status: 'healthy' };
+      }
+    } catch (error) {
+      results.components.message_history = { status: 'unhealthy', error: error.message };
+      results.overall = 'degraded';
+    }
+
+    return results;
+  }
+
   // ===== STRATEGIC CONVERSATION SYSTEM =====
 
   /**
@@ -1955,14 +2334,20 @@ CURRENT MESSAGE: "${currentMessage}"
 
 CRITICAL: Prioritize rapport building and qualification over market data insertion.
 
-INSUFFICIENT DATA DETECTION (Expanded):
-- If this is just a greeting (hi/hello) with no context: insufficient_data = true
-- If lead has no intent, no budget, and <3 meaningful messages: insufficient_data = true
-- If user hasn't shared any specific property needs/situation: insufficient_data = true
-- If conversation is too early for assumptions about buyer type: insufficient_data = true
-- If user is just "exploring" or "looking" without specific urgency: insufficient_data = true
-- If no qualifying information gathered (timeline, budget, specific needs): insufficient_data = true
-- If user hasn't expressed readiness for market insights or advice: insufficient_data = true
+INSUFFICIENT DATA DETECTION (Refined - Less Aggressive):
+- If this is ONLY a greeting (hi/hello) with absolutely no follow-up context: insufficient_data = true
+- If lead has no intent, no budget, AND <2 meaningful messages AND no property type mentioned: insufficient_data = true
+- If user message is extremely vague with no property context (e.g., single word responses): insufficient_data = true
+- If conversation shows clear disengagement patterns: insufficient_data = true
+
+SUFFICIENT DATA INDICATORS (Use Strategic Mode):
+- User mentions specific property types (condo, HDB, landed, etc.)
+- User mentions locations, areas, or districts
+- User mentions budget, timeline, or investment intent
+- User asks specific questions about property market
+- User shows engagement beyond basic greetings
+- Conversation has 2+ meaningful exchanges
+- User expresses any property-related needs or preferences
 
 CONVERSATION READINESS FOR MARKET DATA:
 Market data should ONLY be provided when:
@@ -2019,38 +2404,86 @@ Respond in JSON format only with these exact keys:
   "needs_market_hook": true/false
 }`;
 
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-4.1",
-        messages: [{ role: "user", content: analysisPrompt }],
-        temperature: 0.3,
-        max_tokens: 500
-      });
+      // Retry logic for strategic context analysis
+      let response;
+      const maxRetries = 2;
 
-      const analysis = JSON.parse(response.choices[0].message.content);
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          response = await this.openai.chat.completions.create({
+            model: "gpt-4.1",
+            messages: [{ role: "user", content: analysisPrompt }],
+            temperature: 0.3,
+            max_tokens: 500
+          });
+
+          // Validate response structure
+          if (!response?.choices?.[0]?.message?.content) {
+            throw new Error('Invalid OpenAI response structure in context analysis');
+          }
+
+          break;
+
+        } catch (apiError) {
+          logger.warn({
+            err: apiError,
+            leadId: lead.id,
+            attempt,
+            maxRetries
+          }, 'Strategic context analysis API call failed');
+
+          if (attempt === maxRetries) {
+            throw apiError;
+          }
+
+          // Brief delay before retry
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      // Parse and validate the analysis
+      let analysis;
+      try {
+        analysis = JSON.parse(response.choices[0].message.content);
+
+        // Validate required fields
+        if (typeof analysis.insufficient_data !== 'boolean') {
+          logger.warn({ leadId: lead.id, analysis }, 'Analysis missing insufficient_data field, defaulting to true');
+          analysis.insufficient_data = true;
+        }
+
+      } catch (parseError) {
+        logger.error({
+          err: parseError,
+          leadId: lead.id,
+          responseContent: response.choices[0].message.content
+        }, 'Failed to parse strategic context analysis JSON');
+        throw parseError;
+      }
 
       logger.info({
         leadId: lead.id,
-        analysis
-      }, 'Strategic context analysis completed');
+        analysis,
+        insufficientData: analysis.insufficient_data,
+        journeyStage: analysis.journey_stage,
+        nextStep: analysis.next_step
+      }, 'Strategic context analysis completed successfully');
 
       return analysis;
 
     } catch (error) {
-      logger.error({ err: error, leadId: lead.id }, 'Error in context analysis');
-      // Return default analysis if parsing fails - assume insufficient data for safety
-      return {
-        insufficient_data: true,
-        journey_stage: "researching",
-        comfort_level: "warming",
-        resistance_patterns: [],
-        buying_signals: [],
-        best_approach: "natural_conversation",
-        consultation_timing: "not_yet",
-        user_psychology: "mixed",
-        areas_mentioned: [],
-        next_step: "natural_discovery",
-        needs_market_hook: false
-      };
+      logger.error({
+        err: error,
+        leadId: lead.id,
+        errorMessage: error.message,
+        currentMessage: currentMessage?.substring(0, 100),
+        messagesCount: messages?.length,
+        errorType: error.constructor.name
+      }, 'Error in strategic context analysis - this should trigger simplified analysis fallback');
+
+      // Don't return defaults here - let the calling method handle the fallback
+      // This allows for better error propagation and fallback strategies
+      throw error;
     }
   }
 
