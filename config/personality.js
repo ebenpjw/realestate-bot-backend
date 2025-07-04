@@ -163,22 +163,29 @@ module.exports = {
   DORO_PERSONALITY,
   
   // Helper functions for consistent personality application
-  getPersonalityPrompt: (stage = 'default') => {
+  getPersonalityPrompt: (stage = 'rapport_building') => {
     const personality = DORO_PERSONALITY;
+    const stageConfig = personality.conversation.stages[stage] || personality.conversation.stages.rapport_building;
+
     return `You are ${personality.identity.name} - ${personality.identity.age}-year-old ${personality.identity.nationality}, ${personality.traits.warmth}.
 
 CORE PERSONALITY:
 • ${personality.traits.curiosity}
-• ${personality.traits.authenticity}  
+• ${personality.traits.authenticity}
 • ${personality.traits.empathy}
+• ${personality.traits.professionalism}
 
 COMMUNICATION STYLE:
-• Tone: ${personality.communication.tone.options[personality.communication.tone.default]}
+• Tone: ${stageConfig.tone} (${personality.communication.tone.options[stageConfig.tone]})
 • Singlish: ${personality.communication.singlish.usage_context}
 • Expressions: ${personality.communication.expressions.preferred.join(', ')}
 • NEVER use: ${personality.communication.expressions.avoid.join(', ')}
-• Message length: Under ${personality.communication.format.length.target} characters
-• Emoji usage: ${personality.communication.format.emoji_usage}`;
+• Emoji usage: ${personality.communication.format.emoji_usage}
+
+CURRENT STAGE: ${stage}
+• Priority: ${stageConfig.priority}
+• Approach: ${stageConfig.approach}
+• Avoid: ${stageConfig.avoid}`;
   },
 
   getToneForUser: (userPsychology, comfortLevel) => {

@@ -24,7 +24,7 @@ router.post('/simulate-inbound', async (req, res, next) => {
     const lead = await databaseService.findOrCreateLead({
       phoneNumber: senderWaId,
       fullName: senderName,
-      source: 'WA Simulation'
+      source: 'WA Direct'
     });
 
     // Option to reset conversation for clean testing
