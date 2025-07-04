@@ -226,6 +226,120 @@ app.get('/debug/agents', asyncHandler(async (req, res) => {
   }
 }));
 
+// Simple bot testing interface
+app.get('/test-bot', (req, res) => {
+  res.send(`
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bot Testing Interface</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .chat-container { border: 1px solid #ddd; height: 400px; overflow-y: auto; padding: 15px; margin: 20px 0; background: #f9f9f9; }
+        .message { margin: 10px 0; padding: 8px 12px; border-radius: 8px; }
+        .user { background: #007bff; color: white; text-align: right; }
+        .bot { background: #e9ecef; color: #333; }
+        input[type="text"] { width: 70%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .controls { margin: 20px 0; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>🤖 Bot Testing Interface</h1>
+    <div class="controls">
+        <button onclick="resetConversation()">🔄 Reset Conversation</button>
+        <button onclick="testGreeting()">👋 Test Greeting</button>
+        <button onclick="testBooking()">📅 Test Booking</button>
+    </div>
+
+    <div class="chat-container" id="chatContainer"></div>
+
+    <div>
+        <input type="text" id="messageInput" placeholder="Type your test message..." onkeypress="handleKeyPress(event)">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <div id="status"></div>
+
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+        const statusDiv = document.getElementById('status');
+
+        function addMessage(sender, message) {
+            const div = document.createElement('div');
+            div.className = 'message ' + (sender === 'user' ? 'user' : 'bot');
+            div.textContent = (sender === 'user' ? 'You: ' : 'Doro: ') + message;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function showStatus(message, isError = false) {
+            statusDiv.innerHTML = '<div class="status ' + (isError ? 'error' : 'success') + '">' + message + '</div>';
+            setTimeout(() => statusDiv.innerHTML = '', 5000);
+        }
+
+        async function sendMessage(message = null, reset = false) {
+            const text = message || messageInput.value.trim();
+            if (!text) return;
+
+            addMessage('user', text);
+            if (!message) messageInput.value = '';
+
+            showStatus('🧠 Processing...');
+
+            try {
+                const response = await fetch('/api/test/simulate-inbound', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from: '+6591234567',
+                        text: text,
+                        name: 'Test User',
+                        reset_conversation: reset
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success && data.ai_responses) {
+                    data.ai_responses.forEach(resp => addMessage('bot', resp));
+                    showStatus('✅ Response received (' + data.processing_time_ms + 'ms)');
+                } else {
+                    showStatus('❌ No response received', true);
+                }
+            } catch (error) {
+                showStatus('❌ Error: ' + error.message, true);
+            }
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') sendMessage();
+        }
+
+        function resetConversation() {
+            chatContainer.innerHTML = '';
+            showStatus('🔄 Conversation reset');
+        }
+
+        function testGreeting() {
+            chatContainer.innerHTML = '';
+            sendMessage('hello', true);
+        }
+
+        function testBooking() {
+            sendMessage('I want to speak to a consultant');
+        }
+    </script>
+</body>
+</html>
+  `);
+});
+
 // 404 handler for undefined routes
 app.use(notFoundHandler);
 

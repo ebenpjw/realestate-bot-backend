@@ -8,14 +8,18 @@ const databaseService = require('../services/databaseService');
 
 router.post('/simulate-inbound', async (req, res, next) => {
   try {
-    const { from, text, name } = req.body;
+    const { from, text, name, reset_conversation } = req.body;
     if (!from || !text) {
       return res.status(400).json({ error: 'Request must include "from" (phone number) and "text" (message).' });
     }
     const senderWaId = from;
     const userText = text;
     const senderName = name || 'Test Lead';
-    logger.info({ senderWaId, senderName, userText }, '[SIMULATION] Simulating inbound message.');
+
+    console.log('\n=== TESTING MESSAGE ===');
+    console.log(`From: ${senderName} (${senderWaId})`);
+    console.log(`Message: "${userText}"`);
+    console.log('========================\n');
 
     const lead = await databaseService.findOrCreateLead({
       phoneNumber: senderWaId,
@@ -23,49 +27,89 @@ router.post('/simulate-inbound', async (req, res, next) => {
       source: 'WA Simulation'
     });
 
-    await supabase.from('messages').insert({ lead_id: lead.id, sender: 'lead', message: userText });
-    
-    // Get conversation history for context (not used in this test endpoint)
-    // const { data: history } = await supabase.from('messages').select('sender, message').eq('lead_id', lead.id).order('created_at', { ascending: false }).limit(10);
-    // const previousMessages = history ? history.map(entry => ({ sender: entry.sender, message: entry.message })).reverse() : [];
-    
-    // Use the unified bot service for simulation (but don't actually send WhatsApp messages)
-    logger.info({ leadId: lead.id, userText }, '[SIMULATION] Processing with bot service');
+    // Option to reset conversation for clean testing
+    if (reset_conversation) {
+      await supabase.from('messages').delete().eq('lead_id', lead.id);
+      await supabase.from('leads').update({
+        status: 'new',
+        intent: null,
+        budget: null,
+        tentative_booking_time: null
+      }).eq('id', lead.id);
+      console.log('🔄 Conversation reset for clean testing\n');
+    }
 
-    // For simulation, we'll call the bot service but intercept the WhatsApp sending
+    // Get conversation history BEFORE processing
+    const { data: beforeHistory } = await supabase
+      .from('messages')
+      .select('sender, message, created_at')
+      .eq('lead_id', lead.id)
+      .order('created_at', { ascending: true });
+
+    console.log('📝 Conversation History BEFORE:');
+    if (beforeHistory && beforeHistory.length > 0) {
+      beforeHistory.forEach((msg, i) => {
+        console.log(`  ${i + 1}. ${msg.sender === 'lead' ? '👤 User' : '🤖 Doro'}: ${msg.message}`);
+      });
+    } else {
+      console.log('  (No previous messages)');
+    }
+    console.log('');
+
+    await supabase.from('messages').insert({ lead_id: lead.id, sender: 'lead', message: userText });
+
+    const startTime = Date.now();
+    console.log('🧠 Processing with AI...\n');
+
+    // Process with bot service
     await botService.processMessage({
       senderWaId,
       userText,
       senderName
     });
 
-    // Get the latest response from the database to show what was generated
-    const { data: latestMessages } = await supabase
+    const processingTime = Date.now() - startTime;
+
+    // Get the latest response from the database
+    const { data: afterHistory } = await supabase
       .from('messages')
-      .select('*')
+      .select('sender, message, created_at')
       .eq('lead_id', lead.id)
-      .order('created_at', { ascending: false })
-      .limit(2);
+      .order('created_at', { ascending: true });
 
-    const aiResponse = {
-      messages: latestMessages?.filter(m => m.sender === 'assistant').map(m => m.message) || [],
-      action: 'simulated'
-    };
-    logger.info({ leadId: lead.id, aiResponse }, '[SIMULATION] Bot service processing completed.');
+    const aiResponses = afterHistory
+      ?.filter(m => m.sender === 'assistant')
+      ?.slice(beforeHistory?.filter(m => m.sender === 'assistant').length || 0)
+      ?.map(m => m.message) || [];
 
-    // Show what messages were generated (they're already saved by botService)
-    if (aiResponse.messages.length > 0) {
-      const fullReply = aiResponse.messages.join('\n\n');
-      logger.info({ leadId: lead.id, message: fullReply }, `[SIMULATION] Bot generated: "${fullReply}"`);
+    console.log('🤖 AI Response:');
+    if (aiResponses.length > 0) {
+      aiResponses.forEach((response, i) => {
+        console.log(`  ${i + 1}. "${response}"`);
+      });
+    } else {
+      console.log('  (No AI response generated)');
     }
+    console.log(`\n⏱️  Processing time: ${processingTime}ms`);
+    console.log('=========================\n');
 
     res.status(200).json({
-      message: "Simulation successful. Bot service processed the message.",
-      ai_response: aiResponse.messages,
-      lead_id: lead.id
+      success: true,
+      message: "Simulation completed successfully",
+      ai_responses: aiResponses,
+      lead_id: lead.id,
+      processing_time_ms: processingTime,
+      conversation_length: afterHistory?.length || 0,
+      test_info: {
+        from: senderWaId,
+        name: senderName,
+        message: userText,
+        reset: reset_conversation || false
+      }
     });
   } catch (err) {
-    next(err); // Pass error to the centralized handler
+    console.error('❌ Test failed:', err.message);
+    next(err);
   }
 });
 

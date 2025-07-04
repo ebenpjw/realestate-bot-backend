@@ -355,12 +355,249 @@ class BotService {
   }
 
   /**
-   * NEW: Strategic multi-phase message processing
+   * NEW: Strategic multi-phase message processing with conversation stage detection
    * @private
    */
   async _processMessageStrategically(lead, previousMessages, userText) {
     try {
       logger.info({ leadId: lead.id }, 'Starting strategic conversation processing');
+
+      // NEW: Determine conversation stage first
+      const conversationStage = this._determineConversationStage(lead, previousMessages, userText);
+      logger.info({ leadId: lead.id, stage: conversationStage }, 'Conversation stage determined');
+
+      // Handle different stages with appropriate processing
+      switch (conversationStage) {
+        case 'GREETING':
+          return await this._handleGreetingStage(lead, userText);
+
+        case 'DISCOVERY':
+          return await this._handleDiscoveryStage(lead, previousMessages, userText);
+
+        case 'QUALIFIED':
+        case 'STRATEGIC':
+        case 'BOOKING':
+          // Run full strategic processing for qualified leads
+          return await this._runFullStrategicProcessing(lead, previousMessages, userText);
+
+        default:
+          // Fallback to discovery mode
+          return await this._handleDiscoveryStage(lead, previousMessages, userText);
+      }
+
+    } catch (error) {
+      logger.error({ err: error, leadId: lead.id }, 'Error in strategic processing');
+      // Return a simple fallback response instead of legacy system
+      return {
+        message: "I'm having some technical difficulties right now. Let me get back to you in a moment!",
+        messages: ["I'm having some technical difficulties right now. Let me get back to you in a moment!"],
+        action: 'error_fallback',
+        lead_updates: {},
+        appointmentHandled: false
+      };
+    }
+  }
+
+  /**
+   * Determine what stage of conversation we're in
+   * @private
+   */
+  _determineConversationStage(lead, messages, currentMessage) {
+    const messageCount = messages.length;
+    const userMessages = messages.filter(m => m.sender === 'lead');
+    const currentMessageLower = currentMessage.toLowerCase().trim();
+
+    // GREETING: First message and it's a simple greeting
+    const greetingPatterns = /^(hi|hello|hey|good morning|good afternoon|good evening|hola|sup|yo)!?$/i;
+    if (messageCount <= 1 && greetingPatterns.test(currentMessageLower)) {
+      return 'GREETING';
+    }
+
+    // BOOKING: Explicit consultation/appointment requests
+    const bookingPatterns = /consultation|meeting|appointment|speak|call|talk|discuss|meet|schedule|book/i;
+    if (bookingPatterns.test(currentMessage)) {
+      return 'BOOKING';
+    }
+
+    // DISCOVERY: No intent or budget known, or very early conversation
+    if (!lead.intent || lead.intent === 'Unknown' || !lead.budget || userMessages.length < 2) {
+      return 'DISCOVERY';
+    }
+
+    // QUALIFIED: Has intent and budget
+    if (lead.intent && lead.intent !== 'Unknown' && lead.budget) {
+      return 'QUALIFIED';
+    }
+
+    // STRATEGIC: Ongoing conversation with some context
+    if (messageCount > 3) {
+      return 'STRATEGIC';
+    }
+
+    // Default to discovery
+    return 'DISCOVERY';
+  }
+
+  /**
+   * Handle greeting stage - simple, warm response with discovery question
+   * @private
+   */
+  async _handleGreetingStage(lead, userText) {
+    try {
+      logger.info({ leadId: lead.id }, 'Processing greeting stage');
+
+      const greetingResponses = [
+        "Hey there! 😊 How can I help you with your property journey today?",
+        "Hi! Nice to meet you! What brings you here today?",
+        "Hello! 😊 Are you looking to buy, sell, or just exploring options?",
+        "Hey! Good to hear from you! What's on your mind regarding property?",
+        "Hi there! How can I assist you with your property needs today?"
+      ];
+
+      const response = greetingResponses[Math.floor(Math.random() * greetingResponses.length)];
+
+      return {
+        message: response,
+        messages: [response],
+        action: 'greeting_response',
+        lead_updates: {},
+        appointmentHandled: false
+      };
+
+    } catch (error) {
+      logger.error({ err: error, leadId: lead.id }, 'Error in greeting stage');
+      return {
+        message: "Hey there! 😊 How can I help you today?",
+        messages: ["Hey there! 😊 How can I help you today?"],
+        action: 'greeting_fallback',
+        lead_updates: {},
+        appointmentHandled: false
+      };
+    }
+  }
+
+  /**
+   * Handle discovery stage - focus on gathering information without assumptions
+   * @private
+   */
+  async _handleDiscoveryStage(lead, previousMessages, userText) {
+    try {
+      logger.info({ leadId: lead.id }, 'Processing discovery stage');
+
+      const conversationHistory = previousMessages.slice(-6).map(msg =>
+        `${msg.sender === 'lead' ? 'User' : 'Doro'}: ${msg.message}`
+      ).join('\n');
+
+      const discoveryPrompt = `
+You are Doro - 28-year-old Singaporean, casual and authentic. You're in DISCOVERY MODE.
+
+CURRENT SITUATION:
+- This is early in the conversation
+- You need to gather basic information before making any assumptions
+- DO NOT assume buyer type, budget, or specific needs
+- Focus on asking good questions and building rapport
+
+CONVERSATION SO FAR:
+${conversationHistory}
+
+CURRENT MESSAGE: "${userText}"
+
+DISCOVERY GOALS:
+- Find out what they're looking for (buy/sell/rent/invest)
+- Understand their situation without being pushy
+- Build trust through genuine conversation
+- Ask follow-up questions based on their responses
+
+PERSONALITY (keep exactly as is):
+- Naturally curious, warm, genuine - not overly eager
+- Casual expressions: "Nice!", "Got it!", "Makes sense!", "Right!"
+- NEVER: "Cool!", "Oh interesting!", "Amazing!", "Fantastic!"
+- Emojis sparingly: 😊 😅 🏠
+
+RESPONSE REQUIREMENTS:
+- Respond naturally to what they actually said
+- Ask relevant follow-up questions
+- Don't mention market insights unless they ask
+- Keep it conversational, not interrogative
+- If they give info, acknowledge it and ask logical next question
+
+Respond with a single natural message (max 120 characters).`;
+
+      const response = await this.openai.chat.completions.create({
+        model: "gpt-4.1",
+        messages: [{ role: "user", content: discoveryPrompt }],
+        temperature: 0.7,
+        max_tokens: 150
+      });
+
+      const aiMessage = response.choices[0].message.content.trim();
+
+      // Extract any lead updates from the conversation
+      const leadUpdates = this._extractLeadUpdatesFromDiscovery(userText);
+
+      return {
+        message: aiMessage,
+        messages: [aiMessage],
+        action: 'discovery_response',
+        lead_updates: leadUpdates,
+        appointmentHandled: false
+      };
+
+    } catch (error) {
+      logger.error({ err: error, leadId: lead.id }, 'Error in discovery stage');
+      return {
+        message: "Got it! Tell me more about what you're looking for? 😊",
+        messages: ["Got it! Tell me more about what you're looking for? 😊"],
+        action: 'discovery_fallback',
+        lead_updates: {},
+        appointmentHandled: false
+      };
+    }
+  }
+
+  /**
+   * Extract lead updates from discovery conversation
+   * @private
+   */
+  _extractLeadUpdatesFromDiscovery(userText) {
+    const updates = {};
+    const textLower = userText.toLowerCase();
+
+    // Detect intent
+    if (textLower.includes('buy') || textLower.includes('purchase')) {
+      if (textLower.includes('invest') || textLower.includes('rental')) {
+        updates.intent = 'investment';
+      } else {
+        updates.intent = 'own_stay';
+      }
+    } else if (textLower.includes('sell')) {
+      updates.intent = 'sell';
+    } else if (textLower.includes('rent') && !textLower.includes('rental')) {
+      updates.intent = 'rent';
+    }
+
+    // Detect budget mentions
+    const budgetMatch = textLower.match(/(\d+(?:\.\d+)?)\s*(million|mil|k|thousand)/);
+    if (budgetMatch) {
+      const amount = parseFloat(budgetMatch[1]);
+      const unit = budgetMatch[2];
+      if (unit.includes('mil')) {
+        updates.budget = `${amount} million`;
+      } else if (unit.includes('k') || unit.includes('thousand')) {
+        updates.budget = `${amount}k`;
+      }
+    }
+
+    return updates;
+  }
+
+  /**
+   * Run full strategic processing - your original 5-phase system for qualified leads
+   * @private
+   */
+  async _runFullStrategicProcessing(lead, previousMessages, userText) {
+    try {
+      logger.info({ leadId: lead.id }, 'Running full strategic processing');
 
       // Phase 1: Silent Context Analysis
       const contextAnalysis = await this._analyzeStrategicContext(lead, previousMessages, userText);
@@ -430,15 +667,9 @@ class BotService {
       };
 
     } catch (error) {
-      logger.error({ err: error, leadId: lead.id }, 'Error in strategic processing');
-      // Return a simple fallback response instead of legacy system
-      return {
-        message: "I'm having some technical difficulties right now. Let me get back to you in a moment!",
-        messages: ["I'm having some technical difficulties right now. Let me get back to you in a moment!"],
-        action: 'error_fallback',
-        lead_updates: {},
-        appointmentHandled: false
-      };
+      logger.error({ err: error, leadId: lead.id }, 'Error in full strategic processing');
+      // Fallback to discovery mode if strategic processing fails
+      return await this._handleDiscoveryStage(lead, previousMessages, userText);
     }
   }
 
