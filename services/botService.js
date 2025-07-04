@@ -381,17 +381,22 @@ class BotService {
       const contextAnalysis = await this._analyzeStrategicContext(lead, previousMessages, userText);
 
       // Enhanced: Apply contextual inference to avoid redundant questions
-      const contextualInference = analyzeContextualIntent(userText, previousMessages);
-      if (contextualInference) {
-        contextAnalysis.contextual_inference = contextualInference;
-        // Update intent if we have high confidence inference
-        if (contextualInference.confidence === 'high' && !lead.intent) {
-          contextAnalysis.inferred_intent = contextualInference.inferred_intent;
+      try {
+        const contextualInference = analyzeContextualIntent(userText, previousMessages);
+        if (contextualInference) {
+          contextAnalysis.contextual_inference = contextualInference;
+          // Update intent if we have high confidence inference
+          if (contextualInference.confidence === 'high' && !lead.intent) {
+            contextAnalysis.inferred_intent = contextualInference.inferred_intent;
+          }
+          logger.info({
+            leadId: lead.id,
+            inference: contextualInference
+          }, 'Applied contextual inference');
         }
-        logger.info({
-          leadId: lead.id,
-          inference: contextualInference
-        }, 'Applied contextual inference');
+      } catch (inferenceError) {
+        logger.warn({ err: inferenceError, leadId: lead.id }, 'Error in contextual inference - continuing without it');
+        // Continue processing without contextual inference
       }
 
       // NEW: Check if this is insufficient data for strategic assumptions
@@ -494,6 +499,14 @@ class BotService {
   async _handleInsufficientDataMode(lead, previousMessages, userText, contextAnalysis) {
     try {
       logger.info({ leadId: lead.id }, 'Processing insufficient data mode - natural conversation building');
+
+      // Debug logging
+      logger.debug({
+        leadId: lead.id,
+        previousMessagesCount: previousMessages?.length || 0,
+        userTextLength: userText?.length || 0,
+        contextAnalysisKeys: Object.keys(contextAnalysis || {})
+      }, 'Insufficient data mode - input validation');
 
       const conversationHistory = previousMessages.slice(-6).map(msg =>
         `${msg.sender === 'lead' ? 'User' : 'Doro'}: ${msg.message}`
