@@ -34,6 +34,12 @@ async function getAgentWorkingHours(agentId) {
             };
         }
 
+        logger.info({
+            agentId,
+            rawWorkingHours: agent.working_hours,
+            timezone: agent.timezone
+        }, 'DEBUG: Retrieved agent working hours from database');
+
         // If agent has working hours but they're restrictive, use extended defaults
         // This allows agents to have extended hours unless they specifically set restrictions
         const agentHours = agent.working_hours;
@@ -444,16 +450,39 @@ async function isTimeSlotAvailable(agentId, requestedTime) {
     try {
         const workingHours = await getAgentWorkingHours(agentId);
 
+        // CRITICAL DEBUG: Log working hours retrieval
+        console.log('🔍 WORKING HOURS DEBUG:', {
+            agentId,
+            workingHours,
+            requestedTime: requestedTime.toISOString(),
+            requestedTimeLocal: requestedTime.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+        });
+
         // Check if time is within working hours
         const hour = requestedTime.getHours();
         const day = requestedTime.getDay();
 
         if (!workingHours.days.includes(day) || hour < workingHours.start || hour >= workingHours.end) {
+            console.log('❌ WORKING HOURS REJECTION:', {
+                agentId,
+                requestedTime: requestedTime.toISOString(),
+                requestedTimeLocal: requestedTime.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+                hour,
+                day,
+                workingHours,
+                dayIncluded: workingHours.days.includes(day),
+                hourInRange: hour >= workingHours.start && hour < workingHours.end,
+                dayName: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][day]
+            });
+
             logger.info({
                 agentId,
                 requestedTime: requestedTime.toISOString(),
-                hour, day, workingHours
-            }, 'Requested time is outside working hours');
+                requestedTimeLocal: requestedTime.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+                hour, day, workingHours,
+                dayIncluded: workingHours.days.includes(day),
+                hourInRange: hour >= workingHours.start && hour < workingHours.end
+            }, 'DEBUG: Requested time is outside working hours - detailed breakdown');
             return false;
         }
 
