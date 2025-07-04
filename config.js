@@ -44,6 +44,14 @@ const config = {
   ENABLE_RATE_LIMITING: parseBoolean(process.env.ENABLE_RATE_LIMITING, true),
   ENABLE_REQUEST_LOGGING: parseBoolean(process.env.ENABLE_REQUEST_LOGGING, true),
 
+  // Enhanced feature flags for better control
+  ENABLE_META_INTEGRATION: parseBoolean(process.env.ENABLE_META_INTEGRATION, false),
+  ENABLE_CONVERSATION_MEMORY: parseBoolean(process.env.ENABLE_CONVERSATION_MEMORY, true),
+  ENABLE_BOOKING_SYSTEM: parseBoolean(process.env.ENABLE_BOOKING_SYSTEM, true),
+  ENABLE_TEMPLATE_COMPLIANCE: parseBoolean(process.env.ENABLE_TEMPLATE_COMPLIANCE, true),
+  ENABLE_GOOGLE_SEARCH: parseBoolean(process.env.ENABLE_GOOGLE_SEARCH, false),
+  ENABLE_AI_INSIGHTS: parseBoolean(process.env.ENABLE_AI_INSIGHTS, true),
+
   // Supabase Configuration
   SUPABASE_URL: process.env.SUPABASE_URL,
   SUPABASE_KEY: process.env.SUPABASE_KEY,

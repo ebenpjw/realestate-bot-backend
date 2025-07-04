@@ -138,8 +138,8 @@ function createSgDate(year, month, day, hour = 0, minute = 0, second = 0) {
 
 
 
-// Legacy function aliases for backward compatibility
-const formatToLocalISO = formatForGoogleCalendar;
+// Legacy function alias for backward compatibility
+// Note: formatToLocalISO was removed as it was unused
 const formatToFullISO = (date) => {
   // formatForGoogleCalendar already includes the timezone offset, so just return it directly
   return formatForGoogleCalendar(date);
@@ -156,7 +156,6 @@ module.exports = {
   // Constants
   SINGAPORE_TIMEZONE,
 
-  // Legacy compatibility (deprecated)
-  formatToLocalISO,
+  // Legacy compatibility (deprecated - used in bookingHelper.js)
   formatToFullISO
 };

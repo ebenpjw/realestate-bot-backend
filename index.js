@@ -108,6 +108,14 @@ app.get('/health', asyncHandler(async (req, res) => {
       }
     };
 
+    // Add monitoring metrics if available
+    try {
+      const monitoringService = require('./services/monitoringService');
+      healthStatus.monitoring = monitoringService.getSystemHealth();
+    } catch (error) {
+      logger.debug({ err: error }, 'Monitoring service not available');
+    }
+
     // Determine overall health status
     const criticalServices = ['database']; // Only database is critical for deployment
     const criticalServicesHealthy = criticalServices.every(serviceName =>
@@ -132,6 +140,25 @@ app.get('/health', asyncHandler(async (req, res) => {
       timestamp: new Date().toISOString(),
       error: error.message,
       responseTime: Date.now() - startTime
+    });
+  }
+}));
+
+// Detailed monitoring metrics endpoint
+app.get('/metrics', asyncHandler(async (_req, res) => {
+  try {
+    const monitoringService = require('./services/monitoringService');
+    const metrics = monitoringService.getSystemHealth();
+
+    res.status(HTTP_STATUS.OK).json({
+      timestamp: new Date().toISOString(),
+      ...metrics
+    });
+  } catch (error) {
+    logger.error({ err: error }, 'Metrics endpoint failed');
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+      error: 'Metrics not available',
+      timestamp: new Date().toISOString()
     });
   }
 }));
