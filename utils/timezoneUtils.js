@@ -141,7 +141,8 @@ function createSgDate(year, month, day, hour = 0, minute = 0, second = 0) {
 // Legacy function aliases for backward compatibility
 const formatToLocalISO = formatForGoogleCalendar;
 const formatToFullISO = (date) => {
-  return `${formatForGoogleCalendar(date)}+08:00`;
+  // formatForGoogleCalendar already includes the timezone offset, so just return it directly
+  return formatForGoogleCalendar(date);
 };
 
 module.exports = {

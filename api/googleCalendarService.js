@@ -87,16 +87,33 @@ async function getAuthenticatedClient(agentId) {
         }
     });
 
+    // Pre-emptively refresh access token to ensure it's valid
+    try {
+        await oauth2Client.getAccessToken();
+        logger.info({ agentId }, 'Google OAuth access token refreshed successfully');
+    } catch (tokenError) {
+        logger.warn({
+            err: tokenError,
+            agentId,
+            errorMessage: tokenError.message,
+            errorCode: tokenError.code
+        }, 'Failed to refresh Google OAuth access token');
+        // Don't fail here - let the actual API call handle the error
+    }
+
     return { authClient: oauth2Client, agent };
 }
 
-async function checkAvailability(agentId, startTimeISO, endTimeISO) {
+async function checkAvailability(agentId, startTimeISO, endTimeISO, retryCount = 0) {
     try {
         logger.info({
             agentId,
             startTimeISO,
-            endTimeISO
-        }, 'Checking Google Calendar availability');
+            endTimeISO,
+            retryCount,
+            startTimeParsed: new Date(startTimeISO).toISOString(),
+            endTimeParsed: new Date(endTimeISO).toISOString()
+        }, 'Checking Google Calendar availability with date format validation');
 
         const { authClient } = await getAuthenticatedClient(agentId);
         if (!authClient) {
@@ -147,13 +164,14 @@ async function checkAvailability(agentId, startTimeISO, endTimeISO) {
         return busySlots;
 
     } catch (error) {
-        // Handle specific authentication errors
-        if (error.message?.includes('invalid_grant') || error.code === 400) {
+        // Handle specific authentication errors with retry logic
+        if ((error.message?.includes('invalid_grant') || error.code === 400) && retryCount === 0) {
             logger.warn({
                 agentId,
                 errorMessage: error.message,
-                errorCode: error.code
-            }, 'Google Calendar authentication failed - token may be expired. Proceeding without calendar check.');
+                errorCode: error.code,
+                retryCount
+            }, 'Google Calendar authentication failed - attempting retry after token refresh');
 
             // Mark agent's Google token as needing refresh
             try {
@@ -165,6 +183,17 @@ async function checkAvailability(agentId, startTimeISO, endTimeISO) {
             } catch (updateError) {
                 logger.error({ err: updateError, agentId }, 'Failed to update agent token status');
             }
+
+            // Retry once after marking token for refresh
+            logger.info({ agentId }, 'Retrying calendar availability check after token refresh');
+            return await checkAvailability(agentId, startTimeISO, endTimeISO, retryCount + 1);
+        } else if (error.message?.includes('invalid_grant') || error.code === 400) {
+            logger.error({
+                agentId,
+                errorMessage: error.message,
+                errorCode: error.code,
+                retryCount
+            }, 'Google Calendar authentication failed after retry - proceeding without calendar check');
         } else {
             logger.error({
                 err: error,
@@ -172,7 +201,8 @@ async function checkAvailability(agentId, startTimeISO, endTimeISO) {
                 startTimeISO,
                 endTimeISO,
                 errorMessage: error.message,
-                errorCode: error.code
+                errorCode: error.code,
+                retryCount
             }, 'Error checking Google Calendar availability');
         }
 
