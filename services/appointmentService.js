@@ -496,7 +496,63 @@ class AppointmentService {
     consultationNotes = ''
   }) {
     try {
-      // Check if user specified a time first
+      // FIRST: Check if this is a confirmation of previously offered alternatives
+      const { data: leadData } = await supabase
+        .from('leads')
+        .select('booking_alternatives, tentative_booking_time, status')
+        .eq('id', leadId)
+        .single();
+
+      // Check for confirmation keywords
+      const confirmationKeywords = ['yes', 'sounds good', 'that works', 'ok', 'okay', 'sure', 'perfect', 'great'];
+      const isConfirmation = confirmationKeywords.some(keyword =>
+        userMessage.toLowerCase().includes(keyword.toLowerCase())
+      );
+
+      // If user is confirming and we have alternatives stored, book the first alternative
+      if (isConfirmation && leadData?.booking_alternatives) {
+        try {
+          const alternatives = JSON.parse(leadData.booking_alternatives);
+          if (alternatives && alternatives.length > 0) {
+            const selectedTime = new Date(alternatives[0]);
+
+            logger.info({
+              leadId,
+              selectedTime: selectedTime.toISOString(),
+              userMessage,
+              alternatives: alternatives.length
+            }, 'User confirming previously offered alternative - proceeding with booking');
+
+            // Book the confirmed alternative
+            const result = await this.createAppointment({
+              leadId,
+              agentId,
+              appointmentTime: selectedTime,
+              leadName,
+              consultationNotes
+            });
+
+            // Clear the stored alternatives
+            await supabase.from('leads').update({
+              booking_alternatives: null,
+              tentative_booking_time: null,
+              status: 'booked'
+            }).eq('id', leadId);
+
+            return {
+              success: true,
+              type: 'confirmation_booking',
+              appointment: result.appointment,
+              zoomMeeting: result.zoomMeeting,
+              message: result.message || `Perfect! I've confirmed your consultation. ${result.zoomMeeting?.joinUrl ? `\n\nZoom Link: ${result.zoomMeeting.joinUrl}` : ''}`
+            };
+          }
+        } catch (parseError) {
+          logger.warn({ err: parseError, leadId }, 'Could not parse stored booking alternatives');
+        }
+      }
+
+      // SECOND: Handle new time requests
       const { parsePreferredTime } = require('../api/bookingHelper');
       const userSpecifiedTime = parsePreferredTime(userMessage);
 
@@ -546,6 +602,19 @@ class AppointmentService {
           // User specified a time but it's busy - offer alternatives
           const nearestAlternative = alternatives[0];
           const formattedAlternative = formatForDisplay(toSgTime(nearestAlternative));
+
+          // CRITICAL: Store the alternative in the database for later confirmation
+          await supabase.from('leads').update({
+            booking_alternatives: JSON.stringify([nearestAlternative.toISOString()]),
+            tentative_booking_time: nearestAlternative.toISOString(),
+            status: 'alternatives_offered'
+          }).eq('id', leadId);
+
+          logger.info({
+            leadId,
+            alternativeOffered: nearestAlternative.toISOString(),
+            formattedTime: formattedAlternative
+          }, 'Stored alternative appointment option for user confirmation');
 
           return {
             success: false,
