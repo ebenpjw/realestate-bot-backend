@@ -2,6 +2,7 @@ const OpenAI = require('openai');
 const config = require('../config');
 const logger = require('../logger');
 const supabase = require('../supabaseClient');
+const { DORO_PERSONALITY, getPersonalityPrompt, getToneForUser, getStageGuidelines, shouldUseMarketData } = require('../config/personality');
 const whatsappService = require('./whatsappService');
 const databaseService = require('./databaseService');
 const { AI } = require('../constants');
@@ -135,9 +136,11 @@ class BotService {
         for (let i = 0; i < response.messages.length; i++) {
           const message = response.messages[i];
 
-          // Add longer delay between messages to feel more natural and less rushed
+          // Add natural delay between messages, but avoid timeout issues
           if (i > 0) {
-            await new Promise(resolve => setTimeout(resolve, 6000)); // 6 second delay
+            // Reduce delay for multiple messages to prevent timeout conflicts
+            const delay = response.messages.length > 2 ? 3000 : 6000; // 3s for 3+ messages, 6s for 2 messages
+            await new Promise(resolve => setTimeout(resolve, delay));
           }
 
           await whatsappService.sendMessage({ to: senderWaId, message });
@@ -374,6 +377,14 @@ class BotService {
       // Load conversation memory from previous interactions
       const conversationMemory = await this._loadConversationMemory(lead.id);
 
+      // Use conversation state to inform context analysis
+      if (conversationMemory && conversationMemory.conversation_stage) {
+        contextAnalysis.conversation_stage = conversationMemory.conversation_stage;
+        contextAnalysis.rapport_established = conversationMemory.rapport_established;
+        contextAnalysis.ready_for_insights = conversationMemory.ready_for_insights;
+        contextAnalysis.qualifying_info_available = this._hasQualifyingInfo(conversationMemory);
+      }
+
       // Generate conversation insights for analytics (not control)
       const conversationInsights = this._generateConversationInsights(contextAnalysis, lead, previousMessages);
 
@@ -381,24 +392,26 @@ class BotService {
       const updatedMemory = this._updateConversationMemory(conversationMemory, conversationInsights, contextAnalysis, userText);
 
       // Phase 2: Intelligence Gathering (market data, competitor info, news, etc.)
-      const intelligenceData = await this._gatherIntelligence(contextAnalysis, userText);
+      const intelligenceData = await this._gatherIntelligence(contextAnalysis, userText, updatedMemory);
 
-      // Save conversation insights and memory (async, non-blocking)
-      this._saveConversationInsights(lead.id, conversationInsights).catch(err =>
-        logger.warn({ err, leadId: lead.id }, 'Failed to save conversation insights')
-      );
-      this._saveConversationMemory(lead.id, updatedMemory).catch(err =>
-        logger.warn({ err, leadId: lead.id }, 'Failed to save conversation memory')
-      );
+      // Save conversation insights and memory (ensure completion before strategy planning)
+      try {
+        await Promise.allSettled([
+          this._saveConversationInsights(lead.id, conversationInsights),
+          this._saveConversationMemory(lead.id, updatedMemory)
+        ]);
+      } catch (err) {
+        logger.warn({ err, leadId: lead.id }, 'Non-critical: Failed to save conversation data');
+        // Continue processing - memory saving failure shouldn't block response generation
+      }
 
       // Phase 3: Conversation Strategy Planning (AI-driven with memory context)
       const campaignContext = this._analyzeCampaignContext(updatedMemory, contextAnalysis);
       const successPatterns = await this._analyzeSuccessPatterns(lead, contextAnalysis);
       const strategy = await this._planConversationStrategy(contextAnalysis, intelligenceData, lead, updatedMemory, campaignContext, successPatterns);
 
-      // Phase 4: Strategic Response Generation (with dynamic personality)
-      const personalityAdjustments = this._calculatePersonalityAdjustments(contextAnalysis, updatedMemory);
-      const response = await this._generateStrategicResponse(strategy, contextAnalysis, intelligenceData, lead, previousMessages, personalityAdjustments);
+      // Phase 4: Strategic Response Generation (with unified personality)
+      const response = await this._generateStrategicResponse(strategy, contextAnalysis, intelligenceData, lead, previousMessages);
 
       // Phase 5: Handle booking if strategy calls for it
       if (response.appointment_intent) {
@@ -460,43 +473,28 @@ class BotService {
         `${msg.sender === 'lead' ? 'User' : 'Doro'}: ${msg.message}`
       ).join('\n');
 
+      const stageGuidelines = getStageGuidelines('rapport_building');
+      const personalityPrompt = getPersonalityPrompt('rapport_building');
+
       const naturalPrompt = `
-You are Doro - 28-year-old Singaporean, warm and naturally conversational.
+${personalityPrompt}
 
 SITUATION: This is early conversation with insufficient data for strategic assumptions.
-GOAL: Build rapport naturally, provide value when appropriate, guide conversation to open them up.
+GOAL: ${stageGuidelines.priority}
 
 CONVERSATION SO FAR:
 ${conversationHistory}
 
 CURRENT MESSAGE: "${userText}"
 
-APPROACH:
-- Respond naturally to what they actually said
-- Don't assume buyer type, budget, or specific needs
-- Build trust through genuine conversation
-- Provide value when it feels natural (not forced)
-- Ask thoughtful questions that feel conversational
-- Share brief insights only when relevant to their actual words
-
-PERSONALITY:
-- Warm, genuine, naturally curious (not pushy)
-- Mild Singlish occasionally: "lah", "eh", "right"
-- Mix statements with questions - don't interrogate
-- Sound like a real person having a casual chat
+APPROACH: ${stageGuidelines.approach}
+AVOID: ${stageGuidelines.avoid}
 
 EXAMPLES OF NATURAL RESPONSES:
-- "Hey! 😊 What's up?" (for greetings)
-- "Ah nice! Just browsing around or looking for something specific?"
-- "Investment property eh? That's quite popular lately"
-- "Makes sense! The market's been quite interesting recently"
+${stageGuidelines.examples.map(ex => `- "${ex}"`).join('\n')}
 
-IMPORTANT:
-- NO assumptions about their situation
-- NO generic market insights unless they ask
-- NO consultation pushing
-- Focus on natural conversation flow
-- Keep responses under 100 characters when possible
+CONVERSATION RULES:
+${Object.values(DORO_PERSONALITY.conversation.rules).map(rule => `- ${rule}`).join('\n')}
 
 Respond naturally and conversationally:`;
 
@@ -1916,13 +1914,32 @@ ${conversationHistory}
 
 CURRENT MESSAGE: "${currentMessage}"
 
-CRITICAL: First check if there's enough information for strategic analysis:
+CRITICAL: Prioritize rapport building and qualification over market data insertion.
 
-INSUFFICIENT DATA DETECTION:
+INSUFFICIENT DATA DETECTION (Expanded):
 - If this is just a greeting (hi/hello) with no context: insufficient_data = true
 - If lead has no intent, no budget, and <3 meaningful messages: insufficient_data = true
 - If user hasn't shared any specific property needs/situation: insufficient_data = true
 - If conversation is too early for assumptions about buyer type: insufficient_data = true
+- If user is just "exploring" or "looking" without specific urgency: insufficient_data = true
+- If no qualifying information gathered (timeline, budget, specific needs): insufficient_data = true
+- If user hasn't expressed readiness for market insights or advice: insufficient_data = true
+
+CONVERSATION READINESS FOR MARKET DATA:
+Market data should ONLY be provided when:
+- User has shared specific timeline (e.g., "looking to buy in 6 months")
+- User has mentioned budget or financing concerns
+- User is comparing options or asking for market advice
+- User has shown buying signals beyond casual exploration
+- User is asking specific questions about pricing or market conditions
+- Conversation has progressed beyond initial discovery phase
+
+EARLY STAGE CONVERSATION INDICATORS (needs_market_hook = false):
+- "Just exploring", "just looking", "browsing"
+- First mention of property type without context
+- Casual inquiries without urgency
+- No timeline or budget mentioned
+- No specific questions about market conditions
 
 IF INSUFFICIENT DATA: Focus on natural conversation building, value provision, and gentle discovery.
 IF SUFFICIENT DATA: Proceed with full strategic analysis.
@@ -1941,6 +1958,7 @@ CONVERSATION MOMENTUM:
 - Build rapport first, then provide value, THEN consider consultation
 - What's the most natural next step to keep them engaged?
 - Focus on their specific concerns rather than generic property talk
+- Ask qualifying questions before providing market insights
 
 USER PSYCHOLOGY:
 - Are they analytical (need data) or emotional (need lifestyle benefits)?
@@ -2001,7 +2019,7 @@ Respond in JSON format only with these exact keys:
    * Phase 2: Gather relevant intelligence (market data, competitor info, news, etc.)
    * @private
    */
-  async _gatherIntelligence(contextAnalysis, userMessage) {
+  async _gatherIntelligence(contextAnalysis, userMessage, conversationMemory = null) {
     try {
       const intelligenceNeeds = this._identifyIntelligenceNeeds(contextAnalysis, userMessage);
 
@@ -2042,8 +2060,15 @@ Respond in JSON format only with these exact keys:
       }
 
       // Fallback to basic market intelligence if no specific needs identified
+      // Enhanced logic: Skip market data for early-stage conversations
       if (!contextAnalysis.needs_market_hook && contextAnalysis.areas_mentioned.length === 0) {
         logger.info('Skipping intelligence gathering - not needed for this conversation');
+        return null;
+      }
+
+      // Use unified market data logic
+      if (!shouldUseMarketData(contextAnalysis, conversationMemory)) {
+        logger.info('Skipping intelligence gathering - unified personality system determined not ready for market data');
         return null;
       }
 
@@ -2065,8 +2090,13 @@ Respond in JSON format only with these exact keys:
 
       logger.info({
         searchQuery,
-        contextTrigger: contextAnalysis.needs_market_hook ? 'needs_market_hook' : 'areas_mentioned'
-      }, 'Gathering real-time market intelligence');
+        contextTrigger: contextAnalysis.needs_market_hook ? 'needs_market_hook' : 'areas_mentioned',
+        userContext: {
+          journey_stage: contextAnalysis.journey_stage,
+          areas_mentioned: contextAnalysis.areas_mentioned,
+          conversation_stage: contextAnalysis.conversation_stage
+        }
+      }, 'Gathering real-time market intelligence for strategic conversation');
 
       // Use real web search to get current market data
       const marketSearchResults = await this._performRealWebSearch(searchQuery);
@@ -2483,6 +2513,18 @@ Respond in JSON format only with these exact keys:
       personality_insights: {},
       engagement_patterns: {},
       conversation_themes: [],
+      // Enhanced conversation state tracking
+      conversation_stage: 'rapport_building', // rapport_building, needs_discovery, value_provision, consultation_ready
+      qualifying_info_gathered: {
+        timeline: null,
+        budget: null,
+        areas_mentioned: [],
+        intent: null,
+        specific_needs: []
+      },
+      market_data_provided: false,
+      rapport_established: false,
+      ready_for_insights: false,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -2536,6 +2578,12 @@ Respond in JSON format only with these exact keys:
       });
     }
 
+    // Enhanced conversation state tracking
+    this._updateConversationState(memory, contextAnalysis, userMessage);
+
+    // Update qualifying information gathered
+    this._updateQualifyingInfo(memory, contextAnalysis, userMessage);
+
     // Update personality insights
     memory.personality_insights = {
       ...memory.personality_insights,
@@ -2572,6 +2620,96 @@ Respond in JSON format only with these exact keys:
     }, 'Updated conversation memory');
 
     return memory;
+  }
+
+  /**
+   * Update conversation state based on context analysis
+   * @private
+   */
+  _updateConversationState(memory, contextAnalysis, userMessage) {
+    // Determine conversation stage progression
+    const hasQualifyingInfo = memory.qualifying_info_gathered.timeline ||
+                             memory.qualifying_info_gathered.budget ||
+                             memory.qualifying_info_gathered.areas_mentioned.length > 0;
+
+    // Stage progression logic
+    if (contextAnalysis.comfort_level === 'cold' && contextAnalysis.journey_stage === 'browsing') {
+      memory.conversation_stage = 'rapport_building';
+      memory.rapport_established = false;
+    } else if (contextAnalysis.comfort_level === 'warming' && !hasQualifyingInfo) {
+      memory.conversation_stage = 'needs_discovery';
+      memory.rapport_established = true;
+    } else if (hasQualifyingInfo && contextAnalysis.comfort_level === 'engaged') {
+      memory.conversation_stage = 'value_provision';
+      memory.ready_for_insights = true;
+    } else if (contextAnalysis.consultation_timing !== 'not_yet') {
+      memory.conversation_stage = 'consultation_ready';
+    }
+
+    // Track if market data has been provided
+    if (contextAnalysis.needs_market_hook) {
+      memory.market_data_provided = true;
+    }
+  }
+
+  /**
+   * Update qualifying information gathered from conversation
+   * @private
+   */
+  _updateQualifyingInfo(memory, contextAnalysis, userMessage) {
+    const lowerMessage = userMessage.toLowerCase();
+
+    // Extract timeline information
+    const timelineKeywords = ['months', 'year', 'soon', 'urgent', 'asap', 'timeline', 'when'];
+    if (timelineKeywords.some(keyword => lowerMessage.includes(keyword))) {
+      memory.qualifying_info_gathered.timeline = userMessage;
+    }
+
+    // Extract budget information
+    const budgetKeywords = ['budget', 'afford', 'price', 'cost', '$', 'k', 'million'];
+    if (budgetKeywords.some(keyword => lowerMessage.includes(keyword))) {
+      memory.qualifying_info_gathered.budget = userMessage;
+    }
+
+    // Update areas mentioned
+    if (contextAnalysis.areas_mentioned && contextAnalysis.areas_mentioned.length > 0) {
+      contextAnalysis.areas_mentioned.forEach(area => {
+        if (!memory.qualifying_info_gathered.areas_mentioned.includes(area)) {
+          memory.qualifying_info_gathered.areas_mentioned.push(area);
+        }
+      });
+    }
+
+    // Extract intent information
+    const intentKeywords = ['investment', 'own stay', 'live in', 'rental', 'upgrade'];
+    if (intentKeywords.some(keyword => lowerMessage.includes(keyword))) {
+      if (lowerMessage.includes('investment')) {
+        memory.qualifying_info_gathered.intent = 'investment';
+      } else if (lowerMessage.includes('own stay') || lowerMessage.includes('live in')) {
+        memory.qualifying_info_gathered.intent = 'own_stay';
+      }
+    }
+
+    // Extract specific needs
+    const needsKeywords = ['bedrooms', 'bedder', 'space', 'family', 'upgrade', 'downsize'];
+    needsKeywords.forEach(keyword => {
+      if (lowerMessage.includes(keyword) && !memory.qualifying_info_gathered.specific_needs.includes(keyword)) {
+        memory.qualifying_info_gathered.specific_needs.push(keyword);
+      }
+    });
+  }
+
+  /**
+   * Check if sufficient qualifying information has been gathered
+   * @private
+   */
+  _hasQualifyingInfo(conversationMemory) {
+    if (!conversationMemory || !conversationMemory.qualifying_info_gathered) {
+      return false;
+    }
+
+    const info = conversationMemory.qualifying_info_gathered;
+    return !!(info.timeline || info.budget || info.areas_mentioned.length > 0 || info.intent);
   }
 
   /**
@@ -2714,102 +2852,162 @@ Respond in JSON format only with these exact keys:
   }
 
   /**
-   * Calculate personality adjustments based on user psychology and conversation memory
+   * Intelligently segment strategic responses while preserving coherence and impact
    * @private
    */
-  _calculatePersonalityAdjustments(contextAnalysis, conversationMemory) {
-    const adjustments = {
-      tone: 'balanced', // casual, professional, empathetic, enthusiastic
-      communication_style: 'conversational', // detailed, concise, storytelling, data_driven
-      approach: 'adaptive', // direct, nurturing, educational, consultative
-      energy_level: 'medium', // low, medium, high
-      formality: 'casual', // casual, semi_formal, formal
-      use_data: false,
-      use_stories: false,
-      use_emojis: true,
-      reasoning: []
+  _segmentStrategicResponse(strategicResponse, options = {}) {
+    const { strategy, conversationFlow, strategicPriority, contextAnalysis } = options;
+    const { format } = DORO_PERSONALITY.communication;
+
+    // If response is within optimal length, send as single message
+    if (strategicResponse.length <= format.natural_segmentation.optimal_length) {
+      return [strategicResponse];
+    }
+
+    // For high-priority strategic content, allow longer single messages
+    if (strategicPriority === 'high' && strategicResponse.length <= format.natural_segmentation.maximum_per_segment) {
+      return [strategicResponse];
+    }
+
+    // Intelligent segmentation preserving strategic coherence
+    const segments = [];
+
+    // First, try to split at natural conversation boundaries
+    const naturalBreaks = this._findNaturalBreakPoints(strategicResponse);
+
+    if (naturalBreaks.length > 0) {
+      // Use natural break points to create coherent segments
+      let currentSegment = '';
+      let segmentStart = 0;
+
+      for (const breakPoint of naturalBreaks) {
+        const potentialSegment = strategicResponse.substring(segmentStart, breakPoint).trim();
+
+        if (potentialSegment.length >= format.natural_segmentation.minimum_meaningful) {
+          if (currentSegment) {
+            segments.push(currentSegment);
+          }
+          currentSegment = potentialSegment;
+          segmentStart = breakPoint;
+        } else {
+          // Segment too short, combine with next
+          currentSegment = currentSegment ? currentSegment + ' ' + potentialSegment : potentialSegment;
+        }
+
+        // Don't exceed maximum segments
+        if (segments.length >= format.intelligent_splitting.max_segments - 1) {
+          break;
+        }
+      }
+
+      // Add remaining content
+      if (segmentStart < strategicResponse.length) {
+        const remaining = strategicResponse.substring(segmentStart).trim();
+        if (remaining) {
+          currentSegment = currentSegment ? currentSegment + ' ' + remaining : remaining;
+        }
+      }
+
+      if (currentSegment) {
+        segments.push(currentSegment);
+      }
+    } else {
+      // Fallback: intelligent word-boundary splitting
+      segments.push(...this._splitAtWordBoundaries(strategicResponse, format.natural_segmentation.maximum_per_segment));
+    }
+
+    // Ensure segments are meaningful and preserve strategic intent
+    const finalSegments = segments
+      .filter(segment => segment.length >= format.natural_segmentation.minimum_meaningful)
+      .slice(0, format.intelligent_splitting.max_segments);
+
+    logger.info({
+      originalLength: strategicResponse.length,
+      segmentCount: finalSegments.length,
+      segmentLengths: finalSegments.map(s => s.length),
+      strategicPriority,
+      preservedIntent: true
+    }, 'Strategic response segmented intelligently');
+
+    return finalSegments.length > 0 ? finalSegments : [strategicResponse];
+  }
+
+  /**
+   * Find natural break points in strategic content
+   * @private
+   */
+  _findNaturalBreakPoints(text) {
+    const breakPoints = [];
+
+    // Look for natural conversation transitions
+    const transitionPatterns = [
+      /\.\s+(?=(?:Also|Additionally|Furthermore|Moreover|By the way|Btw))/gi,
+      /\.\s+(?=(?:What|How|When|Where|Why|Would|Could|Should))/gi,
+      /\?\s+(?=[A-Z])/g,
+      /!\s+(?=[A-Z])/g,
+      /\.\s+(?=(?:I|We|You|This|That|The))/gi
+    ];
+
+    for (const pattern of transitionPatterns) {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        breakPoints.push(match.index + match[0].length);
+      }
+    }
+
+    return breakPoints.sort((a, b) => a - b);
+  }
+
+  /**
+   * Split text at word boundaries when natural breaks aren't available
+   * @private
+   */
+  _splitAtWordBoundaries(text, maxLength) {
+    const segments = [];
+    const words = text.split(' ');
+    let currentSegment = '';
+
+    for (const word of words) {
+      if (currentSegment.length + word.length + 1 <= maxLength) {
+        currentSegment = currentSegment ? currentSegment + ' ' + word : word;
+      } else {
+        if (currentSegment) {
+          segments.push(currentSegment);
+        }
+        currentSegment = word;
+      }
+    }
+
+    if (currentSegment) {
+      segments.push(currentSegment);
+    }
+
+    return segments;
+  }
+
+  /**
+   * Get unified personality configuration for current conversation context
+   * @private
+   */
+  _getUnifiedPersonalityConfig(contextAnalysis, conversationMemory) {
+    const currentStage = contextAnalysis.conversation_stage || 'rapport_building';
+    const userTone = getToneForUser(contextAnalysis.user_psychology, contextAnalysis.comfort_level);
+    const stageGuidelines = getStageGuidelines(currentStage);
+    const shouldUseMarketDataFlag = shouldUseMarketData(contextAnalysis, conversationMemory);
+
+    logger.info({
+      conversationStage: currentStage,
+      recommendedTone: userTone,
+      shouldUseMarketData: shouldUseMarketDataFlag,
+      stageApproach: stageGuidelines.approach
+    }, 'Applied unified personality configuration');
+
+    return {
+      stage: currentStage,
+      tone: userTone,
+      guidelines: stageGuidelines,
+      useMarketData: shouldUseMarketDataFlag
     };
-
-    // Adjust based on user psychology
-    if (contextAnalysis.user_psychology === 'analytical') {
-      adjustments.tone = 'professional';
-      adjustments.communication_style = 'data_driven';
-      adjustments.use_data = true;
-      adjustments.use_emojis = false;
-      adjustments.reasoning.push('User shows analytical psychology - using data-driven approach');
-    } else if (contextAnalysis.user_psychology === 'emotional') {
-      adjustments.tone = 'empathetic';
-      adjustments.communication_style = 'storytelling';
-      adjustments.use_stories = true;
-      adjustments.reasoning.push('User shows emotional psychology - using empathetic storytelling');
-    }
-
-    // Adjust based on comfort level
-    if (contextAnalysis.comfort_level === 'cold') {
-      adjustments.approach = 'nurturing';
-      adjustments.energy_level = 'low';
-      adjustments.formality = 'semi_formal';
-      adjustments.reasoning.push('User comfort level is cold - using gentle nurturing approach');
-    } else if (contextAnalysis.comfort_level === 'trusting') {
-      adjustments.approach = 'direct';
-      adjustments.energy_level = 'high';
-      adjustments.reasoning.push('User is trusting - can be more direct and energetic');
-    }
-
-    // Adjust based on conversation memory
-    if (conversationMemory) {
-      // If user has raised objections before, be more consultative
-      if (conversationMemory.objections_raised.length > 2) {
-        adjustments.approach = 'consultative';
-        adjustments.tone = 'empathetic';
-        adjustments.reasoning.push('Multiple objections in history - using consultative approach');
-      }
-
-      // If user has shown specific interests, tailor communication
-      if (conversationMemory.interests_shown.includes('investment')) {
-        adjustments.use_data = true;
-        adjustments.communication_style = 'data_driven';
-        adjustments.reasoning.push('User interested in investment - including data and ROI focus');
-      }
-
-      // If user communication style is concise, match it
-      if (conversationMemory.personality_insights.communication_style === 'concise') {
-        adjustments.communication_style = 'concise';
-        adjustments.reasoning.push('User prefers concise communication - matching style');
-      }
-
-      // If multiple consultation attempts failed, try different approach
-      if (conversationMemory.consultation_attempts.length > 2) {
-        adjustments.approach = 'educational';
-        adjustments.tone = 'casual';
-        adjustments.reasoning.push('Multiple consultation attempts - switching to educational approach');
-      }
-    }
-
-    // Adjust based on journey stage
-    if (contextAnalysis.journey_stage === 'browsing') {
-      adjustments.approach = 'educational';
-      adjustments.energy_level = 'low';
-      adjustments.reasoning.push('User in browsing stage - using educational approach');
-    } else if (contextAnalysis.journey_stage === 'urgent') {
-      adjustments.approach = 'direct';
-      adjustments.energy_level = 'high';
-      adjustments.tone = 'enthusiastic';
-      adjustments.reasoning.push('User shows urgency - using direct high-energy approach');
-    }
-
-    logger.debug({
-      userPsychology: contextAnalysis.user_psychology,
-      comfortLevel: contextAnalysis.comfort_level,
-      journeyStage: contextAnalysis.journey_stage,
-      adjustments: {
-        tone: adjustments.tone,
-        style: adjustments.communication_style,
-        approach: adjustments.approach
-      }
-    }, 'Calculated personality adjustments');
-
-    return adjustments;
   }
 
   /**
@@ -3287,17 +3485,7 @@ LEAD PROFILE:
 - Intent: ${lead.intent || 'Unknown'}
 - Budget: ${lead.budget || 'Unknown'}
 
-STRATEGIC GOALS:
-- Guide toward consultation naturally (not pushy)
-- Use market data as natural conversation hooks
-- Maintain casual, authentic Singaporean tone
-- Build trust before suggesting meetings
-
-TACTICAL APPROACH BASED ON ANALYSIS:
-- If user is cold: Focus on building rapport, share interesting insights
-- If user is warming: Gentle market observations, soft consultation hints
-- If user is engaged: Strategic urgency, direct consultation offers
-- If user is ready: Smooth transition to booking
+UNIFIED CONVERSATION FRAMEWORK: Follow the centralized personality system which automatically manages conversation progression, strategic goals, and tactical approaches based on conversation stage and user psychology.
 
 SALES PSYCHOLOGY PRINCIPLES (Use Dynamically, Not as Scripts):
 You have access to the full spectrum of proven sales psychology. Choose and adapt the most effective approach for this specific situation:
@@ -3321,29 +3509,9 @@ PSYCHOLOGICAL TRIGGERS TO ADAPT:
 
 ADAPT THESE DYNAMICALLY - Don't use rigid scripts. Choose what fits the conversation naturally.
 
-TONE REQUIREMENTS - CRITICAL FOR NATURAL CONVERSATION:
-- Sound like a knowledgeable Singaporean friend, not a salesperson
-- Use mild Singlish naturally (don't overdo it): occasional "lah", "lor"
-- Keep messages SHORT and conversational (like texting a friend)
-- Drop market insights casually, not like a formal presentation
-- Use "we" language naturally: "we've been seeing" not "our data shows"
-- Avoid corporate/formal language completely
+CONVERSATION STYLE: Follow unified personality system - all tone, Singlish usage, and expression guidelines are centrally managed and automatically applied based on conversation stage and user psychology.
 
-NATURAL SINGAPOREAN CONVERSATION STYLE:
-✅ "That area's been quite hot lately!"
-✅ "3-room flats there moving pretty fast"
-✅ "Want me to share what I'm seeing?"
-✅ "The new launch there starting from 1.28mil leh" (mild Singlish is fine)
-❌ "Wah that area quite hot now eh!" (too much Singlish)
-❌ "Based on our market analysis, the area has experienced significant appreciation..."
-❌ "Our data indicates that 3-room units are experiencing high demand..."
-
-CASUAL MARKET INSIGHTS (not formal reports):
-✅ "Btw, saw some interesting stuff about that area"
-✅ "Makes the resale flats look quite attractive"
-✅ "Been quite busy with that area recently"
-❌ "According to recent market data, the development..."
-❌ "Market trends indicate that resale properties offer better value..."
+MARKET DATA & QUALIFYING QUESTIONS: Managed by unified personality system - automatically determines when to use market data and which qualifying questions to prioritize based on conversation stage.
 
 BOOKING GUIDELINES:
 - Only set triggerBooking=true if user explicitly asks to "speak to consultant" or "book appointment"
@@ -3352,10 +3520,10 @@ BOOKING GUIDELINES:
 
 Plan the response strategy in JSON format with these exact keys:
 {
-  "approach": "describe your chosen approach (e.g., 'build rapport through market insights', 'create urgency with scarcity', 'establish authority with expertise')",
+  "approach": "describe your chosen approach (e.g., 'build rapport through discovery questions', 'gather qualifying information', 'provide targeted market insights')",
   "use_market_data": true/false,
-  "market_hook": "specific insight relevant to their situation",
-  "psychology_principles": ["list of influence principles you're using, e.g., 'social_proof', 'authority', 'scarcity'"],
+  "market_hook": "specific insight relevant to their situation (only if use_market_data=true)",
+  "psychology_principles": ["list of influence principles you're using, e.g., 'liking', 'reciprocity', 'authority'"],
   "consultation_offer": "none|soft|direct",
 
   "action": "continue|offer_consultation",
@@ -3413,14 +3581,24 @@ For lead_updates.intent, ONLY use:
    * Phase 4: Generate strategic response
    * @private
    */
-  async _generateStrategicResponse(strategy, contextAnalysis, intelligenceData, lead, _messages, personalityAdjustments = null) {
+  async _generateStrategicResponse(strategy, contextAnalysis, intelligenceData, lead, _messages) {
     try {
       const conversationHistory = _messages.slice(-8).map(msg =>
         `${msg.sender === 'lead' ? 'User' : 'Doro'}: ${msg.message}`
       ).join('\n');
 
+      // Get unified personality configuration
+      const userTone = getToneForUser(contextAnalysis.user_psychology, contextAnalysis.comfort_level);
+      const currentStage = contextAnalysis.conversation_stage || 'rapport_building';
+      const stageGuidelines = getStageGuidelines(currentStage);
+      const personalityPrompt = getPersonalityPrompt(currentStage);
+
       const responsePrompt = `
-You are Doro - 28-year-old Singaporean, casual and authentic.
+${personalityPrompt}
+
+CURRENT CONVERSATION STAGE: ${currentStage}
+STAGE PRIORITY: ${stageGuidelines.priority}
+RECOMMENDED TONE: ${userTone}
 
 STRATEGIC CONTEXT (execute this plan):
 ${JSON.stringify(strategy, null, 2)}
@@ -3441,78 +3619,98 @@ ${JSON.stringify(contextAnalysis, null, 2)}
 INTELLIGENCE INSIGHTS TO USE:
 ${intelligenceData ? JSON.stringify(intelligenceData, null, 2) : 'None available'}
 
-PERSONALITY ADJUSTMENTS:
-${personalityAdjustments ? JSON.stringify(personalityAdjustments, null, 2) : 'Use default Doro personality'}
+UNIFIED PERSONALITY SYSTEM: Active - All personality traits, tone, and style guidelines are centrally managed
 
 RECENT CONVERSATION:
 ${conversationHistory}
 
-RESPONSE REQUIREMENTS:
-• Address their SPECIFIC concerns and situation
-• Use market data that's RELEVANT to their inquiry
-• Build on the conversation naturally - don't restart topics
-• Show expertise through insights, not generic advice
+RESPONSE APPROACH: Follow the unified personality system which provides stage-appropriate examples and prioritized response requirements based on current conversation stage.
 
-PERSONALITY & TONE (KEEP EXACTLY AS IS):
-• Naturally curious, warm, genuine - not overly eager
-• Casual expressions: "Nice!", "Got it!", "Makes sense!", "Right!"
-• NEVER: "Cool!", "Oh interesting!", "Amazing!", "Fantastic!"
-• Use "we" instead of "the consultants"
-• Emojis sparingly: 😊 😅 🏠
+UNIFIED PERSONALITY GUIDELINES:
+• Follow the centralized personality configuration for all traits and expressions
+• Tone and style are automatically determined based on conversation stage and user psychology
+• All Singlish usage, expressions, and formatting rules are centrally managed
 
-SALES PSYCHOLOGY TOOLKIT (use when strategy calls for it):
+SALES PSYCHOLOGY TOOLKIT (adapt creatively, don't use verbatim):
 
-Scare Tactics (natural timing):
-• "Most first-time buyers end up overpaying quite a bit"
-• "We recently saved a client from some pretty costly mistakes"
-• "Going solo means you might miss out on off-market deals"
-• "Without insider knowledge, you might buy at the wrong time"
+Loss Aversion Concepts (adapt to context):
+• Highlight potential missed opportunities or costly mistakes
+• Position expertise as protection against poor decisions
+• Frame market timing and insider knowledge benefits
+• Adapt language to user's specific situation and concerns
 
-Urgency Creation:
-• "Prices have been moving up quite a bit lately"
-• "Good units don't stay on the market very long"
-• "We've been quite busy with this area"
-• "Other buyers are moving pretty fast these days"
+Urgency & Scarcity Concepts (create naturally):
+• Reference current market activity and pace
+• Mention limited availability or time-sensitive opportunities
+• Adapt to specific areas, property types, or market conditions
+• Use current market data to create authentic urgency
 
-FOMO & Social Proof:
-• "We've been seeing some interesting opportunities recently"
-• "This area's been getting a lot of interest lately"
-• "We mentioned they're seeing some interesting opportunities"
+Social Proof Concepts (customize dynamically):
+• Reference relevant market activity and buyer behavior
+• Share insights about area-specific trends and interest
+• Adapt examples to user's property type and location preferences
+• Create authentic social validation based on real market data
 
-Consultation Positioning:
-• "We do it over Zoom, so quite convenient"
-• "Usually takes about 30-60 minutes"
-• "If it's not helpful, you can just leave the call"
+Consultation Positioning Concepts (natural integration):
+• Emphasize convenience and low commitment
+• Frame as helpful guidance rather than sales pitch
+• Adapt timing and approach to user's readiness level
+• Position as natural next step in their property journey
 
-STRATEGIC EXECUTION:
-• Use market data to make insights more specific and credible
+IMPORTANT: These are conceptual frameworks - create fresh, contextually appropriate language that feels natural and authentic to the specific conversation and user situation.
+
+STRATEGIC EXECUTION BY CONVERSATION STAGE:
+
+Early Stage (Cold/Warming Users):
+• Focus on rapport building and discovery questions
+• Avoid market data unless specifically requested
+• Ask about their situation, timeline, and preferences
+• Sound genuinely interested, not sales-focused
+
+Discovery Stage (Warming/Engaged Users):
+• Continue gathering qualifying information
+• Share relevant insights only if they support the conversation
+• Build trust through helpful questions and observations
+• Prepare foundation for value provision
+
+Value Stage (Engaged Users with Context):
+• Use market data to make insights specific and credible
 • Time psychological tactics based on user readiness
 • Deploy consultation offers when momentum is right
-• Sound like a knowledgeable friend sharing interesting info
+• Sound like a knowledgeable friend sharing targeted info
 
-EXAMPLES OF STRATEGIC + NATURAL COMBINATION:
+EXAMPLES OF PROGRESSIVE CONVERSATION FLOW:
 
-If strategy calls for urgency + market data:
-"Yeah I know right! Actually just checked and that area went up 12% just in the past 3 months 😅 We've been warning clients that waiting usually ends up costing way more than just going for it."
+Early Stage - Rapport Building (NO market data):
+User: "just exploring, looking for a 3bedder"
+Response: "Nice! What's driving the search for a 3-bedder? Growing family or looking to upgrade?"
 
-If strategy calls for soft consultation offer:
-"We've been seeing some interesting opportunities recently - might be worth having a quick chat about what's happening in the market. We can do it over Zoom, quite convenient."
+Discovery Stage - Qualifying Questions:
+User: "growing family, need more space"
+Response: "That's exciting! What's your timeline looking like? And any particular areas you're considering?"
 
-RESPONSE FORMAT REQUIREMENTS:
-Based on strategy.message_count, respond in JSON format:
+Value Stage - Market Insights (ONLY after qualification):
+User: "hoping to move in 6 months, looking at Tampines"
+Response: "Got it! Tampines has been quite active lately - the new MRT line is really boosting interest there. What's your budget range looking like?"
 
-For single message (message_count: 1) - MUST BE UNDER 120 CHARACTERS:
+Consultation Stage - Soft Offer (ONLY after value established):
+User: "budget around 800k, but not sure if it's realistic"
+Response: "800k can work in Tampines, especially for resale units. Might be worth having a quick chat about what's available in your range. We can do it over Zoom, quite convenient."
+
+STRATEGIC RESPONSE DEVELOPMENT:
+Develop your complete strategic response without character count constraints. Focus on:
+- Delivering the full strategic value planned in your strategy
+- Providing complete market insights with supporting context
+- Building compelling value propositions for consultations
+- Executing sophisticated psychological approaches effectively
+
+RESPONSE FORMAT:
+Respond in JSON format with your complete strategic thoughts:
+
 {
-  "message1": "Your natural response here (MAX 120 chars)",
-  "message2": null,
-  "message3": null
-}
-
-For multiple messages (message_count: 2 or 3) - EACH MUST BE UNDER 120 CHARACTERS:
-{
-  "message1": "Primary response (MAX 120 chars)",
-  "message2": "Follow-up thought (MAX 120 chars)",
-  "message3": "Additional context if needed (MAX 120 chars), otherwise null"
+  "strategic_response": "Your complete strategic response - develop fully without character constraints. Include all market insights, value propositions, and strategic content needed to execute your planned approach effectively.",
+  "conversation_flow": "natural|multi_part",
+  "strategic_priority": "high|medium|low"
 }
 
 APPOINTMENT INTENT DETECTION:
@@ -3537,23 +3735,19 @@ Use your judgment to detect appointment intent. Examples:
 
 RESPOND NATURALLY while executing the planned strategy. Keep responses conversational and authentic.
 
-🚨 CRITICAL MESSAGE LENGTH REQUIREMENTS - MUST FOLLOW:
-- Each message MUST be 50-120 characters maximum (count the characters!)
-- If you need to say more, ALWAYS split into multiple short messages
-- Think like texting a friend, not writing an email
-- Use message1, message2, message3 for multiple short messages
-- Each message should be one complete thought
-- NEVER write long paragraphs - break them up naturally
+STRATEGIC COMMUNICATION GUIDELINES:
+- Develop complete strategic thoughts without artificial length constraints
+- Focus on delivering maximum value and strategic impact
+- Include all necessary context for market insights and value propositions
+- Execute your planned psychological approaches with full effectiveness
+- Think like a knowledgeable consultant sharing valuable insights, not like sending text fragments
 
-EXAMPLES OF GOOD MESSAGE LENGTHS (count characters):
-✅ "That area's been quite hot lately!" (34 chars)
-✅ "3-room flats there moving pretty fast" (38 chars)
-✅ "Want me to share what I'm seeing?" (33 chars)
+EXAMPLES OF STRATEGIC EFFECTIVENESS:
+✅ "I've been tracking Toa Payoh market trends and noticed that 3-room flats have been experiencing significant price appreciation due to the upcoming developments and transport improvements in the area. This creates some interesting opportunities for buyers who move quickly."
+✅ "Based on current market data, your budget range puts you in a strong position for that area. The new MRT line completion next year is already driving interest, but there are still some good deals available if we act strategically."
+✅ "We've been helping clients navigate similar situations, and timing is really crucial right now. Would it be helpful to have a quick chat about the specific opportunities I'm seeing in your price range?"
 
-EXAMPLES OF BAD MESSAGE LENGTHS:
-❌ "Hey! I've been tracking Toa Payoh market trends and noticed that 3-room flats have been experiencing significant price appreciation due to the upcoming developments and transport improvements in the area..." (TOO LONG!)
-
-🚨 IF YOUR MESSAGE IS OVER 120 CHARACTERS, YOU MUST SPLIT IT INTO MULTIPLE MESSAGES!
+FOCUS ON STRATEGIC IMPACT, NOT CHARACTER COUNTS!
 `;
 
       const response = await this.openai.chat.completions.create({
@@ -3567,51 +3761,26 @@ EXAMPLES OF BAD MESSAGE LENGTHS:
       const responseContent = response.choices[0].message.content;
       const parsedResponse = JSON.parse(responseContent);
 
-      // Build messages array from parsed response
-      let messages = [
-        parsedResponse.message1,
-        parsedResponse.message2,
-        parsedResponse.message3
-      ].filter(msg => msg && msg.trim());
+      // Process the complete strategic response
+      const strategicResponse = parsedResponse.strategic_response;
+      const conversationFlow = parsedResponse.conversation_flow || 'natural';
+      const strategicPriority = parsedResponse.strategic_priority || 'medium';
 
-      // Validate and fix message lengths
-      const validatedMessages = [];
-      for (const msg of messages) {
-        if (msg.length <= 120) {
-          validatedMessages.push(msg);
-        } else {
-          // Force split long messages
-          logger.warn({
-            leadId: lead.id,
-            messageLength: msg.length,
-            message: `${msg.substring(0, 50)}...`
-          }, 'Message too long, forcing split');
+      logger.info({
+        leadId: lead.id,
+        strategicResponseLength: strategicResponse.length,
+        conversationFlow,
+        strategicPriority,
+        strategy: strategy.approach
+      }, 'Processing complete strategic response');
 
-          // Simple split at sentence boundaries
-          const sentences = msg.split(/[.!?]+/).filter(s => s.trim());
-          let currentMsg = '';
-
-          for (const sentence of sentences) {
-            const trimmed = sentence.trim();
-            if (!trimmed) continue;
-
-            if (currentMsg.length + trimmed.length + 2 <= 120) {
-              currentMsg = currentMsg ? currentMsg + '. ' + trimmed : trimmed;
-            } else {
-              if (currentMsg) {
-                validatedMessages.push(currentMsg);
-              }
-              currentMsg = trimmed.length <= 120 ? trimmed : trimmed.substring(0, 117) + '...';
-            }
-          }
-
-          if (currentMsg) {
-            validatedMessages.push(currentMsg);
-          }
-        }
-      }
-
-      messages = validatedMessages.slice(0, 3); // Max 3 messages
+      // Intelligent message segmentation that preserves strategic coherence
+      const messages = this._segmentStrategicResponse(strategicResponse, {
+        strategy,
+        conversationFlow,
+        strategicPriority,
+        contextAnalysis
+      });
 
       logger.info({
         leadId: lead.id,
@@ -3625,7 +3794,9 @@ EXAMPLES OF BAD MESSAGE LENGTHS:
         message: messages[0], // Primary message for backward compatibility
         messages,   // All messages for multi-message support
         appointment_intent: parsedResponse.appointment_intent,
-        booking_instructions: parsedResponse.booking_instructions
+        booking_instructions: parsedResponse.booking_instructions,
+        strategic_response_complete: true,
+        strategic_priority: strategicPriority
       };
 
     } catch (error) {
