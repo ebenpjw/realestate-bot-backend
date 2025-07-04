@@ -607,7 +607,7 @@ class AppointmentService {
           await supabase.from('leads').update({
             booking_alternatives: JSON.stringify([nearestAlternative.toISOString()]),
             tentative_booking_time: nearestAlternative.toISOString(),
-            status: 'alternatives_offered'
+            status: 'booking_alternatives_offered'
           }).eq('id', leadId);
 
           logger.info({
