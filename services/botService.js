@@ -111,9 +111,21 @@ class BotService {
       // 4. Process message with strategic AI system
       const response = await this._processMessageStrategically(lead, previousMessages, userText);
 
-      // 5. Update lead with any changes from AI response
+      // 5. Update lead with any changes from AI response and contextual inference
       if (response.lead_updates && Object.keys(response.lead_updates).length > 0) {
         lead = await this._updateLead(lead, response.lead_updates);
+      }
+
+      // Apply contextual inference to lead updates if we have high confidence
+      if (contextAnalysis.contextual_inference &&
+          contextAnalysis.contextual_inference.confidence === 'high' &&
+          contextAnalysis.inferred_intent &&
+          !lead.intent) {
+        await this._updateLead(lead, { intent: contextAnalysis.inferred_intent });
+        logger.info({
+          leadId: lead.id,
+          inferredIntent: contextAnalysis.inferred_intent
+        }, 'Applied high-confidence intent inference to lead');
       }
 
       // 6. Send messages naturally (with human-like timing if multiple messages)
@@ -367,6 +379,21 @@ class BotService {
 
       // Phase 1: Silent Context Analysis (with new lead detection)
       const contextAnalysis = await this._analyzeStrategicContext(lead, previousMessages, userText);
+
+      // Enhanced: Apply contextual inference to avoid redundant questions
+      const { analyzeContextualIntent } = require('../config/personality');
+      const contextualInference = analyzeContextualIntent(userText, previousMessages);
+      if (contextualInference) {
+        contextAnalysis.contextual_inference = contextualInference;
+        // Update intent if we have high confidence inference
+        if (contextualInference.confidence === 'high' && !lead.intent) {
+          contextAnalysis.inferred_intent = contextualInference.inferred_intent;
+        }
+        logger.info({
+          leadId: lead.id,
+          inference: contextualInference
+        }, 'Applied contextual inference');
+      }
 
       // NEW: Check if this is insufficient data for strategic assumptions
       if (contextAnalysis.insufficient_data) {
@@ -2852,6 +2879,43 @@ Respond in JSON format only with these exact keys:
   }
 
   /**
+   * Apply enhanced formatting with line breaks for improved readability
+   * @private
+   */
+  _applyEnhancedFormatting(text) {
+    const { format } = DORO_PERSONALITY.communication;
+
+    if (!format.line_break_formatting.enabled) {
+      return text;
+    }
+
+    let formattedText = text;
+
+    // Remove em dashes and replace with alternative punctuation
+    formattedText = formattedText.replace(/—/g, ' - ');
+
+    // Apply line break patterns for better readability
+    if (format.line_break_formatting.break_long_paragraphs) {
+      // Break after questions followed by statements
+      formattedText = formattedText.replace(/(\?)\s+([A-Z])/g, '$1\n\n$2');
+
+      // Break before new topic introductions
+      formattedText = formattedText.replace(/\.\s+((?:Also|Additionally|By the way|Btw|What about|How about|Speaking of)[^.!?]*[.!?])/gi, '.\n\n$1');
+
+      // Break between distinct statements when text gets long
+      if (formattedText.length > format.line_break_formatting.max_paragraph_length) {
+        // Break after complete sentences when followed by new thoughts
+        formattedText = formattedText.replace(/([.!])\s+([A-Z][^.!?]{20,}[.!?])/g, '$1\n\n$2');
+      }
+    }
+
+    // Clean up excessive line breaks
+    formattedText = formattedText.replace(/\n{3,}/g, '\n\n');
+
+    return formattedText.trim();
+  }
+
+  /**
    * Intelligently segment strategic responses while preserving coherence and impact
    * @private
    */
@@ -3616,6 +3680,16 @@ DYNAMIC PSYCHOLOGY GUIDANCE:
 CONVERSATION ANALYSIS:
 ${JSON.stringify(contextAnalysis, null, 2)}
 
+${contextAnalysis.contextual_inference ? `
+CONTEXTUAL INFERENCE GUIDANCE:
+- Scenario detected: ${contextAnalysis.contextual_inference.scenario}
+- Inferred intent: ${contextAnalysis.contextual_inference.inferred_intent} (${contextAnalysis.contextual_inference.confidence} confidence)
+- Reasoning: ${contextAnalysis.contextual_inference.reasoning}
+- Avoid asking: ${contextAnalysis.contextual_inference.avoid_questions.join(', ')}
+
+IMPORTANT: Use the contextual inference to avoid redundant questions and build naturally on the inferred context.
+` : ''}
+
 INTELLIGENCE INSIGHTS TO USE:
 ${intelligenceData ? JSON.stringify(intelligenceData, null, 2) : 'None available'}
 
@@ -3774,8 +3848,11 @@ FOCUS ON STRATEGIC IMPACT, NOT CHARACTER COUNTS!
         strategy: strategy.approach
       }, 'Processing complete strategic response');
 
+      // Apply enhanced formatting with line breaks for readability
+      const formattedResponse = this._applyEnhancedFormatting(strategicResponse);
+
       // Intelligent message segmentation that preserves strategic coherence
-      const messages = this._segmentStrategicResponse(strategicResponse, {
+      const messages = this._segmentStrategicResponse(formattedResponse, {
         strategy,
         conversationFlow,
         strategicPriority,
