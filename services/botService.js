@@ -137,17 +137,8 @@ class BotService {
         lead = await this._updateLead(lead, response.lead_updates);
       }
 
-      // Apply contextual inference to lead updates if we have high confidence
-      if (contextAnalysis.contextual_inference &&
-          contextAnalysis.contextual_inference.confidence === 'high' &&
-          contextAnalysis.inferred_intent &&
-          !lead.intent) {
-        await this._updateLead(lead, { intent: contextAnalysis.inferred_intent });
-        logger.info({
-          leadId: lead.id,
-          inferredIntent: contextAnalysis.inferred_intent
-        }, 'Applied high-confidence intent inference to lead');
-      }
+      // Note: Contextual inference is now handled within the strategic processing method
+      // This avoids accessing undefined contextAnalysis when insufficient data mode is used
 
       // 6. Send messages naturally (with human-like timing if multiple messages)
       if (response.message) {
