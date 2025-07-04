@@ -355,252 +355,21 @@ class BotService {
   }
 
   /**
-   * NEW: Strategic multi-phase message processing with conversation stage detection
+   * Strategic multi-phase message processing - REVERTED to original with greeting fix
    * @private
    */
   async _processMessageStrategically(lead, previousMessages, userText) {
     try {
       logger.info({ leadId: lead.id }, 'Starting strategic conversation processing');
 
-      // NEW: Determine conversation stage first
-      const conversationStage = this._determineConversationStage(lead, previousMessages, userText);
-      logger.info({ leadId: lead.id, stage: conversationStage }, 'Conversation stage determined');
-
-      // Handle different stages with appropriate processing
-      switch (conversationStage) {
-        case 'GREETING':
-          return await this._handleGreetingStage(lead, userText);
-
-        case 'DISCOVERY':
-          return await this._handleDiscoveryStage(lead, previousMessages, userText);
-
-        case 'QUALIFIED':
-        case 'STRATEGIC':
-        case 'BOOKING':
-          // Run full strategic processing for qualified leads
-          return await this._runFullStrategicProcessing(lead, previousMessages, userText);
-
-        default:
-          // Fallback to discovery mode
-          return await this._handleDiscoveryStage(lead, previousMessages, userText);
-      }
-
-    } catch (error) {
-      logger.error({ err: error, leadId: lead.id }, 'Error in strategic processing');
-      // Return a simple fallback response instead of legacy system
-      return {
-        message: "I'm having some technical difficulties right now. Let me get back to you in a moment!",
-        messages: ["I'm having some technical difficulties right now. Let me get back to you in a moment!"],
-        action: 'error_fallback',
-        lead_updates: {},
-        appointmentHandled: false
-      };
-    }
-  }
-
-  /**
-   * Determine what stage of conversation we're in
-   * @private
-   */
-  _determineConversationStage(lead, messages, currentMessage) {
-    const messageCount = messages.length;
-    const userMessages = messages.filter(m => m.sender === 'lead');
-    const currentMessageLower = currentMessage.toLowerCase().trim();
-
-    // GREETING: First message and it's a simple greeting
-    const greetingPatterns = /^(hi|hello|hey|good morning|good afternoon|good evening|hola|sup|yo)!?$/i;
-    if (messageCount <= 1 && greetingPatterns.test(currentMessageLower)) {
-      return 'GREETING';
-    }
-
-    // BOOKING: Explicit consultation/appointment requests
-    const bookingPatterns = /consultation|meeting|appointment|speak|call|talk|discuss|meet|schedule|book/i;
-    if (bookingPatterns.test(currentMessage)) {
-      return 'BOOKING';
-    }
-
-    // DISCOVERY: No intent or budget known, or very early conversation
-    if (!lead.intent || lead.intent === 'Unknown' || !lead.budget || userMessages.length < 2) {
-      return 'DISCOVERY';
-    }
-
-    // QUALIFIED: Has intent and budget
-    if (lead.intent && lead.intent !== 'Unknown' && lead.budget) {
-      return 'QUALIFIED';
-    }
-
-    // STRATEGIC: Ongoing conversation with some context
-    if (messageCount > 3) {
-      return 'STRATEGIC';
-    }
-
-    // Default to discovery
-    return 'DISCOVERY';
-  }
-
-  /**
-   * Handle greeting stage - simple, warm response with discovery question
-   * @private
-   */
-  async _handleGreetingStage(lead, userText) {
-    try {
-      logger.info({ leadId: lead.id }, 'Processing greeting stage');
-
-      const greetingResponses = [
-        "Hey there! 😊 How can I help you with your property journey today?",
-        "Hi! Nice to meet you! What brings you here today?",
-        "Hello! 😊 Are you looking to buy, sell, or just exploring options?",
-        "Hey! Good to hear from you! What's on your mind regarding property?",
-        "Hi there! How can I assist you with your property needs today?"
-      ];
-
-      const response = greetingResponses[Math.floor(Math.random() * greetingResponses.length)];
-
-      return {
-        message: response,
-        messages: [response],
-        action: 'greeting_response',
-        lead_updates: {},
-        appointmentHandled: false
-      };
-
-    } catch (error) {
-      logger.error({ err: error, leadId: lead.id }, 'Error in greeting stage');
-      return {
-        message: "Hey there! 😊 How can I help you today?",
-        messages: ["Hey there! 😊 How can I help you today?"],
-        action: 'greeting_fallback',
-        lead_updates: {},
-        appointmentHandled: false
-      };
-    }
-  }
-
-  /**
-   * Handle discovery stage - focus on gathering information without assumptions
-   * @private
-   */
-  async _handleDiscoveryStage(lead, previousMessages, userText) {
-    try {
-      logger.info({ leadId: lead.id }, 'Processing discovery stage');
-
-      const conversationHistory = previousMessages.slice(-6).map(msg =>
-        `${msg.sender === 'lead' ? 'User' : 'Doro'}: ${msg.message}`
-      ).join('\n');
-
-      const discoveryPrompt = `
-You are Doro - 28-year-old Singaporean, casual and authentic. You're in DISCOVERY MODE.
-
-CURRENT SITUATION:
-- This is early in the conversation
-- You need to gather basic information before making any assumptions
-- DO NOT assume buyer type, budget, or specific needs
-- Focus on asking good questions and building rapport
-
-CONVERSATION SO FAR:
-${conversationHistory}
-
-CURRENT MESSAGE: "${userText}"
-
-DISCOVERY GOALS:
-- Find out what they're looking for (buy/sell/rent/invest)
-- Understand their situation without being pushy
-- Build trust through genuine conversation
-- Ask follow-up questions based on their responses
-
-PERSONALITY (keep exactly as is):
-- Naturally curious, warm, genuine - not overly eager
-- Casual expressions: "Nice!", "Got it!", "Makes sense!", "Right!"
-- NEVER: "Cool!", "Oh interesting!", "Amazing!", "Fantastic!"
-- Emojis sparingly: 😊 😅 🏠
-
-RESPONSE REQUIREMENTS:
-- Respond naturally to what they actually said
-- Ask relevant follow-up questions
-- Don't mention market insights unless they ask
-- Keep it conversational, not interrogative
-- If they give info, acknowledge it and ask logical next question
-
-Respond with a single natural message (max 120 characters).`;
-
-      const response = await this.openai.chat.completions.create({
-        model: "gpt-4.1",
-        messages: [{ role: "user", content: discoveryPrompt }],
-        temperature: 0.7,
-        max_tokens: 150
-      });
-
-      const aiMessage = response.choices[0].message.content.trim();
-
-      // Extract any lead updates from the conversation
-      const leadUpdates = this._extractLeadUpdatesFromDiscovery(userText);
-
-      return {
-        message: aiMessage,
-        messages: [aiMessage],
-        action: 'discovery_response',
-        lead_updates: leadUpdates,
-        appointmentHandled: false
-      };
-
-    } catch (error) {
-      logger.error({ err: error, leadId: lead.id }, 'Error in discovery stage');
-      return {
-        message: "Got it! Tell me more about what you're looking for? 😊",
-        messages: ["Got it! Tell me more about what you're looking for? 😊"],
-        action: 'discovery_fallback',
-        lead_updates: {},
-        appointmentHandled: false
-      };
-    }
-  }
-
-  /**
-   * Extract lead updates from discovery conversation
-   * @private
-   */
-  _extractLeadUpdatesFromDiscovery(userText) {
-    const updates = {};
-    const textLower = userText.toLowerCase();
-
-    // Detect intent
-    if (textLower.includes('buy') || textLower.includes('purchase')) {
-      if (textLower.includes('invest') || textLower.includes('rental')) {
-        updates.intent = 'investment';
-      } else {
-        updates.intent = 'own_stay';
-      }
-    } else if (textLower.includes('sell')) {
-      updates.intent = 'sell';
-    } else if (textLower.includes('rent') && !textLower.includes('rental')) {
-      updates.intent = 'rent';
-    }
-
-    // Detect budget mentions
-    const budgetMatch = textLower.match(/(\d+(?:\.\d+)?)\s*(million|mil|k|thousand)/);
-    if (budgetMatch) {
-      const amount = parseFloat(budgetMatch[1]);
-      const unit = budgetMatch[2];
-      if (unit.includes('mil')) {
-        updates.budget = `${amount} million`;
-      } else if (unit.includes('k') || unit.includes('thousand')) {
-        updates.budget = `${amount}k`;
-      }
-    }
-
-    return updates;
-  }
-
-  /**
-   * Run full strategic processing - your original 5-phase system for qualified leads
-   * @private
-   */
-  async _runFullStrategicProcessing(lead, previousMessages, userText) {
-    try {
-      logger.info({ leadId: lead.id }, 'Running full strategic processing');
-
-      // Phase 1: Silent Context Analysis
+      // Phase 1: Silent Context Analysis (with new lead detection)
       const contextAnalysis = await this._analyzeStrategicContext(lead, previousMessages, userText);
+
+      // NEW: Check if this is insufficient data for strategic assumptions
+      if (contextAnalysis.insufficient_data) {
+        logger.info({ leadId: lead.id }, 'Insufficient data detected - using natural conversation mode');
+        return await this._handleInsufficientDataMode(lead, previousMessages, userText, contextAnalysis);
+      }
 
       // Load conversation memory from previous interactions
       const conversationMemory = await this._loadConversationMemory(lead.id);
@@ -667,11 +436,135 @@ Respond with a single natural message (max 120 characters).`;
       };
 
     } catch (error) {
-      logger.error({ err: error, leadId: lead.id }, 'Error in full strategic processing');
-      // Fallback to discovery mode if strategic processing fails
-      return await this._handleDiscoveryStage(lead, previousMessages, userText);
+      logger.error({ err: error, leadId: lead.id }, 'Error in strategic processing');
+      // Return a simple fallback response instead of legacy system
+      return {
+        message: "I'm having some technical difficulties right now. Let me get back to you in a moment!",
+        messages: ["I'm having some technical difficulties right now. Let me get back to you in a moment!"],
+        action: 'error_fallback',
+        lead_updates: {},
+        appointmentHandled: false
+      };
     }
   }
+
+  /**
+   * Handle insufficient data mode - natural conversation building without assumptions
+   * @private
+   */
+  async _handleInsufficientDataMode(lead, previousMessages, userText, contextAnalysis) {
+    try {
+      logger.info({ leadId: lead.id }, 'Processing insufficient data mode - natural conversation building');
+
+      const conversationHistory = previousMessages.slice(-6).map(msg =>
+        `${msg.sender === 'lead' ? 'User' : 'Doro'}: ${msg.message}`
+      ).join('\n');
+
+      const naturalPrompt = `
+You are Doro - 28-year-old Singaporean, warm and naturally conversational.
+
+SITUATION: This is early conversation with insufficient data for strategic assumptions.
+GOAL: Build rapport naturally, provide value when appropriate, guide conversation to open them up.
+
+CONVERSATION SO FAR:
+${conversationHistory}
+
+CURRENT MESSAGE: "${userText}"
+
+APPROACH:
+- Respond naturally to what they actually said
+- Don't assume buyer type, budget, or specific needs
+- Build trust through genuine conversation
+- Provide value when it feels natural (not forced)
+- Ask thoughtful questions that feel conversational
+- Share brief insights only when relevant to their actual words
+
+PERSONALITY:
+- Warm, genuine, naturally curious (not pushy)
+- Mild Singlish occasionally: "lah", "eh", "right"
+- Mix statements with questions - don't interrogate
+- Sound like a real person having a casual chat
+
+EXAMPLES OF NATURAL RESPONSES:
+- "Hey! 😊 What's up?" (for greetings)
+- "Ah nice! Just browsing around or looking for something specific?"
+- "Investment property eh? That's quite popular lately"
+- "Makes sense! The market's been quite interesting recently"
+
+IMPORTANT:
+- NO assumptions about their situation
+- NO generic market insights unless they ask
+- NO consultation pushing
+- Focus on natural conversation flow
+- Keep responses under 100 characters when possible
+
+Respond naturally and conversationally:`;
+
+      const response = await this.openai.chat.completions.create({
+        model: "gpt-4.1",
+        messages: [{ role: "user", content: naturalPrompt }],
+        temperature: 0.7,
+        max_tokens: 150
+      });
+
+      const aiMessage = response.choices[0].message.content.trim();
+
+      // Extract any basic lead updates from natural conversation
+      const leadUpdates = this._extractBasicLeadUpdates(userText);
+
+      return {
+        message: aiMessage,
+        messages: [aiMessage],
+        action: 'natural_conversation',
+        lead_updates: leadUpdates,
+        appointmentHandled: false
+      };
+
+    } catch (error) {
+      logger.error({ err: error, leadId: lead.id }, 'Error in insufficient data mode');
+      return {
+        message: "Hey! 😊 How's it going?",
+        messages: ["Hey! 😊 How's it going?"],
+        action: 'natural_fallback',
+        lead_updates: {},
+        appointmentHandled: false
+      };
+    }
+  }
+
+  /**
+   * Extract basic lead updates from natural conversation (no assumptions)
+   * @private
+   */
+  _extractBasicLeadUpdates(userText) {
+    const updates = {};
+    const textLower = userText.toLowerCase();
+
+    // Only extract very explicit mentions
+    if (textLower.includes('want to buy') || textLower.includes('looking to buy')) {
+      if (textLower.includes('investment') || textLower.includes('rental income')) {
+        updates.intent = 'investment';
+      } else if (textLower.includes('live in') || textLower.includes('own stay')) {
+        updates.intent = 'own_stay';
+      }
+    }
+
+    // Only extract explicit budget mentions
+    const budgetMatch = textLower.match(/budget.*?(\d+(?:\.\d+)?)\s*(million|mil|k)/);
+    if (budgetMatch) {
+      const amount = parseFloat(budgetMatch[1]);
+      const unit = budgetMatch[2];
+      if (unit.includes('mil')) {
+        updates.budget = `${amount} million`;
+      } else if (unit.includes('k')) {
+        updates.budget = `${amount}k`;
+      }
+    }
+
+    return updates;
+  }
+
+
 
   /**
    * Check if agent assignment is valid for appointment operations
@@ -2016,20 +1909,30 @@ LEAD PROFILE:
 - Intent: ${lead.intent || 'Unknown'}
 - Budget: ${lead.budget || 'Unknown'}
 - Source: ${lead.source || 'Unknown'}
+- Messages in conversation: ${messages.length}
 
 RECENT CONVERSATION:
 ${conversationHistory}
 
 CURRENT MESSAGE: "${currentMessage}"
 
-Analyze this conversation and provide strategic insights:
+CRITICAL: First check if there's enough information for strategic analysis:
+
+INSUFFICIENT DATA DETECTION:
+- If this is just a greeting (hi/hello) with no context: insufficient_data = true
+- If lead has no intent, no budget, and <3 meaningful messages: insufficient_data = true
+- If user hasn't shared any specific property needs/situation: insufficient_data = true
+- If conversation is too early for assumptions about buyer type: insufficient_data = true
+
+IF INSUFFICIENT DATA: Focus on natural conversation building, value provision, and gentle discovery.
+IF SUFFICIENT DATA: Proceed with full strategic analysis.
 
 CONVERSATION STAGE ANALYSIS:
 - Where is this user in their property journey? (browsing/researching/interested/ready/urgent)
 - What's their comfort level with us? (cold/warming/engaged/trusting)
 - Any resistance patterns or buying signals detected?
 
-STRATEGIC OPPORTUNITIES:
+STRATEGIC OPPORTUNITIES (only if sufficient data):
 - What specific market insights would resonate with THIS user's situation?
 - What psychological approach fits their personality and concerns?
 - Consultation timing: only suggest if they're asking for advice or showing urgency
@@ -2046,15 +1949,16 @@ USER PSYCHOLOGY:
 
 Respond in JSON format only with these exact keys:
 {
+  "insufficient_data": true/false,
   "journey_stage": "browsing|researching|interested|ready|urgent",
   "comfort_level": "cold|warming|engaged|trusting",
   "resistance_patterns": ["pattern1", "pattern2"],
   "buying_signals": ["signal1", "signal2"],
-  "best_approach": "educational|urgency|social_proof|direct_booking",
+  "best_approach": "educational|urgency|social_proof|direct_booking|natural_conversation",
   "consultation_timing": "now|soon|later|not_yet",
   "user_psychology": "analytical|emotional|mixed",
   "areas_mentioned": ["area1", "area2"],
-  "next_step": "build_rapport|create_interest|offer_consultation|book_appointment",
+  "next_step": "build_rapport|create_interest|offer_consultation|book_appointment|natural_discovery",
   "needs_market_hook": true/false
 }`;
 
@@ -2076,17 +1980,18 @@ Respond in JSON format only with these exact keys:
 
     } catch (error) {
       logger.error({ err: error, leadId: lead.id }, 'Error in context analysis');
-      // Return default analysis if parsing fails
+      // Return default analysis if parsing fails - assume insufficient data for safety
       return {
+        insufficient_data: true,
         journey_stage: "researching",
         comfort_level: "warming",
         resistance_patterns: [],
         buying_signals: [],
-        best_approach: "educational",
-        consultation_timing: "later",
+        best_approach: "natural_conversation",
+        consultation_timing: "not_yet",
         user_psychology: "mixed",
         areas_mentioned: [],
-        next_step: "build_rapport",
+        next_step: "natural_discovery",
         needs_market_hook: false
       };
     }
