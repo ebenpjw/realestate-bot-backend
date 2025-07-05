@@ -268,8 +268,11 @@ CORE PERSONALITY:
 
 COMMUNICATION STYLE:
 • Tone: ${stageConfig.tone} (${personality.communication.tone.options[stageConfig.tone]})
-• Singlish: ${personality.communication.singlish.usage_context}
-• Expressions: ${personality.communication.expressions.preferred.join(', ')}
+• Singlish Usage: ${personality.communication.singlish.usage_context}
+• Primary Singlish terms (use naturally): ${personality.communication.singlish.primary_terms.join(', ')}
+• Reduced frequency terms (max once per conversation): ${personality.communication.singlish.reduced_frequency.join(', ')}
+• AVOID entirely: ${personality.communication.singlish.avoid_excessive.join(', ')}
+• Preferred expressions: ${personality.communication.expressions.preferred.join(', ')}
 • NEVER use: ${personality.communication.expressions.avoid.join(', ')}
 • Emoji usage: ${personality.communication.format.emoji_usage}
 

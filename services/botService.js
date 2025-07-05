@@ -2,7 +2,7 @@ const OpenAI = require('openai');
 const config = require('../config');
 const logger = require('../logger');
 const supabase = require('../supabaseClient');
-const { DORO_PERSONALITY, getPersonalityPrompt, getToneForUser, getStageGuidelines, shouldUseMarketData, analyzeContextualIntent, getContextualGuidance } = require('../config/personality');
+const { DORO_PERSONALITY, getPersonalityPrompt, getToneForUser, getStageGuidelines, shouldUseMarketData, analyzeContextualIntent } = require('../config/personality');
 const whatsappService = require('./whatsappService');
 const databaseService = require('./databaseService');
 const { AI } = require('../constants');
@@ -26,13 +26,19 @@ class BotService {
     this.databaseService = dependencies.databaseService || require('./databaseService');
     this.supabase = dependencies.supabase || supabase;
 
+    // Improved fallback messages following unified personality guidelines
+    // Varied emoji usage and natural expressions without repetitive patterns
     this.improvedFallbackMessages = [
-      "Oops, I got a bit confused there! 😅 Could you say that again?",
+      "Oops, I got a bit confused there! Could you say that again?",
       "Sorry about that! Can you help me understand what you meant?",
       "My bad! Let me try to help you better - could you rephrase that?",
       "Hmm, I didn't quite catch that. Mind saying it differently?",
-      "Eh sorry, I'm having a moment! 😊 Can you try again?",
-      "Oops, something went wonky on my end. What were you saying?"
+      "Eh sorry, I'm having a moment! Can you try again?",
+      "Oops, something went wonky on my end. What were you saying?",
+      "Let me try that again - what were you asking about?",
+      "Sorry, can you help me understand better?",
+      "My brain had a little hiccup there! What did you say?",
+      "Could you try saying that in a different way?"
     ];
 
     this.fallbackResponse = {
@@ -195,9 +201,57 @@ class BotService {
       }, 'Message processed successfully');
 
     } catch (err) {
-      logger.error({ err, senderWaId }, 'Error processing message');
+      logger.error({ err, senderWaId }, 'Error processing message - attempting emergency AI response');
 
-      // Send fallback message and save to conversation history
+      // IMPROVED: Try emergency AI response before falling back to hardcoded messages
+      try {
+        // Use centralized personality system for emergency responses
+        const emergencyPersonalityPrompt = getPersonalityPrompt('rapport_building');
+        const emergencyPrompt = `${emergencyPersonalityPrompt}
+
+EMERGENCY SITUATION: System error occurred, but respond naturally and helpfully.
+USER MESSAGE: "${userText}"
+
+Respond warmly and genuinely while following all personality guidelines above.`;
+
+        const emergencyResponse = await this.openai.chat.completions.create({
+          model: "gpt-4.1",
+          messages: [{ role: "user", content: emergencyPrompt }],
+          temperature: 0.8,
+          max_tokens: 150
+        });
+
+        if (emergencyResponse?.choices?.[0]?.message?.content) {
+          const rawAiMessage = emergencyResponse.choices[0].message.content.trim();
+          // Use consolidated AI response processing
+          const processedResponse = this._processAIResponse(rawAiMessage, 'emergency_ai_response');
+
+          await whatsappService.sendMessage({
+            to: senderWaId,
+            message: processedResponse.message
+          });
+
+          // Save AI message to conversation history if we have a lead
+          if (lead?.id) {
+            await this.supabase.from('messages').insert({
+              lead_id: lead.id,
+              sender: 'assistant',
+              message: processedResponse.message
+            });
+          }
+
+          logger.info({
+            operationId,
+            leadId: lead?.id,
+            senderWaId
+          }, '[EXIT] Sent emergency AI response after processing error');
+          return;
+        }
+      } catch (emergencyAiError) {
+        logger.error({ err: emergencyAiError, senderWaId }, 'Emergency AI response also failed');
+      }
+
+      // Only use hardcoded fallback as absolute last resort
       try {
         const fallbackMessage = this.improvedFallbackMessages[Math.floor(Math.random() * this.improvedFallbackMessages.length)];
         await whatsappService.sendMessage({
@@ -218,7 +272,7 @@ class BotService {
           operationId,
           leadId: lead?.id,
           senderWaId
-        }, '[EXIT] Sent fallback message due to processing error');
+        }, '[EXIT] Sent hardcoded fallback message as last resort');
 
       } catch (fallbackErr) {
         logger.error({
@@ -226,7 +280,7 @@ class BotService {
           operationId,
           leadId: lead?.id,
           senderWaId
-        }, '[EXIT] Failed to send fallback message');
+        }, '[EXIT] Failed to send any response - critical system failure');
       }
     }
   }
@@ -639,7 +693,7 @@ Respond naturally and conversationally:`;
             model: "gpt-4.1",
             messages: [{ role: "user", content: naturalPrompt }],
             temperature: 0.7,
-            max_tokens: 150
+            max_tokens: 400  // Increased from 150 to allow natural conversational responses
           });
 
           // If we get here, the call succeeded
@@ -684,18 +738,18 @@ Respond naturally and conversationally:`;
         throw new Error('OpenAI API returned invalid message content');
       }
 
-      const aiMessage = choice.message.content.trim();
+      const rawAiMessage = choice.message.content.trim();
 
       // Ensure we got a meaningful response
-      if (!aiMessage || aiMessage.length === 0) {
+      if (!rawAiMessage || rawAiMessage.length === 0) {
         logger.error({ leadId: lead.id }, 'OpenAI returned empty message content');
         throw new Error('OpenAI API returned empty message content');
       }
 
       logger.info({
         leadId: lead.id,
-        aiMessageLength: aiMessage.length,
-        aiMessagePreview: aiMessage.substring(0, 100)
+        aiMessageLength: rawAiMessage.length,
+        aiMessagePreview: rawAiMessage.substring(0, 100)
       }, 'OpenAI response received successfully in insufficient data mode');
 
       // Extract any basic lead updates from natural conversation
@@ -708,13 +762,8 @@ Respond naturally and conversationally:`;
         leadUpdates = {};
       }
 
-      const finalResponse = {
-        message: aiMessage,
-        messages: [aiMessage],
-        action: 'natural_conversation',
-        lead_updates: leadUpdates,
-        appointmentHandled: false
-      };
+      // Use consolidated AI response processing
+      const finalResponse = this._processAIResponse(rawAiMessage, 'natural_conversation', leadUpdates);
 
       logger.info({
         leadId: lead.id,
@@ -735,37 +784,52 @@ Respond naturally and conversationally:`;
         errorStack: error.stack,
         userText: userText?.substring(0, 100),
         previousMessagesCount: previousMessages?.length
-      }, 'CRITICAL: Error in insufficient data mode - this should not happen with our fixes');
+      }, 'Error in insufficient data mode - attempting alternative AI approach');
 
-      // Try to generate a contextual response based on user input
+      // IMPROVED: Try alternative AI approach with simpler prompt before falling back to hardcoded responses
       try {
-        const contextualResponse = this._generateContextualFallback(userText, previousMessages);
-        logger.info({ leadId: lead.id }, 'Generated contextual fallback response');
+        logger.info({ leadId: lead.id }, 'Attempting alternative AI approach with simplified prompt');
 
-        return {
-          message: contextualResponse,
-          messages: [contextualResponse],
-          action: 'contextual_fallback',
-          lead_updates: this._extractBasicLeadUpdates(userText),
-          appointmentHandled: false
-        };
-      } catch (fallbackError) {
-        logger.error({
-          err: fallbackError,
-          leadId: lead.id
-        }, 'Failed to generate contextual fallback - using intelligent default');
+        // Use centralized personality system for alternative responses
+        const alternativePersonalityPrompt = getPersonalityPrompt('rapport_building');
+        const simplePrompt = `${alternativePersonalityPrompt}
 
-        // Intelligent default based on user input
-        const intelligentDefault = this._getIntelligentDefault(userText);
+ALTERNATIVE APPROACH: Main system failed, using simplified approach.
+USER MESSAGE: "${userText}"
 
-        return {
-          message: intelligentDefault,
-          messages: [intelligentDefault],
-          action: 'intelligent_fallback',
-          lead_updates: this._extractBasicLeadUpdates(userText),
-          appointmentHandled: false
-        };
+Respond naturally and warmly, like you're texting a friend. Ask a follow-up question to understand what they're looking for.
+Follow all personality guidelines above.`;
+
+        const alternativeResponse = await this.openai.chat.completions.create({
+          model: "gpt-4.1",
+          messages: [{ role: "user", content: simplePrompt }],
+          temperature: 0.8,
+          max_tokens: 200
+        });
+
+        if (alternativeResponse?.choices?.[0]?.message?.content) {
+          const rawAiMessage = alternativeResponse.choices[0].message.content.trim();
+          logger.info({ leadId: lead.id }, 'Alternative AI approach succeeded');
+
+          // Use consolidated AI response processing
+          const leadUpdates = this._extractBasicLeadUpdates(userText);
+          return this._processAIResponse(rawAiMessage, 'alternative_ai_response', leadUpdates);
+        }
+      } catch (alternativeError) {
+        logger.error({ err: alternativeError, leadId: lead.id }, 'Alternative AI approach also failed');
       }
+
+      // Only use hardcoded fallback as absolute last resort
+      logger.warn({ leadId: lead.id }, 'Using hardcoded fallback as last resort - this should be rare');
+
+      const contextualResponse = this._generateContextualFallback(userText, previousMessages);
+      return {
+        message: contextualResponse,
+        messages: [contextualResponse],
+        action: 'emergency_fallback',
+        lead_updates: this._extractBasicLeadUpdates(userText),
+        appointmentHandled: false
+      };
     }
   }
 
@@ -832,16 +896,17 @@ Respond naturally and conversationally:`;
     const textLower = userText.toLowerCase();
     const isFirstMessage = !previousMessages || previousMessages.length <= 1;
 
-    // Greeting responses
+    // Greeting responses - warm and genuine (following DORO_PERSONALITY guidelines)
+    // Removed repetitive emoji and added line breaks for better readability
     if (textLower.match(/^(hi|hello|hey|good morning|good afternoon|good evening)$/)) {
       return isFirstMessage
-        ? "Hi there! 😊 Great to connect with you. What brings you to explore properties today?"
-        : "Hey! How can I help you with your property search?";
+        ? "Hi there! Great to connect with you.\n\nWhat brings you here today? Anything on your mind you wanna share?"
+        : "Hey! How's it going?\n\nWhat can I help you with?";
     }
 
-    // Property type mentions
+    // Property type mentions - show genuine curiosity
     if (textLower.includes('condo') || textLower.includes('condominium')) {
-      return "Condos are really popular right now! What's driving your interest in condo living?";
+      return "Nice! Condos are quite popular now. What's driving your interest in condo living?";
     }
     if (textLower.includes('hdb') || textLower.includes('flat')) {
       return "HDB flats offer great value! Are you looking at resale or BTO options?";
@@ -874,31 +939,8 @@ Respond naturally and conversationally:`;
     return "That's interesting! Tell me more about what you're looking for - I'd love to understand your situation better.";
   }
 
-  /**
-   * Get intelligent default response based on user input patterns
-   * @private
-   */
-  _getIntelligentDefault(userText) {
-    const textLower = userText.toLowerCase();
-
-    // Question patterns
-    if (textLower.includes('?')) {
-      return "That's a great question! Let me help you with that. Could you share a bit more about your specific situation?";
-    }
-
-    // Exploration patterns
-    if (textLower.includes('looking') || textLower.includes('searching') || textLower.includes('exploring')) {
-      return "Exciting! Property searching can be quite a journey. What's the main thing driving your search right now?";
-    }
-
-    // Interest patterns
-    if (textLower.includes('interested') || textLower.includes('considering')) {
-      return "That sounds promising! What aspects are you most interested in exploring?";
-    }
-
-    // Default intelligent response
-    return "Thanks for sharing that! I'd love to learn more about your property goals. What's most important to you in your search?";
-  }
+  // REMOVED: _getIntelligentDefault function was unused dead code
+  // All responses now use centralized personality system through _generateContextualFallback()
 
   /**
    * Extract basic lead updates from natural conversation (no assumptions)
@@ -954,49 +996,20 @@ Respond naturally and conversationally:`;
   }
 
   /**
-   * Validate AI response structure
+   * Consolidated AI response processing - applies formatting and creates response object
    * @private
    */
-  _validateAIResponse(response) {
-    const validated = {
-      messages: [],
-      lead_updates: {},
-      action: 'continue'
+  _processAIResponse(rawAiMessage, action = 'ai_response', leadUpdates = {}) {
+    // Apply enhanced formatting to ensure consistency with personality guidelines
+    const formattedMessage = this._applyEnhancedFormatting(rawAiMessage);
+
+    return {
+      message: formattedMessage,
+      messages: [formattedMessage],
+      action: action,
+      lead_updates: leadUpdates,
+      appointmentHandled: false
     };
-
-    // Extract messages - prioritize natural conversation flow
-    if (response.message1?.trim()) {
-      validated.messages.push(response.message1.trim());
-    }
-    if (response.message2?.trim()) {
-      validated.messages.push(response.message2.trim());
-    }
-
-    // Fallback message if none provided
-    if (validated.messages.length === 0) {
-      validated.messages.push("Hey, what's up?");
-    }
-
-    // Validate lead updates - be more lenient with natural conversation
-    if (response.lead_updates && typeof response.lead_updates === 'object') {
-      validated.lead_updates = response.lead_updates;
-    }
-
-    // Validate action - default to continue for natural flow
-    const validActions = ['continue', 'initiate_booking', 'reschedule_appointment', 'cancel_appointment', 'select_alternative', 'tentative_booking', 'confirm_tentative_booking'];
-    if (validActions.includes(response.action)) {
-      validated.action = response.action;
-    } else {
-      // Default to continue if action is invalid - keeps conversation flowing
-      validated.action = 'continue';
-    }
-
-    // Include user message only for actual booking actions
-    if (['initiate_booking', 'reschedule_appointment', 'select_alternative', 'tentative_booking', 'confirm_tentative_booking'].includes(validated.action) && response.user_message) {
-      validated.user_message = response.user_message;
-    }
-
-    return validated;
   }
 
   /**
@@ -3356,18 +3369,27 @@ Respond in JSON format only with these exact keys:
     // Remove em dashes and replace with alternative punctuation
     formattedText = formattedText.replace(/—/g, ' - ');
 
-    // Apply line break patterns for better readability
+    // Apply enhanced line break patterns for better readability
     if (format.line_break_formatting.break_long_paragraphs) {
       // Break after questions followed by statements
       formattedText = formattedText.replace(/(\?)\s+([A-Z])/g, '$1\n\n$2');
 
-      // Break before new topic introductions
-      formattedText = formattedText.replace(/\.\s+((?:Also|Additionally|By the way|Btw|What about|How about|Speaking of)[^.!?]*[.!?])/gi, '.\n\n$1');
+      // Break before new topic introductions (enhanced patterns)
+      formattedText = formattedText.replace(/\.\s+((?:Also|Additionally|By the way|Btw|What about|How about|Speaking of|Actually|Oh|And)[^.!?]*[.!?])/gi, '.\n\n$1');
+
+      // Break after greetings and acknowledgments
+      formattedText = formattedText.replace(/(Nice!|Got it!|Right!|Makes sense!|That's exciting!|Interesting!)\s+([A-Z])/g, '$1\n\n$2');
+
+      // Break before questions that follow statements
+      formattedText = formattedText.replace(/([.!])\s+((?:What|How|When|Where|Why|Which|Are you|Do you|Have you|Would you)[^.!?]*\?)/g, '$1\n\n$2');
 
       // Break between distinct statements when text gets long
       if (formattedText.length > format.line_break_formatting.max_paragraph_length) {
         // Break after complete sentences when followed by new thoughts
         formattedText = formattedText.replace(/([.!])\s+([A-Z][^.!?]{20,}[.!?])/g, '$1\n\n$2');
+
+        // Break before suggestions or recommendations
+        formattedText = formattedText.replace(/([.!])\s+((?:I'd suggest|I recommend|You might want to|Consider|Maybe|Perhaps)[^.!?]*[.!?])/g, '$1\n\n$2');
       }
     }
 
@@ -3511,30 +3533,9 @@ Respond in JSON format only with these exact keys:
     return segments;
   }
 
-  /**
-   * Get unified personality configuration for current conversation context
-   * @private
-   */
-  _getUnifiedPersonalityConfig(contextAnalysis, conversationMemory) {
-    const currentStage = contextAnalysis.conversation_stage || 'rapport_building';
-    const userTone = getToneForUser(contextAnalysis.user_psychology, contextAnalysis.comfort_level);
-    const stageGuidelines = getStageGuidelines(currentStage);
-    const shouldUseMarketDataFlag = shouldUseMarketData(contextAnalysis, conversationMemory);
-
-    logger.info({
-      conversationStage: currentStage,
-      recommendedTone: userTone,
-      shouldUseMarketData: shouldUseMarketDataFlag,
-      stageApproach: stageGuidelines.approach
-    }, 'Applied unified personality configuration');
-
-    return {
-      stage: currentStage,
-      tone: userTone,
-      guidelines: stageGuidelines,
-      useMarketData: shouldUseMarketDataFlag
-    };
-  }
+  // REMOVED: _getUnifiedPersonalityConfig function was unused dead code
+  // Personality configuration is now handled directly through imported functions:
+  // getPersonalityPrompt(), getToneForUser(), getStageGuidelines(), shouldUseMarketData()
 
   /**
    * Analyze campaign context for multi-touch strategy
