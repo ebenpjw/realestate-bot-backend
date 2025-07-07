@@ -225,6 +225,27 @@ try {
   logger.warn('⚠️ Visual property API not available - some dependencies missing');
 }
 
+// Webhook API for external data collection
+let webhookStatus = { loaded: false, error: null };
+try {
+  app.use('/api/webhooks', require('./api/webhooks'));
+  logger.info('✅ Webhook API routes loaded');
+  webhookStatus.loaded = true;
+} catch (error) {
+  logger.error({ err: error }, '❌ Webhook API failed to load');
+  logger.warn('⚠️ Webhook API not available - some dependencies missing');
+  webhookStatus.error = error.message;
+}
+
+// Diagnostic endpoint to check webhook loading status
+app.get('/debug/webhook-status', (_req, res) => {
+  res.json({
+    webhook: webhookStatus,
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 // Debug endpoint for Google Calendar integration
 app.get('/debug/calendar/:agentId', asyncHandler(async (req, res) => {
   const { agentId } = req.params;
