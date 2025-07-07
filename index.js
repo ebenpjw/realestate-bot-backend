@@ -23,6 +23,7 @@ const metaRouter = require('./api/meta');
 const testRouter = require('./api/test');
 const authRouter = require('./api/auth');
 const testCalendarRouter = require('./api/testCalendar');
+const aiLearningRouter = require('./api/aiLearning');
 
 
 // Initialize Express app
@@ -74,13 +75,16 @@ app.get('/health', asyncHandler(async (req, res) => {
     const whatsappService = require('./services/whatsappService');
     const databaseService = require('./services/databaseService');
     const templateService = require('./services/templateService');
+    const aiLearningManager = require('./services/aiLearningManager');
 
     // Run health checks in parallel
-    const [botHealth, whatsappHealth, dbHealth, templateHealth] = await Promise.allSettled([
+    const [botHealth, whatsappHealth, dbHealth, templateHealth, aiLearningHealth] = await Promise.allSettled([
       botService.healthCheck(),
       whatsappService.healthCheck(),
       databaseService.healthCheck(),
-      templateService.healthCheck()
+      templateService.healthCheck(),
+      // AI Learning Manager health check (simple status check)
+      Promise.resolve({ status: 'healthy', learning_system: aiLearningManager.isRunning ? 'active' : 'initializing' })
     ]);
 
     const healthStatus = {
@@ -99,7 +103,8 @@ app.get('/health', asyncHandler(async (req, res) => {
         bot: botHealth.status === 'fulfilled' ? botHealth.value : { status: 'unhealthy', error: botHealth.reason?.message },
         whatsapp: whatsappHealth.status === 'fulfilled' ? whatsappHealth.value : { status: 'unhealthy', error: whatsappHealth.reason?.message },
         database: dbHealth.status === 'fulfilled' ? dbHealth.value : { status: 'unhealthy', error: dbHealth.reason?.message },
-        templates: templateHealth.status === 'fulfilled' ? templateHealth.value : { status: 'unhealthy', error: templateHealth.reason?.message }
+        templates: templateHealth.status === 'fulfilled' ? templateHealth.value : { status: 'unhealthy', error: templateHealth.reason?.message },
+        aiLearning: aiLearningHealth.status === 'fulfilled' ? aiLearningHealth.value : { status: 'unhealthy', error: aiLearningHealth.reason?.message }
       },
       memory: {
         used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
@@ -211,6 +216,8 @@ app.use('/api/meta', metaRouter);
 app.use('/api/test', testRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/test-calendar', testCalendarRouter);
+app.use('/api/ai-learning', aiLearningRouter);
+app.use('/api/visual-property', require('./api/visualPropertyData'));
 
 // Debug endpoint for Google Calendar integration
 app.get('/debug/calendar/:agentId', asyncHandler(async (req, res) => {
@@ -281,6 +288,7 @@ app.get('/test-bot', (req, res) => {
         <button onclick="resetConversation()">🔄 Reset Conversation</button>
         <button onclick="testGreeting()">👋 Test Greeting</button>
         <button onclick="testBooking()">📅 Test Booking</button>
+        <button onclick="viewLearningDashboard()">🧠 AI Learning Dashboard</button>
     </div>
 
     <div class="chat-container" id="chatContainer"></div>
@@ -361,6 +369,10 @@ app.get('/test-bot', (req, res) => {
         function testBooking() {
             sendMessage('I want to speak to a consultant');
         }
+
+        function viewLearningDashboard() {
+            window.open('/api/ai-learning/dashboard', '_blank');
+        }
     </script>
 </body>
 </html>
@@ -401,14 +413,40 @@ const gracefulShutdown = (signal) => {
   }, 10000);
 };
 
+// Initialize AI Learning System
+async function initializeAILearningSystem() {
+  try {
+    logger.info('🧠 Initializing AI Learning System...');
+    const aiLearningManager = require('./services/aiLearningManager');
+    await aiLearningManager.initialize();
+    logger.info('✅ AI Learning System initialized successfully');
+  } catch (error) {
+    logger.error({ err: error }, '❌ Failed to initialize AI Learning System - continuing without learning features');
+  }
+}
+
 // Start server
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   logger.info({
     port: PORT,
     environment: config.NODE_ENV,
     nodeVersion: process.version,
     pid: process.pid
   }, '🚀 Server started successfully');
+
+  // Initialize AI Learning System after server starts
+  await initializeAILearningSystem();
+
+  // Initialize scheduled data collection service
+  try {
+    const ScheduledDataCollectionService = require('./services/scheduledDataCollectionService');
+    const scheduledService = new ScheduledDataCollectionService();
+    scheduledService.initialize();
+    scheduledService.start();
+    logger.info('✅ Scheduled data collection service started');
+  } catch (error) {
+    logger.error({ err: error }, '❌ Failed to start scheduled services - continuing without automated data collection');
+  }
 });
 
 // Handle shutdown signals

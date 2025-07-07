@@ -5,6 +5,7 @@ const supabase = require('../supabaseClient');
 const { DORO_PERSONALITY, getPersonalityPrompt, getToneForUser, getStageGuidelines, shouldUseMarketData, analyzeContextualIntent } = require('../config/personality');
 const whatsappService = require('./whatsappService');
 const databaseService = require('./databaseService');
+const aiLearningService = require('./aiLearningService');
 const { AI } = require('../constants');
 
 const { toSgTime, formatForDisplay } = require('../utils/timezoneUtils');
@@ -172,11 +173,25 @@ class BotService {
         for (let i = 0; i < response.messages.length; i++) {
           const message = response.messages[i];
 
-          // Add natural delay between messages, but avoid timeout issues
+          // ENHANCED: More natural delays that feel human-like
           if (i > 0) {
-            // Reduce delay for multiple messages to prevent timeout conflicts
-            const delay = response.messages.length > 2 ? 3000 : 6000; // 3s for 3+ messages, 6s for 2 messages
-            await new Promise(resolve => setTimeout(resolve, delay));
+            // Calculate delay based on message length and position
+            const messageLength = message.length;
+            let baseDelay;
+
+            if (messageLength < 100) {
+              baseDelay = 4000; // 4 seconds for short messages
+            } else if (messageLength < 200) {
+              baseDelay = 6000; // 6 seconds for medium messages
+            } else {
+              baseDelay = 8000; // 8 seconds for longer messages
+            }
+
+            // Add some randomness to feel more natural
+            const randomFactor = Math.random() * 2000; // 0-2 seconds
+            const finalDelay = baseDelay + randomFactor;
+
+            await new Promise(resolve => setTimeout(resolve, finalDelay));
           }
 
           await whatsappService.sendMessage({ to: senderWaId, message });
@@ -575,10 +590,17 @@ Respond warmly and genuinely while following all personality guidelines above.`;
         // Continue processing but log as error, not warning
       }
 
-      // Phase 3: Conversation Strategy Planning (AI-driven with memory context)
+      // Phase 3: Conversation Strategy Planning (AI-driven with memory context + Learning System)
       const campaignContext = this._analyzeCampaignContext(updatedMemory, contextAnalysis);
       const successPatterns = await this._analyzeSuccessPatterns(lead, contextAnalysis);
-      const strategy = await this._planConversationStrategy(contextAnalysis, intelligenceData, lead, updatedMemory, campaignContext, successPatterns);
+
+      // Enhanced with AI learning recommendations
+      const learningRecommendations = await aiLearningService.getOptimizedStrategy(
+        { intent: lead.intent, budget: lead.budget, source: lead.source },
+        contextAnalysis
+      );
+
+      const strategy = await this._planConversationStrategy(contextAnalysis, intelligenceData, lead, updatedMemory, campaignContext, successPatterns, learningRecommendations);
 
       // Phase 4: Strategic Response Generation (with unified personality)
       const response = await this._generateStrategicResponse(strategy, contextAnalysis, intelligenceData, lead, previousMessages);
@@ -674,7 +696,9 @@ ${stageGuidelines.examples.map(ex => `- "${ex}"`).join('\n')}
 CONVERSATION RULES:
 ${Object.values(DORO_PERSONALITY.conversation.rules).map(rule => `- ${rule}`).join('\n')}
 
-Respond naturally and conversationally:`;
+CRITICAL: Every response must include a follow-up question or next step. Never end with just acknowledgment.
+
+Respond naturally and conversationally with a follow-up question:`;
 
       // Retry logic for OpenAI API call
       let response;
@@ -1863,6 +1887,16 @@ Format as clear, actionable notes for the property consultant.`;
       if (result.success) {
         // Update lead status to booked
         await supabase.from('leads').update({ status: 'booked' }).eq('id', lead.id);
+
+        // Record successful outcome for AI learning
+        await this._recordConversationOutcome(lead, 'appointment_booked', {
+          strategies_used: ['direct_booking'],
+          conversation_approach: 'unified_booking',
+          consultation_timing: 'immediate',
+          total_messages: await this._getMessageCount(lead.id),
+          engagement_score: 85 // High score for successful booking
+        });
+
         logger.info({ leadId: lead.id, appointmentId: result.appointment.id }, 'Appointment booked successfully');
         return {
           success: true,
@@ -2599,6 +2633,22 @@ Respond in JSON format only with these exact keys:
           conversation_stage: contextAnalysis.conversation_stage
         }
       }, 'Gathering real-time market intelligence for strategic conversation');
+
+      // Try visual property data first for specific property inquiries
+      const visualPropertyData = await this._getVisualPropertyData(contextAnalysis, userMessage);
+      if (visualPropertyData && visualPropertyData.length > 0) {
+        logger.info({
+          query: searchQuery,
+          propertiesFound: visualPropertyData.length
+        }, 'Visual property data found');
+
+        return {
+          query: searchQuery,
+          insights: visualPropertyData,
+          timestamp: new Date().toISOString(),
+          source: 'visual_property_database'
+        };
+      }
 
       // Use real web search to get current market data
       const marketSearchResults = await this._performRealWebSearch(searchQuery);
@@ -3371,17 +3421,26 @@ Respond in JSON format only with these exact keys:
 
     // Apply enhanced line break patterns for better readability
     if (format.line_break_formatting.break_long_paragraphs) {
-      // Break after questions followed by statements
+      // ENHANCED: Break after questions followed by statements (more comprehensive)
       formattedText = formattedText.replace(/(\?)\s+([A-Z])/g, '$1\n\n$2');
 
-      // Break before new topic introductions (enhanced patterns)
-      formattedText = formattedText.replace(/\.\s+((?:Also|Additionally|By the way|Btw|What about|How about|Speaking of|Actually|Oh|And)[^.!?]*[.!?])/gi, '.\n\n$1');
+      // ENHANCED: Break after questions followed by "Or" statements
+      formattedText = formattedText.replace(/(\?)\s+(Or\s+[^.!?]*[.!?])/gi, '$1\n\n$2');
 
-      // Break after greetings and acknowledgments
-      formattedText = formattedText.replace(/(Nice!|Got it!|Right!|Makes sense!|That's exciting!|Interesting!)\s+([A-Z])/g, '$1\n\n$2');
+      // ENHANCED: Break before new topic introductions (expanded patterns)
+      formattedText = formattedText.replace(/\.\s+((?:Also|Additionally|By the way|Btw|What about|How about|Speaking of|Actually|Oh|And|Just to|To get|For|Given)[^.!?]*[.!?])/gi, '.\n\n$1');
 
-      // Break before questions that follow statements
-      formattedText = formattedText.replace(/([.!])\s+((?:What|How|When|Where|Why|Which|Are you|Do you|Have you|Would you)[^.!?]*\?)/g, '$1\n\n$2');
+      // ENHANCED: Break after greetings and acknowledgments (expanded)
+      formattedText = formattedText.replace(/(Nice!|Got it!|Right!|Makes sense!|That's exciting!|Interesting!|Perfect!|Great!|Awesome!|Cool!)\s+([A-Z])/g, '$1\n\n$2');
+
+      // ENHANCED: Break before questions that follow statements (more patterns)
+      formattedText = formattedText.replace(/([.!])\s+((?:What|How|When|Where|Why|Which|Are you|Do you|Have you|Would you|Could you|Should you|Is it|Will you)[^.!?]*\?)/g, '$1\n\n$2');
+
+      // ENHANCED: Break before follow-up clarifications
+      formattedText = formattedText.replace(/([.!])\s+((?:Or more like|Or are you|Or maybe|Or perhaps|Or would you)[^.!?]*\?)/gi, '$1\n\n$2');
+
+      // ENHANCED: Break between property type options for clarity
+      formattedText = formattedText.replace(/(condo|HDB|resale|new launch),\s+(or\s+[^.!?]*\?)/gi, '$1,\n\n$2');
 
       // Break between distinct statements when text gets long
       if (formattedText.length > format.line_break_formatting.max_paragraph_length) {
@@ -3407,6 +3466,20 @@ Respond in JSON format only with these exact keys:
     const { strategy, conversationFlow, strategicPriority, contextAnalysis } = options;
     const { format } = DORO_PERSONALITY.communication;
 
+    // ANTI-FLOODING: For early conversation stages, strongly prefer single messages
+    const isEarlyConversation = contextAnalysis?.comfort_level === 'cold' ||
+                               contextAnalysis?.journey_stage === 'browsing' ||
+                               contextAnalysis?.conversation_stage === 'rapport_building';
+
+    // ANTI-FLOODING: For greetings and simple responses, always use single message
+    const isSimpleResponse = strategicResponse.length <= 200 ||
+                            /^(hey|hi|hello|thanks|nice|got it|right|makes sense)/i.test(strategicResponse.trim());
+
+    if (isEarlyConversation || isSimpleResponse) {
+      // Force single message for early conversation to prevent flooding
+      return [strategicResponse];
+    }
+
     // If response is within optimal length, send as single message
     if (strategicResponse.length <= format.natural_segmentation.optimal_length) {
       return [strategicResponse];
@@ -3417,7 +3490,7 @@ Respond in JSON format only with these exact keys:
       return [strategicResponse];
     }
 
-    // Intelligent segmentation preserving strategic coherence
+    // ENHANCED: More conservative segmentation - prefer fewer, longer messages
     const segments = [];
 
     // First, try to split at natural conversation boundaries
@@ -3431,7 +3504,8 @@ Respond in JSON format only with these exact keys:
       for (const breakPoint of naturalBreaks) {
         const potentialSegment = strategicResponse.substring(segmentStart, breakPoint).trim();
 
-        if (potentialSegment.length >= format.natural_segmentation.minimum_meaningful) {
+        // ENHANCED: Increase minimum segment length to reduce fragmentation
+        if (potentialSegment.length >= format.natural_segmentation.minimum_meaningful * 1.5) {
           if (currentSegment) {
             segments.push(currentSegment);
           }
@@ -3442,8 +3516,8 @@ Respond in JSON format only with these exact keys:
           currentSegment = currentSegment ? currentSegment + ' ' + potentialSegment : potentialSegment;
         }
 
-        // Don't exceed maximum segments
-        if (segments.length >= format.intelligent_splitting.max_segments - 1) {
+        // ENHANCED: Reduce maximum segments to prevent flooding (max 2 instead of 3)
+        if (segments.length >= 1) {
           break;
         }
       }
@@ -3464,18 +3538,20 @@ Respond in JSON format only with these exact keys:
       segments.push(...this._splitAtWordBoundaries(strategicResponse, format.natural_segmentation.maximum_per_segment));
     }
 
-    // Ensure segments are meaningful and preserve strategic intent
+    // ENHANCED: Ensure segments are meaningful and limit to max 2 segments
     const finalSegments = segments
       .filter(segment => segment.length >= format.natural_segmentation.minimum_meaningful)
-      .slice(0, format.intelligent_splitting.max_segments);
+      .slice(0, 2); // Hard limit to 2 segments maximum
 
     logger.info({
       originalLength: strategicResponse.length,
       segmentCount: finalSegments.length,
       segmentLengths: finalSegments.map(s => s.length),
       strategicPriority,
+      isEarlyConversation,
+      isSimpleResponse,
       preservedIntent: true
-    }, 'Strategic response segmented intelligently');
+    }, 'Strategic response segmented intelligently with anti-flooding logic');
 
     return finalSegments.length > 0 ? finalSegments : [strategicResponse];
   }
@@ -3839,6 +3915,83 @@ Respond in JSON format only with these exact keys:
   }
 
   /**
+   * Record conversation outcome for AI learning
+   * @private
+   */
+  async _recordConversationOutcome(lead, outcomeType, additionalData = {}) {
+    try {
+      // Get conversation history for metrics
+      const { data: messages } = await this.supabase
+        .from('messages')
+        .select('*')
+        .eq('lead_id', lead.id)
+        .order('created_at', { ascending: true });
+
+      // Get conversation memory for strategy tracking
+      const { data: memoryData } = await this.supabase
+        .from('conversation_memory')
+        .select('memory_data')
+        .eq('lead_id', lead.id)
+        .single();
+
+      const memory = memoryData?.memory_data || {};
+      const conversationDuration = this._calculateConversationDuration(messages || []);
+
+      const outcomeData = {
+        type: outcomeType,
+        total_messages: messages?.length || 0,
+        conversation_duration_minutes: conversationDuration,
+        engagement_score: additionalData.engagement_score || 50,
+        objections_encountered: memory.objections_raised || [],
+        success_factors: memory.successful_tactics || [],
+        failure_factors: memory.failed_approaches || [],
+        lead_intent: lead.intent,
+        lead_budget: lead.budget,
+        lead_timeline: lead.timeline,
+        lead_source: lead.source,
+        ...additionalData
+      };
+
+      const strategyData = {
+        strategies_used: additionalData.strategies_used || memory.successful_tactics || [],
+        psychology_principles: additionalData.psychology_principles || [],
+        conversation_approach: additionalData.conversation_approach || memory.conversation_stage || 'unknown',
+        consultation_timing: additionalData.consultation_timing || 'unknown',
+        market_data_used: additionalData.market_data_used || false
+      };
+
+      await aiLearningService.recordConversationOutcome(lead.id, outcomeData, strategyData);
+
+      logger.info({
+        leadId: lead.id,
+        outcomeType,
+        totalMessages: outcomeData.total_messages,
+        engagementScore: outcomeData.engagement_score
+      }, 'Conversation outcome recorded for AI learning');
+
+    } catch (error) {
+      logger.error({ err: error, leadId: lead.id }, 'Error recording conversation outcome');
+    }
+  }
+
+  /**
+   * Get message count for a lead
+   * @private
+   */
+  async _getMessageCount(leadId) {
+    try {
+      const { count } = await this.supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('lead_id', leadId);
+      return count || 0;
+    } catch (error) {
+      logger.warn({ err: error, leadId }, 'Error getting message count');
+      return 0;
+    }
+  }
+
+  /**
    * Get default success patterns when no data available
    * @private
    */
@@ -3979,7 +4132,7 @@ Respond in JSON format only with these exact keys:
    * Phase 3: Plan conversation strategy
    * @private
    */
-  async _planConversationStrategy(contextAnalysis, intelligenceData, lead, conversationMemory = null, campaignContext = null, successPatterns = null) {
+  async _planConversationStrategy(contextAnalysis, intelligenceData, lead, conversationMemory = null, campaignContext = null, successPatterns = null, learningRecommendations = null) {
     try {
       const strategyPrompt = `
 CONVERSATION STRATEGIST - Plan the next move while staying natural.
@@ -4035,6 +4188,16 @@ PSYCHOLOGICAL TRIGGERS TO ADAPT:
 - Aspiration: Lifestyle upgrade, investment success, financial freedom
 
 ADAPT THESE DYNAMICALLY - Don't use rigid scripts. Choose what fits the conversation naturally.
+
+${learningRecommendations ? `
+AI LEARNING RECOMMENDATIONS (Based on Historical Success Data):
+- Confidence Score: ${Math.round(learningRecommendations.confidence_score * 100)}%
+- Top Recommended Strategies: ${learningRecommendations.strategies.slice(0, 3).map(s => `${s.strategy} (${Math.round(s.success_rate * 100)}% success rate)`).join(', ')}
+- Recommended Psychology Principles: ${learningRecommendations.psychology_principles.slice(0, 2).map(p => `${p.principle} (${Math.round(p.success_rate * 100)}% success rate)`).join(', ')}
+- Learning Insights: ${learningRecommendations.reasoning.join('; ')}
+
+PRIORITIZE these learned strategies when they align with the current conversation context.
+` : ''}
 
 CONVERSATION STYLE: Follow unified personality system - all tone, Singlish usage, and expression guidelines are centrally managed and automatically applied based on conversation stage and user psychology.
 
@@ -4241,11 +4404,18 @@ Develop your complete strategic response without character count constraints. Fo
 - Building compelling value propositions for consultations
 - Executing sophisticated psychological approaches effectively
 
+CRITICAL REQUIREMENT - AVOID CONVERSATION DEAD-ENDS:
+- Every response MUST include a follow-up question or next step
+- Never end with just acknowledgment (e.g., "quite flexible!")
+- Always guide toward qualification (timeline, budget, areas, property type)
+- Use the follow-up strategies from personality configuration
+- Progress the conversation toward appointment booking
+
 RESPONSE FORMAT:
 Respond in JSON format with your complete strategic thoughts:
 
 {
-  "strategic_response": "Your complete strategic response - develop fully without character constraints. Include all market insights, value propositions, and strategic content needed to execute your planned approach effectively.",
+  "strategic_response": "Your complete strategic response - develop fully without character constraints. Include all market insights, value propositions, and strategic content needed to execute your planned approach effectively. MUST include a follow-up question or next step.",
   "conversation_flow": "natural|multi_part",
   "strategic_priority": "high|medium|low"
 }
@@ -4502,6 +4672,240 @@ FOCUS ON STRATEGIC IMPACT, NOT CHARACTER COUNTS!
       logger.error({ err: error }, 'Error fetching URA data');
       return null;
     }
+  }
+
+  /**
+   * Get visual property data from database
+   * @private
+   */
+  async _getVisualPropertyData(contextAnalysis, userMessage) {
+    try {
+      logger.info('Searching visual property database');
+
+      // Build search criteria based on context
+      const searchCriteria = this._buildPropertySearchCriteria(contextAnalysis, userMessage);
+
+      if (!searchCriteria.hasValidCriteria) {
+        logger.info('No valid search criteria for visual property data');
+        return null;
+      }
+
+      // Search property database
+      let query = supabase
+        .from('property_projects')
+        .select(`
+          *,
+          property_units(*),
+          visual_assets(id, asset_type, public_url, ai_visual_analysis(*)),
+          property_search_index(*)
+        `)
+        .eq('sales_status', 'Available')
+        .limit(3);
+
+      // Apply search filters
+      if (searchCriteria.district) {
+        query = query.eq('district', searchCriteria.district);
+      }
+
+      if (searchCriteria.propertyType) {
+        query = query.eq('property_type', searchCriteria.propertyType);
+      }
+
+      if (searchCriteria.bedrooms) {
+        query = query.eq('property_units.bedrooms', searchCriteria.bedrooms);
+      }
+
+      if (searchCriteria.maxPrice) {
+        query = query.lte('price_range_min', searchCriteria.maxPrice);
+      }
+
+      const { data: properties, error } = await query;
+
+      if (error) {
+        logger.error({ err: error }, 'Error querying visual property data');
+        return null;
+      }
+
+      if (!properties || properties.length === 0) {
+        logger.info('No matching properties found in visual database');
+        return null;
+      }
+
+      // Format properties for AI consumption
+      const formattedProperties = properties.map(property => {
+        const floorPlans = property.visual_assets?.filter(asset => asset.asset_type === 'floor_plan') || [];
+        const brochures = property.visual_assets?.filter(asset => asset.asset_type === 'brochure') || [];
+
+        // Get AI analysis insights
+        const aiInsights = property.visual_assets
+          ?.flatMap(asset => asset.ai_visual_analysis || [])
+          .filter(analysis => analysis.confidence_score > 0.7) || [];
+
+        return {
+          title: `${property.project_name} - ${property.district}`,
+          snippet: this._generatePropertySnippet(property, aiInsights),
+          url: `https://www.ecoprop.com/project/${property.id}`, // Placeholder URL
+          source: 'visual_property_database',
+          propertyData: {
+            name: property.project_name,
+            developer: property.developer,
+            district: property.district,
+            propertyType: property.property_type,
+            priceRange: {
+              min: property.price_range_min,
+              max: property.price_range_max
+            },
+            units: property.property_units || [],
+            floorPlansCount: floorPlans.length,
+            brochuresCount: brochures.length,
+            aiInsights: aiInsights.map(insight => ({
+              type: insight.analysis_type,
+              summary: insight.summary,
+              keyFeatures: insight.key_features,
+              layoutType: insight.layout_type,
+              roomCount: insight.room_count
+            }))
+          }
+        };
+      });
+
+      logger.info({
+        propertiesFound: formattedProperties.length,
+        criteria: searchCriteria
+      }, 'Visual property data retrieved successfully');
+
+      return formattedProperties;
+
+    } catch (error) {
+      logger.error({ err: error }, 'Error retrieving visual property data');
+      return null;
+    }
+  }
+
+  /**
+   * Build property search criteria from context analysis
+   * @private
+   */
+  _buildPropertySearchCriteria(contextAnalysis, userMessage) {
+    const criteria = {
+      hasValidCriteria: false,
+      district: null,
+      propertyType: null,
+      bedrooms: null,
+      maxPrice: null
+    };
+
+    try {
+      const lowerMessage = userMessage.toLowerCase();
+
+      // Extract district from message
+      const districtPatterns = [
+        /district\s+(\d+)/i,
+        /d(\d+)/i,
+        /(orchard|marina|sentosa|bukit\s+timah|holland|tanglin)/i
+      ];
+
+      for (const pattern of districtPatterns) {
+        const match = lowerMessage.match(pattern);
+        if (match) {
+          if (match[1] && !isNaN(match[1])) {
+            criteria.district = `D${match[1].padStart(2, '0')}`;
+          } else if (match[1]) {
+            // Map area names to districts (simplified)
+            const areaToDistrict = {
+              'orchard': 'D09',
+              'marina': 'D01',
+              'sentosa': 'D04',
+              'bukit timah': 'D10',
+              'holland': 'D10',
+              'tanglin': 'D10'
+            };
+            criteria.district = areaToDistrict[match[1].toLowerCase()];
+          }
+          criteria.hasValidCriteria = true;
+          break;
+        }
+      }
+
+      // Extract property type
+      if (lowerMessage.includes('condo') || lowerMessage.includes('condominium')) {
+        criteria.propertyType = 'Private Condo';
+        criteria.hasValidCriteria = true;
+      } else if (lowerMessage.includes('landed') || lowerMessage.includes('house')) {
+        criteria.propertyType = 'Landed House';
+        criteria.hasValidCriteria = true;
+      }
+
+      // Extract bedroom count
+      const bedroomMatch = lowerMessage.match(/(\d+)\s*(?:bed|br|bedroom)/i);
+      if (bedroomMatch) {
+        criteria.bedrooms = parseInt(bedroomMatch[1]);
+        criteria.hasValidCriteria = true;
+      }
+
+      // Extract budget/price
+      const priceMatch = lowerMessage.match(/(?:budget|price|under|below)\s*(?:of\s*)?(?:\$|s\$)?\s*(\d+(?:,\d+)*(?:\.\d+)?)\s*(?:k|m|million|thousand)?/i);
+      if (priceMatch) {
+        let price = parseFloat(priceMatch[1].replace(/,/g, ''));
+        const unit = priceMatch[0].toLowerCase();
+
+        if (unit.includes('k') || unit.includes('thousand')) {
+          price *= 1000;
+        } else if (unit.includes('m') || unit.includes('million')) {
+          price *= 1000000;
+        }
+
+        criteria.maxPrice = price;
+        criteria.hasValidCriteria = true;
+      }
+
+      // Check context analysis for additional criteria
+      if (contextAnalysis.areas_mentioned && contextAnalysis.areas_mentioned.length > 0) {
+        criteria.hasValidCriteria = true;
+      }
+
+      if (contextAnalysis.budget_mentioned) {
+        criteria.hasValidCriteria = true;
+      }
+
+    } catch (error) {
+      logger.error({ err: error }, 'Error building property search criteria');
+    }
+
+    return criteria;
+  }
+
+  /**
+   * Generate property snippet for AI consumption
+   * @private
+   */
+  _generatePropertySnippet(property, aiInsights) {
+    let snippet = `${property.project_name} by ${property.developer || 'Developer'} in ${property.district}.`;
+
+    if (property.price_range_min && property.price_range_max) {
+      snippet += ` Price range: $${property.price_range_min.toLocaleString()} - $${property.price_range_max.toLocaleString()}.`;
+    }
+
+    if (property.property_units && property.property_units.length > 0) {
+      const unitTypes = property.property_units.map(unit => `${unit.bedrooms}BR`).join(', ');
+      snippet += ` Available units: ${unitTypes}.`;
+    }
+
+    if (aiInsights && aiInsights.length > 0) {
+      const layouts = aiInsights.map(insight => insight.layout_type).filter(Boolean);
+      if (layouts.length > 0) {
+        snippet += ` Layout types: ${[...new Set(layouts)].join(', ')}.`;
+      }
+
+      const features = aiInsights.flatMap(insight => insight.key_features || []);
+      if (features.length > 0) {
+        snippet += ` Key features: ${[...new Set(features)].slice(0, 5).join(', ')}.`;
+      }
+    }
+
+    snippet += ` Floor plans and brochures available for detailed viewing.`;
+
+    return snippet;
   }
 
   /**
