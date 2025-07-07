@@ -1,10 +1,19 @@
 const { chromium } = require('playwright');
 const fs = require('fs').promises;
 const path = require('path');
-const sharp = require('sharp');
 const logger = require('../logger');
 const supabase = require('../supabaseClient');
 const config = require('../config');
+
+// Optional sharp import with fallback
+let sharp;
+try {
+  sharp = require('sharp');
+  logger.info('Sharp module loaded successfully');
+} catch (error) {
+  logger.warn('Sharp module not available - image processing will be limited');
+  sharp = null;
+}
 
 class VisualPropertyScrapingService {
   constructor() {

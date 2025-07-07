@@ -217,7 +217,13 @@ app.use('/api/test', testRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/test-calendar', testCalendarRouter);
 app.use('/api/ai-learning', aiLearningRouter);
-app.use('/api/visual-property', require('./api/visualPropertyData'));
+// Visual property API (optional - may not work if dependencies missing)
+try {
+  app.use('/api/visual-property', require('./api/visualPropertyData'));
+  logger.info('✅ Visual property API routes loaded');
+} catch (error) {
+  logger.warn('⚠️ Visual property API not available - some dependencies missing');
+}
 
 // Debug endpoint for Google Calendar integration
 app.get('/debug/calendar/:agentId', asyncHandler(async (req, res) => {
@@ -445,7 +451,8 @@ const server = app.listen(PORT, async () => {
     scheduledService.start();
     logger.info('✅ Scheduled data collection service started');
   } catch (error) {
-    logger.error({ err: error }, '❌ Failed to start scheduled services - continuing without automated data collection');
+    logger.warn({ err: error }, '⚠️ Visual property services not available - continuing with basic functionality');
+    // Don't fail the entire app if visual services can't start
   }
 });
 
