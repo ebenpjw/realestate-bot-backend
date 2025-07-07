@@ -1,0 +1,822 @@
+[
+  {
+    "name": "10 Evelyn",
+    "developer": "Creative Investments Pte Ltd (Amara Holdings)",
+    "address": "10 Evelyn Road",
+    "district": "D11",
+    "propertyType": "Residential Lowrise",
+    "priceRange": {
+      "raw": "$1,425,090-$3,475,290"
+    },
+    "description": "10 Evelyn is a freehold residential development located at 10 Evelyn Road, 309312 in District 11. This development consists of four 5-storey condo blocks with 56 units in total. Its units' sizes are ranging from 495 sq.ft. to 1,432 sq.ft. with 1 bedroom or up to 3 bedrooms.",
+    "units": "56",
+    "completion": "23 Nov 2022",
+    "tenure": "Freehold",
+    "blocks": "10 Evelyn/05",
+    "sizeRange": "495-1431",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/10-Evelyn",
+    "floorPlans": [
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 1",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/77bca671819a4ee69063f560fa734361/b4323957827046808662cfed12d9b211/floorPlanImg/A4.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 1",
+        "filename": "floorplan_1.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 2",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/77bca671819a4ee69063f560fa734361/b4323957827046808662cfed12d9b211/floorPlanImg/A4.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 2",
+        "filename": "floorplan_2.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 3",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/77bca671819a4ee69063f560fa734361/b4323957827046808662cfed12d9b211/floorPlanImg/A4.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 3",
+        "filename": "floorplan_3.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 4",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/77bca671819a4ee69063f560fa734361/b4323957827046808662cfed12d9b211/floorPlanImg/A4.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 4",
+        "filename": "floorplan_4.jpg",
+        "hasImage": true
+      }
+    ],
+    "unitMix": [
+      {
+        "type": "1 BEDROOM",
+        "sizeRange": {
+          "raw": "495 - 785",
+          "min": 495,
+          "max": 785,
+          "unit": "sqft"
+        },
+        "priceRange": {
+          "raw": "$1.43M -\n          $1.85M",
+          "min": 1430000,
+          "max": 1850000,
+          "currency": "SGD"
+        },
+        "availability": {
+          "raw": "8 / 28",
+          "available": 8,
+          "total": 28,
+          "percentage": 29
+        }
+      },
+      {
+        "type": "PENTHOUSE",
+        "sizeRange": {
+          "raw": "1410 - 1431",
+          "min": 1410,
+          "max": 1431,
+          "unit": "sqft"
+        },
+        "priceRange": {
+          "raw": "$3.39M -\n          $3.48M",
+          "min": 3390000,
+          "max": 3480000,
+          "currency": "SGD"
+        },
+        "availability": {
+          "raw": "2 / 4",
+          "available": 2,
+          "total": 4,
+          "percentage": 50
+        }
+      }
+    ],
+    "scrapedAt": "2025-07-07T10:11:29.875Z",
+    "extractedData": {
+      "hasDetailedInfo": true,
+      "floorPlanCount": 4,
+      "unitMixCount": 2,
+      "hasDescription": true,
+      "hasDetailedPropertyInfo": true
+    }
+  },
+  {
+    "name": "120 Grange",
+    "developer": "RH Orchard Pte Ltd",
+    "address": "120 Grange Rd",
+    "district": "D10",
+    "propertyType": "Residential Highrise",
+    "priceRange": {
+      "raw": "TBC"
+    },
+    "description": "PROPOSED ERECTION OF A BLOCK OF 15-STOREY RESIDENTIAL APARTMENT (TOTAL 56 UNITS) WITH BASEMENT CAR PARK, SKY TERRACE, AND SWIMMING POOL ON LOTS 00879A TS 24 AT 120 GRANGE ROAD (RIVER VALLEY PLANNING AREA)",
+    "units": "56",
+    "completion": "31 Oct 2022",
+    "tenure": "Freehold",
+    "blocks": "120 Grange/15",
+    "sizeRange": "N/A",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/120-Grange",
+    "floorPlans": [
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 1",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/e08e357f9f884accb9c10bc4de0c8c3a/1dfacf929ad04a0ba9df03ac1d5ce3cc/floorPlanImg/C1.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 1",
+        "filename": "floorplan_1.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 2",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/e08e357f9f884accb9c10bc4de0c8c3a/1dfacf929ad04a0ba9df03ac1d5ce3cc/floorPlanImg/C1.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 2",
+        "filename": "floorplan_2.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 3",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/e08e357f9f884accb9c10bc4de0c8c3a/1dfacf929ad04a0ba9df03ac1d5ce3cc/floorPlanImg/C1.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 3",
+        "filename": "floorplan_3.jpg",
+        "hasImage": true
+      }
+    ],
+    "unitMix": [],
+    "scrapedAt": "2025-07-07T10:11:37.854Z",
+    "extractedData": {
+      "hasDetailedInfo": true,
+      "floorPlanCount": 3,
+      "unitMixCount": 0,
+      "hasDescription": true,
+      "hasDetailedPropertyInfo": true
+    }
+  },
+  {
+    "name": "15 Holland Hill",
+    "developer": "Peak Opal Pte Ltd",
+    "address": "15 Holland Hill",
+    "district": "D10",
+    "propertyType": "Residential Highrise",
+    "priceRange": {
+      "raw": "TBC"
+    },
+    "description": "3 blocks of 12-storey residential apartments with basement carparks, swimming pool and communal facilities on lot 02518X, MK 02 at 15 Holland Hill (Bukit Timah planning area)\n \nMaintenance Fee:",
+    "units": "57",
+    "completion": "2Q-3Q 2023",
+    "tenure": "Freehold",
+    "blocks": "Tower 1/12、Tower 2/12、Tower 3/12",
+    "sizeRange": "N/A",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/15-Holland-Hill",
+    "floorPlans": [
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 1",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/ccebe384b5234eec8b78e66325fa7c43/f16ea0d153ec4a28ae85812cb1e81c17/floorPlanImg/M1.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 1",
+        "filename": "floorplan_1.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 2",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/ccebe384b5234eec8b78e66325fa7c43/f16ea0d153ec4a28ae85812cb1e81c17/floorPlanImg/M1.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 2",
+        "filename": "floorplan_2.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 3",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/ccebe384b5234eec8b78e66325fa7c43/f16ea0d153ec4a28ae85812cb1e81c17/floorPlanImg/M1.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 3",
+        "filename": "floorplan_3.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 4",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/ccebe384b5234eec8b78e66325fa7c43/f16ea0d153ec4a28ae85812cb1e81c17/floorPlanImg/M1.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 4",
+        "filename": "floorplan_4.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 5",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/ccebe384b5234eec8b78e66325fa7c43/f16ea0d153ec4a28ae85812cb1e81c17/floorPlanImg/M1.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 5",
+        "filename": "floorplan_5.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 6",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/ccebe384b5234eec8b78e66325fa7c43/f16ea0d153ec4a28ae85812cb1e81c17/floorPlanImg/M1.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 6",
+        "filename": "floorplan_6.jpg",
+        "hasImage": true
+      }
+    ],
+    "unitMix": [],
+    "scrapedAt": "2025-07-07T10:11:45.060Z",
+    "extractedData": {
+      "hasDetailedInfo": true,
+      "floorPlanCount": 6,
+      "unitMixCount": 0,
+      "hasDescription": true,
+      "hasDetailedPropertyInfo": true
+    }
+  },
+  {
+    "name": "183 Longhaus",
+    "developer": "TEE Ventures Pte Ltd",
+    "address": "183 Upper Thomson Road",
+    "district": "D20",
+    "propertyType": "Commercial/Residential",
+    "priceRange": {
+      "raw": "TBC"
+    },
+    "description": "Description of Development : Proposed Erection of 4-Storey Commercial cum Residential Flats with Attic (40 Units) Development with Jacuzzi Pool, Basement Carparks and Communal Facilities\nPlot Ratio : 3.0\nGross Site Area : 1,575.6 sqm (16,959.62 sqft)\nNo. of Storey : 5 storey (including 1 st storey and attic) + 2 Basement Level\nLegal Completion : 31 October 2023\nCar Park Facilities\n\n27 residential basement car parking lots\n13 residential mechanized car parking lots\n9 commercial basement car parking lots\n2 handicap car parking lots\n2 motorcycle parking lots",
+    "units": "50",
+    "completion": "Oct 2020",
+    "tenure": "Freehold",
+    "blocks": "Longhouse/B1",
+    "sizeRange": "N/A",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/183-Longhaus",
+    "floorPlans": [
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 1",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/9630042326f643958aac4861dff8609b/5e4a6fcaddb8405981f527e0d77c71c5/floorPlanImg/Level%201.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 1",
+        "filename": "floorplan_1.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 2",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/9630042326f643958aac4861dff8609b/5e4a6fcaddb8405981f527e0d77c71c5/floorPlanImg/Level%201.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 2",
+        "filename": "floorplan_2.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 3",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/9630042326f643958aac4861dff8609b/5e4a6fcaddb8405981f527e0d77c71c5/floorPlanImg/Level%201.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 3",
+        "filename": "floorplan_3.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 4",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/9630042326f643958aac4861dff8609b/5e4a6fcaddb8405981f527e0d77c71c5/floorPlanImg/Level%201.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 4",
+        "filename": "floorplan_4.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 5",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/9630042326f643958aac4861dff8609b/5e4a6fcaddb8405981f527e0d77c71c5/floorPlanImg/Level%201.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 5",
+        "filename": "floorplan_5.jpg",
+        "hasImage": true
+      }
+    ],
+    "unitMix": [],
+    "scrapedAt": "2025-07-07T10:11:53.170Z",
+    "extractedData": {
+      "hasDetailedInfo": true,
+      "floorPlanCount": 5,
+      "unitMixCount": 0,
+      "hasDescription": true,
+      "hasDetailedPropertyInfo": true
+    }
+  },
+  {
+    "name": "19 Nassim",
+    "developer": "Parksville Development Pte Ltd",
+    "address": "19 Nassim Hill",
+    "district": "D10",
+    "propertyType": "Residential Low to Mid-rise",
+    "priceRange": {
+      "raw": "$1,962,000-$2,231,000"
+    },
+    "description": "1 Block of 10 storey Residential Flats (Total: 101 units) with 1 basement car park, swimming pool and communal facilities.",
+    "units": "101",
+    "completion": "TOP Obtained",
+    "tenure": "99 Years",
+    "blocks": "19 Nassim/10",
+    "sizeRange": "538-678",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/19-Nassim",
+    "floorPlans": [
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 1",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/f558933424df4c149a651a267bea8e42/9aad9396786644839a97c36653a23285/floorPlanImg/A1.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 1",
+        "filename": "floorplan_1.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 2",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/f558933424df4c149a651a267bea8e42/9aad9396786644839a97c36653a23285/floorPlanImg/A1.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 2",
+        "filename": "floorplan_2.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 3",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/f558933424df4c149a651a267bea8e42/9aad9396786644839a97c36653a23285/floorPlanImg/A1.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 3",
+        "filename": "floorplan_3.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 4",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/f558933424df4c149a651a267bea8e42/9aad9396786644839a97c36653a23285/floorPlanImg/A1.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 4",
+        "filename": "floorplan_4.jpg",
+        "hasImage": true
+      }
+    ],
+    "unitMix": [
+      {
+        "type": "1 Bedroom",
+        "sizeRange": {
+          "raw": "538 - 570",
+          "min": 538,
+          "max": 570,
+          "unit": "sqft"
+        },
+        "priceRange": {
+          "raw": "$1.96M -\n          $2.23M",
+          "min": 1960000,
+          "max": 2230000,
+          "currency": "SGD"
+        },
+        "availability": {
+          "raw": "12 / 17",
+          "available": 12,
+          "total": 17,
+          "percentage": 71
+        }
+      },
+      {
+        "type": "1 Bedroom + Study",
+        "sizeRange": {
+          "raw": "646 - 678",
+          "min": 646,
+          "max": 678,
+          "unit": "sqft"
+        },
+        "priceRange": {
+          "raw": "$2.04M -\n          $2.14M",
+          "min": 2040000,
+          "max": 2140000,
+          "currency": "SGD"
+        },
+        "availability": {
+          "raw": "4 / 16",
+          "available": 4,
+          "total": 16,
+          "percentage": 25
+        }
+      }
+    ],
+    "scrapedAt": "2025-07-07T10:12:00.332Z",
+    "extractedData": {
+      "hasDetailedInfo": true,
+      "floorPlanCount": 4,
+      "unitMixCount": 2,
+      "hasDescription": true,
+      "hasDetailedPropertyInfo": true
+    }
+  },
+  {
+    "name": "1953",
+    "developer": "Oxley Amethyst Pte Ltd",
+    "address": "1 Tessensohn Road",
+    "district": "D08",
+    "propertyType": "Commercial/Residential",
+    "priceRange": {
+      "raw": "TBC"
+    },
+    "description": "Proposed Erection of a 6 Storey Mixed Development with Attic Comprising of 14 Commercial Strata Units and 58 Residential Units with Mechanized Car Park, Communal Swimming Pool and Addition & Alteration to 7 Units of Conserved Shop Houses.\n \nMaintenance Fees",
+    "units": "72",
+    "completion": "Dec 2023",
+    "tenure": "Freehold",
+    "blocks": "1953/06",
+    "sizeRange": "N/A",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/1953",
+    "floorPlans": [
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 1",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/56d272c6dfbb421da06664083d0607d1/6969189889a546ea89f3fcd1cd87e79a/floorPlanImg/MAS5.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_75/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 1",
+        "filename": "floorplan_1.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 2",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/56d272c6dfbb421da06664083d0607d1/6969189889a546ea89f3fcd1cd87e79a/floorPlanImg/SHOPS.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 2",
+        "filename": "floorplan_2.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 3",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/56d272c6dfbb421da06664083d0607d1/6969189889a546ea89f3fcd1cd87e79a/floorPlanImg/SHOPS.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 3",
+        "filename": "floorplan_3.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 4",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/56d272c6dfbb421da06664083d0607d1/6969189889a546ea89f3fcd1cd87e79a/floorPlanImg/SHOPS.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 4",
+        "filename": "floorplan_4.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 5",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/56d272c6dfbb421da06664083d0607d1/6969189889a546ea89f3fcd1cd87e79a/floorPlanImg/SHOPS.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 5",
+        "filename": "floorplan_5.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 6",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/56d272c6dfbb421da06664083d0607d1/6969189889a546ea89f3fcd1cd87e79a/floorPlanImg/SHOPS.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 6",
+        "filename": "floorplan_6.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 7",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/56d272c6dfbb421da06664083d0607d1/6969189889a546ea89f3fcd1cd87e79a/floorPlanImg/SHOPS.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 7",
+        "filename": "floorplan_7.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 8",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/56d272c6dfbb421da06664083d0607d1/6969189889a546ea89f3fcd1cd87e79a/floorPlanImg/SHOPS.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 8",
+        "filename": "floorplan_8.jpg",
+        "hasImage": true
+      }
+    ],
+    "unitMix": [],
+    "scrapedAt": "2025-07-07T10:12:08.262Z",
+    "extractedData": {
+      "hasDetailedInfo": true,
+      "floorPlanCount": 8,
+      "unitMixCount": 0,
+      "hasDescription": true,
+      "hasDetailedPropertyInfo": true
+    }
+  },
+  {
+    "name": "21 Anderson",
+    "developer": "Anderson International Properties Pte Ltd & Raffles Legend Properties Pte Ltd",
+    "address": "21 Anderson Road",
+    "district": "D10",
+    "propertyType": "Residential Lowrise",
+    "priceRange": {
+      "raw": "$10,000,000-$25,420,000"
+    },
+    "description": "ADDITION & ALTERATION OF THE EXISTING CONDOMINIUM DEVELOPMENT COMPRISING 1 BLOCK OF 10-STOREY RESIDENTIAL FLATS (TOTAL OF 19 UNITS) WITH 1 BASEMENT CARPARKS,SWIMMING POOL AND COMMUNAL FACILITIES TS25 ON LOT 01519T, 01851T AT 21 ANDERSON ROAD (TANGLIN PLANNING AREA)",
+    "units": "18",
+    "completion": "4Q 2025",
+    "tenure": "Freehold",
+    "blocks": "21 Anderson/09",
+    "sizeRange": "3197-4489",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/21-Anderson",
+    "floorPlans": [
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 1",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/ccebe384b5234eec8b78e66325fa7c43/b87e1770aeeb4edaa5927143b6cebe0c/floorPlanImg/20250320/2BR-PES.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 1",
+        "filename": "floorplan_1.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 2",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/ccebe384b5234eec8b78e66325fa7c43/b87e1770aeeb4edaa5927143b6cebe0c/floorPlanImg/20250320/2BR-PES.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 2",
+        "filename": "floorplan_2.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 3",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/ccebe384b5234eec8b78e66325fa7c43/b87e1770aeeb4edaa5927143b6cebe0c/floorPlanImg/20250320/2BR-PES.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 3",
+        "filename": "floorplan_3.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 4",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/ccebe384b5234eec8b78e66325fa7c43/b87e1770aeeb4edaa5927143b6cebe0c/floorPlanImg/20250320/2BR-PES.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 4",
+        "filename": "floorplan_4.jpg",
+        "hasImage": true
+      }
+    ],
+    "unitMix": [
+      {
+        "type": "2 Bedroom Apartment",
+        "sizeRange": {
+          "raw": "3197",
+          "min": null,
+          "max": null,
+          "unit": "sqft"
+        },
+        "priceRange": {
+          "raw": "$10M -\n          $10M",
+          "min": 10000000,
+          "max": 10000000,
+          "currency": "SGD"
+        },
+        "availability": {
+          "raw": "1 / 2",
+          "available": 1,
+          "total": 2,
+          "percentage": 50
+        }
+      },
+      {
+        "type": "4 Bedroom Apartment",
+        "sizeRange": {
+          "raw": "4489",
+          "min": null,
+          "max": null,
+          "unit": "sqft"
+        },
+        "priceRange": {
+          "raw": "$22.55M -\n          $25.42M",
+          "min": 22550000,
+          "max": 25420000,
+          "currency": "SGD"
+        },
+        "availability": {
+          "raw": "7 / 14",
+          "available": 7,
+          "total": 14,
+          "percentage": 50
+        }
+      }
+    ],
+    "scrapedAt": "2025-07-07T10:12:16.216Z",
+    "extractedData": {
+      "hasDetailedInfo": true,
+      "floorPlanCount": 4,
+      "unitMixCount": 2,
+      "hasDescription": true,
+      "hasDetailedPropertyInfo": true
+    }
+  },
+  {
+    "name": "26 Newton",
+    "developer": "Novelty Corp Pte Ltd",
+    "address": "26 Newton Rd",
+    "district": "D11",
+    "propertyType": "Residential Highrise",
+    "priceRange": {
+      "raw": "$2,225,145-$3,194,065"
+    },
+    "description": "Description: Proposed erection of 26-storey residential flats with 4 storey car parks and swimming pool on 14th storey sky terrace on Lot 00709N TS 28 at Newton Road\nLocation: 26 Newton Road Singapore 307957\nSite Area: 3491.00 SQM (~37,577 sqft)\nExpected T.O.P: 31st December 2016\nExpected Date Of Legal Completion: 31st December 2019\nCarpark Lots: 180\nNo. Of Lifts: 2",
+    "units": "180",
+    "completion": "2016(TOP+CSC Obtained)",
+    "tenure": "Freehold",
+    "blocks": "Block 26/25",
+    "sizeRange": "1119-1539",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/26-Newton",
+    "floorPlans": [
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 1",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/19541e9bb12d48e7a172283c3f52008f/3a4782498bdd46bfaf5a31d2a6c02776/floorPlanImg/A.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 1",
+        "filename": "floorplan_1.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 2",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/19541e9bb12d48e7a172283c3f52008f/3a4782498bdd46bfaf5a31d2a6c02776/floorPlanImg/A.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 2",
+        "filename": "floorplan_2.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 3",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/19541e9bb12d48e7a172283c3f52008f/3a4782498bdd46bfaf5a31d2a6c02776/floorPlanImg/A.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 3",
+        "filename": "floorplan_3.jpg",
+        "hasImage": true
+      }
+    ],
+    "unitMix": [
+      {
+        "type": "PENTHOUSE",
+        "sizeRange": {
+          "raw": "1119 - 1539",
+          "min": 1119,
+          "max": 1539,
+          "unit": "sqft"
+        },
+        "priceRange": {
+          "raw": "$2.23M -\n          $3.19M",
+          "min": 2230000,
+          "max": 3190000,
+          "currency": "SGD"
+        },
+        "availability": {
+          "raw": "5 / 9",
+          "available": 5,
+          "total": 9,
+          "percentage": 56
+        }
+      }
+    ],
+    "scrapedAt": "2025-07-07T10:12:23.250Z",
+    "extractedData": {
+      "hasDetailedInfo": true,
+      "floorPlanCount": 3,
+      "unitMixCount": 1,
+      "hasDescription": true,
+      "hasDetailedPropertyInfo": true
+    }
+  },
+  {
+    "name": "3 Orchard By-The-Park 乌节三翠林",
+    "developer": "Unknown Developer",
+    "address": "3 Orchard Boulevard",
+    "district": "D10",
+    "propertyType": "Private Condo",
+    "priceRange": {
+      "raw": "-"
+    },
+    "description": "",
+    "units": "",
+    "completion": "",
+    "tenure": "",
+    "blocks": "",
+    "sizeRange": "N/A",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/3-Orchard-By-The-Park-乌节三翠林",
+    "floorPlans": [],
+    "unitMix": [],
+    "scrapedAt": "2025-07-07T10:12:30.408Z",
+    "extractedData": {
+      "hasDetailedInfo": true,
+      "floorPlanCount": 0,
+      "unitMixCount": 0,
+      "hasDescription": false,
+      "hasDetailedPropertyInfo": false
+    }
+  },
+  {
+    "name": "32 Gilstead",
+    "developer": "Peak Vista Pte Ltd",
+    "address": "32 , 34 Gilstead Road",
+    "district": "D11",
+    "propertyType": "Residential Lowrise",
+    "priceRange": {
+      "raw": "TBC"
+    },
+    "description": "32 GILSTEAD IS A 5-STOREY RESIDENTIAL FLAT (14 UNITS) DEVELOPEMENT WITH A BASEMENT CARPARK,SWIMMING POOL, & COMMUNAL LANDSCAPE FACILITIES.",
+    "units": "14",
+    "completion": "Q2/ Q3 2026",
+    "tenure": "Freehold",
+    "blocks": "Tower 1/05、Tower 2/05、Tower 3/05",
+    "sizeRange": "N/A",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/32-Gilstead",
+    "floorPlans": [
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 1",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/0bfbb61769804234ab3e561f06a492b2/914b29ead173490394bf8faab7a0a41e/floorPlanImg/20240318/D1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 1",
+        "filename": "floorplan_1.jpg",
+        "hasImage": true
+      },
+      {
+        "type": "floor_plan",
+        "name": "Floor Plan 2",
+        "bedroomType": "Unknown",
+        "bedroomCount": "0",
+        "url": "https://img.singmap.com/upload/broke/0bfbb61769804234ab3e561f06a492b2/914b29ead173490394bf8faab7a0a41e/floorPlanImg/20240318/D1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "alt": "Floor plan 2",
+        "filename": "floorplan_2.jpg",
+        "hasImage": true
+      }
+    ],
+    "unitMix": [],
+    "scrapedAt": "2025-07-07T10:12:38.192Z",
+    "extractedData": {
+      "hasDetailedInfo": true,
+      "floorPlanCount": 2,
+      "unitMixCount": 0,
+      "hasDescription": true,
+      "hasDetailedPropertyInfo": true
+    }
+  }
+]

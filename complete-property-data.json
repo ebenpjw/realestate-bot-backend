@@ -1,0 +1,177 @@
+{
+  "name": "10 Evelyn",
+  "developer": "Unknown Developer",
+  "address": "Location  MRT Bus Schools Mall Food",
+  "district": "Unknown",
+  "propertyType": "Private Condo",
+  "priceRange": {
+    "raw": "$1,425,090-$3,475,290"
+  },
+  "sourceUrl": "https://www.ecoprop.com/projectdetail/10-Evelyn",
+  "visualAssets": [
+    {
+      "type": "property_image",
+      "url": "https://img.singmap.com/upload/broke/77bca671819a4ee69063f560fa734361/b4323957827046808662cfed12d9b211/imgs/dev2.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_75/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+      "alt": "Property image 1",
+      "filename": "property_1.jpg"
+    },
+    {
+      "type": "property_image",
+      "url": "https://img.singmap.com/upload/broke/77bca671819a4ee69063f560fa734361/b4323957827046808662cfed12d9b211/imgs/dev6.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_75/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+      "alt": "Property image 2",
+      "filename": "property_2.jpg"
+    },
+    {
+      "type": "property_image",
+      "url": "https://img.singmap.com/upload/broke/77bca671819a4ee69063f560fa734361/b4323957827046808662cfed12d9b211/imgs/dev3.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_75/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+      "alt": "Property image 3",
+      "filename": "property_3.jpg"
+    },
+    {
+      "type": "property_image",
+      "url": "https://img.singmap.com/upload/broke/77bca671819a4ee69063f560fa734361/b4323957827046808662cfed12d9b211/imgs/time/10%20Evelyn%20Facade.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_75/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+      "alt": "Property image 4",
+      "filename": "property_4.jpg"
+    },
+    {
+      "type": "property_image",
+      "url": "https://img.singmap.com/upload/broke/77bca671819a4ee69063f560fa734361/b4323957827046808662cfed12d9b211/imgs/time/10%20Evelyn%20Master%20bedroom.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_75/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+      "alt": "Property image 5",
+      "filename": "property_5.jpg"
+    },
+    {
+      "type": "floor_plan",
+      "name": "Floor Plan 1",
+      "bedroomType": "Unknown",
+      "bedroomCount": "0",
+      "url": "https://img.singmap.com/upload/broke/77bca671819a4ee69063f560fa734361/b4323957827046808662cfed12d9b211/floorPlanImg/A4.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+      "alt": "Floor plan 1",
+      "filename": "floorplan_1.jpg",
+      "hasImage": true
+    },
+    {
+      "type": "floor_plan",
+      "name": "Floor Plan 2",
+      "bedroomType": "Unknown",
+      "bedroomCount": "0",
+      "url": "https://img.singmap.com/upload/broke/77bca671819a4ee69063f560fa734361/b4323957827046808662cfed12d9b211/floorPlanImg/A4.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+      "alt": "Floor plan 2",
+      "filename": "floorplan_2.jpg",
+      "hasImage": true
+    },
+    {
+      "type": "floor_plan",
+      "name": "Floor Plan 3",
+      "bedroomType": "Unknown",
+      "bedroomCount": "0",
+      "url": "https://img.singmap.com/upload/broke/77bca671819a4ee69063f560fa734361/b4323957827046808662cfed12d9b211/floorPlanImg/A4.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+      "alt": "Floor plan 3",
+      "filename": "floorplan_3.jpg",
+      "hasImage": true
+    },
+    {
+      "type": "floor_plan",
+      "name": "Floor Plan 4",
+      "bedroomType": "Unknown",
+      "bedroomCount": "0",
+      "url": "https://img.singmap.com/upload/broke/77bca671819a4ee69063f560fa734361/b4323957827046808662cfed12d9b211/floorPlanImg/A4.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+      "alt": "Floor plan 4",
+      "filename": "floorplan_4.jpg",
+      "hasImage": true
+    }
+  ],
+  "floorPlans": [
+    {
+      "type": "floor_plan",
+      "name": "Floor Plan 1",
+      "bedroomType": "Unknown",
+      "bedroomCount": "0",
+      "url": "https://img.singmap.com/upload/broke/77bca671819a4ee69063f560fa734361/b4323957827046808662cfed12d9b211/floorPlanImg/A4.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+      "alt": "Floor plan 1",
+      "filename": "floorplan_1.jpg",
+      "hasImage": true
+    },
+    {
+      "type": "floor_plan",
+      "name": "Floor Plan 2",
+      "bedroomType": "Unknown",
+      "bedroomCount": "0",
+      "url": "https://img.singmap.com/upload/broke/77bca671819a4ee69063f560fa734361/b4323957827046808662cfed12d9b211/floorPlanImg/A4.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+      "alt": "Floor plan 2",
+      "filename": "floorplan_2.jpg",
+      "hasImage": true
+    },
+    {
+      "type": "floor_plan",
+      "name": "Floor Plan 3",
+      "bedroomType": "Unknown",
+      "bedroomCount": "0",
+      "url": "https://img.singmap.com/upload/broke/77bca671819a4ee69063f560fa734361/b4323957827046808662cfed12d9b211/floorPlanImg/A4.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+      "alt": "Floor plan 3",
+      "filename": "floorplan_3.jpg",
+      "hasImage": true
+    },
+    {
+      "type": "floor_plan",
+      "name": "Floor Plan 4",
+      "bedroomType": "Unknown",
+      "bedroomCount": "0",
+      "url": "https://img.singmap.com/upload/broke/77bca671819a4ee69063f560fa734361/b4323957827046808662cfed12d9b211/floorPlanImg/A4.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+      "alt": "Floor plan 4",
+      "filename": "floorplan_4.jpg",
+      "hasImage": true
+    }
+  ],
+  "unitMix": [
+    {
+      "type": "1 BEDROOM",
+      "sizeRange": {
+        "raw": "495 - 785",
+        "min": 495,
+        "max": 785,
+        "unit": "sqft"
+      },
+      "priceRange": {
+        "raw": "$1.43M -\n          $1.85M",
+        "min": 1430000,
+        "max": 1850000,
+        "currency": "SGD"
+      },
+      "availability": {
+        "raw": "8 / 28",
+        "available": 8,
+        "total": 28,
+        "percentage": 29
+      }
+    },
+    {
+      "type": "PENTHOUSE",
+      "sizeRange": {
+        "raw": "1410 - 1431",
+        "min": 1410,
+        "max": 1431,
+        "unit": "sqft"
+      },
+      "priceRange": {
+        "raw": "$3.39M -\n          $3.48M",
+        "min": 3390000,
+        "max": 3480000,
+        "currency": "SGD"
+      },
+      "availability": {
+        "raw": "2 / 4",
+        "available": 2,
+        "total": 4,
+        "percentage": 50
+      }
+    }
+  ],
+  "scrapedAt": "2025-07-07T09:48:03.153Z",
+  "extractedData": {
+    "hasDetailedInfo": true,
+    "imageCount": 5,
+    "floorPlanCount": 4,
+    "unitMixCount": 2,
+    "hasDescription": false
+  }
+}

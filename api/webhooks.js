@@ -29,7 +29,18 @@ router.post('/property-data', [
   body('properties.*.developer').optional().isString(),
   body('properties.*.address').optional().isString(),
   body('properties.*.district').optional().isString(),
+  body('properties.*.propertyType').optional().isString(),
+  body('properties.*.tenure').optional().isString(),
+  body('properties.*.description').optional().isString(),
+  body('properties.*.units').optional().isString(),
+  body('properties.*.completion').optional().isString(),
+  body('properties.*.blocks').optional().isString(),
+  body('properties.*.sizeRange').optional().isString(),
+  body('properties.*.priceRange').optional().isObject(),
+  body('properties.*.floorPlans').optional().isArray(),
+  body('properties.*.unitMix').optional().isArray(),
   body('properties.*.visualAssets').optional().isArray(),
+  body('properties.*.extractedData').optional().isObject(),
   body('source').notEmpty().withMessage('Source is required'),
   body('timestamp').isISO8601().withMessage('Valid timestamp required')
 ], async (req, res) => {
@@ -225,11 +236,35 @@ router.post('/manual-property', [
 });
 
 /**
- * Save property data from webhook
+ * Save property data from webhook (Enhanced for new scraper format)
  */
 async function savePropertyFromWebhook(propertyData, source) {
   try {
-    // Insert or update property project
+    // Parse price range from raw format
+    const parsePriceRange = (priceRaw) => {
+      if (!priceRaw) return { min: null, max: null };
+
+      const matches = priceRaw.match(/\$?([\d,]+(?:\.\d+)?)[KMk]?\s*-\s*\$?([\d,]+(?:\.\d+)?)[KMk]?/);
+      if (!matches) return { min: null, max: null };
+
+      let min = parseFloat(matches[1].replace(/,/g, ''));
+      let max = parseFloat(matches[2].replace(/,/g, ''));
+
+      // Handle K/M suffixes
+      if (priceRaw.includes('M') || priceRaw.includes('m')) {
+        min *= 1000000;
+        max *= 1000000;
+      } else if (priceRaw.includes('K') || priceRaw.includes('k')) {
+        min *= 1000;
+        max *= 1000;
+      }
+
+      return { min, max };
+    };
+
+    const priceRange = parsePriceRange(propertyData.priceRange?.raw);
+
+    // Insert or update property project with enhanced fields
     const { data: project, error: projectError } = await supabase
       .from('property_projects')
       .upsert({
@@ -238,10 +273,17 @@ async function savePropertyFromWebhook(propertyData, source) {
         address: propertyData.address || 'Singapore',
         district: propertyData.district || 'Unknown',
         property_type: propertyData.propertyType || 'Private Condo',
-        tenure: propertyData.tenure || '99 Years',
-        price_range_min: propertyData.priceRange?.min,
-        price_range_max: propertyData.priceRange?.max,
+        tenure: propertyData.tenure || null,
+        price_range_min: priceRange.min,
+        price_range_max: priceRange.max,
+        price_range_raw: propertyData.priceRange?.raw,
+        description: propertyData.description,
+        units_count: propertyData.units ? parseInt(propertyData.units) : null,
+        blocks_info: propertyData.blocks,
+        size_range_sqft: propertyData.sizeRange,
         source_url: propertyData.sourceUrl || `webhook://${source}`,
+        scraped_at: propertyData.scrapedAt || new Date().toISOString(),
+        extracted_data: propertyData.extractedData || {},
         last_scraped: new Date().toISOString(),
         scraping_status: 'completed'
       }, {
@@ -255,36 +297,86 @@ async function savePropertyFromWebhook(propertyData, source) {
       throw new Error(`Failed to save property: ${projectError.message}`);
     }
 
-    // Save visual assets if provided
-    if (propertyData.visualAssets && propertyData.visualAssets.length > 0) {
-      for (const asset of propertyData.visualAssets) {
+    // Save floor plans if provided (enhanced format)
+    if (propertyData.floorPlans && propertyData.floorPlans.length > 0) {
+      for (const floorPlan of propertyData.floorPlans) {
         await supabase
           .from('visual_assets')
-          .insert({
+          .upsert({
             project_id: project.id,
-            asset_type: asset.type || 'floor_plan',
-            file_name: asset.filename || 'unknown.jpg',
-            storage_path: `webhook-assets/${project.id}/${asset.filename}`,
-            public_url: asset.url,
-            original_url: asset.url,
-            alt_text: asset.alt || '',
-            processing_status: 'pending'
+            asset_type: 'floor_plan',
+            file_name: floorPlan.filename || floorPlan.name || 'floor_plan.jpg',
+            storage_path: `floor-plans/${project.id}/${floorPlan.filename || floorPlan.name}`,
+            public_url: floorPlan.url,
+            original_url: floorPlan.url,
+            alt_text: floorPlan.alt || floorPlan.name || '',
+            bedroom_type: floorPlan.bedroomType,
+            bedroom_count: floorPlan.bedroomCount ? parseInt(floorPlan.bedroomCount) : null,
+            image_width: floorPlan.imageWidth,
+            image_height: floorPlan.imageHeight,
+            has_image: floorPlan.hasImage !== false,
+            source_filename: floorPlan.filename,
+            extraction_metadata: {
+              type: floorPlan.type,
+              name: floorPlan.name,
+              extractedAt: new Date().toISOString()
+            },
+            processing_status: 'completed'
+          }, {
+            onConflict: 'project_id,file_name',
+            ignoreDuplicates: false
           });
       }
     }
 
-    // Save property units if provided
-    if (propertyData.units && propertyData.units.length > 0) {
-      for (const unit of propertyData.units) {
+    // Save unit mix data if provided (new format)
+    if (propertyData.unitMix && propertyData.unitMix.length > 0) {
+      // First, remove existing unit mix for this project to avoid duplicates
+      await supabase
+        .from('property_unit_mix')
+        .delete()
+        .eq('project_id', project.id);
+
+      // Insert new unit mix data
+      for (const unitType of propertyData.unitMix) {
         await supabase
-          .from('property_units')
+          .from('property_unit_mix')
           .insert({
             project_id: project.id,
-            unit_type: unit.type,
-            bedrooms: unit.bedrooms,
-            bathrooms: unit.bathrooms,
-            size_sqft: unit.size_sqft,
-            unit_price: unit.price
+            unit_type: unitType.type,
+            size_range_raw: unitType.sizeRange?.raw,
+            size_min_sqft: unitType.sizeRange?.min,
+            size_max_sqft: unitType.sizeRange?.max,
+            size_unit: unitType.sizeRange?.unit || 'sqft',
+            price_range_raw: unitType.priceRange?.raw,
+            price_min: unitType.priceRange?.min,
+            price_max: unitType.priceRange?.max,
+            price_currency: unitType.priceRange?.currency || 'SGD',
+            availability_raw: unitType.availability?.raw,
+            units_available: unitType.availability?.available,
+            units_total: unitType.availability?.total,
+            availability_percentage: unitType.availability?.percentage
+          });
+      }
+    }
+
+    // Legacy visual assets support (for backward compatibility)
+    if (propertyData.visualAssets && propertyData.visualAssets.length > 0) {
+      for (const asset of propertyData.visualAssets) {
+        await supabase
+          .from('visual_assets')
+          .upsert({
+            project_id: project.id,
+            asset_type: asset.type || 'property_image',
+            file_name: asset.filename || 'unknown.jpg',
+            storage_path: `legacy-assets/${project.id}/${asset.filename}`,
+            public_url: asset.url,
+            original_url: asset.url,
+            alt_text: asset.alt || '',
+            processing_status: 'completed'
+          }, {
+            onConflict: 'project_id,file_name',
+            ignoreDuplicates: true
           });
       }
     }

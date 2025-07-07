@@ -1,0 +1,58 @@
+name: Property Data Collection
+
+on:
+  schedule:
+    # Run daily at 2 AM Singapore time (6 PM UTC previous day)
+    - cron: '0 18 * * *'
+  workflow_dispatch: # Allow manual triggering
+    inputs:
+      limit:
+        description: 'Number of properties to scrape'
+        required: false
+        default: '20'
+
+jobs:
+  scrape-property-data:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        npm ci
+        npx playwright install chromium
+
+    - name: Run property data scraping
+      env:
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        RAILWAY_API_URL: ${{ secrets.RAILWAY_API_URL }}
+        PROPERTY_LIMIT: ${{ github.event.inputs.limit || '20' }}
+      run: |
+        node scripts/githubActionsScraper.js
+
+    - name: Upload scraping logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: scraping-logs-${{ github.run_number }}
+        path: logs/
+        retention-days: 7
+
+    - name: Notify completion
+      if: always()
+      env:
+        RAILWAY_API_URL: ${{ secrets.RAILWAY_API_URL }}
+      run: |
+        curl -X POST "$RAILWAY_API_URL/api/webhooks/scraping-completed" \
+          -H "Content-Type: application/json" \
+          -d "{\"status\":\"${{ job.status }}\",\"run_id\":\"${{ github.run_number }}\",\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"

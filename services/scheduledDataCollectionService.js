@@ -1,12 +1,14 @@
 const cron = require('node-cron');
 const logger = require('../logger');
 const VisualPropertyScrapingService = require('./visualPropertyScrapingService');
+const ExternalScrapingService = require('./externalScrapingService');
 const VisualAnalysisService = require('./visualAnalysisService');
 const supabase = require('../supabaseClient');
 
 class ScheduledDataCollectionService {
   constructor() {
     this.scrapingService = new VisualPropertyScrapingService();
+    this.externalScrapingService = new ExternalScrapingService();
     this.analysisService = new VisualAnalysisService();
     this.isRunning = false;
     this.scheduledTasks = new Map();
@@ -154,25 +156,40 @@ class ScheduledDataCollectionService {
         return;
       }
 
-      // Run the scraping
-      const result = await this.scrapingService.scrapePropertyData();
-      
+      // Try external scraping service first (Railway-compatible)
+      let result;
+      try {
+        logger.info('Attempting external scraping service');
+        result = await this.externalScrapingService.scrapePropertyData();
+      } catch (externalError) {
+        logger.warn({ err: externalError }, 'External scraping failed, trying fallback method');
+
+        // Fallback to original scraping service (may fail on Railway)
+        try {
+          result = await this.scrapingService.scrapePropertyData();
+        } catch (fallbackError) {
+          logger.error({ err: fallbackError }, 'All scraping methods failed');
+          throw new Error('All scraping methods failed');
+        }
+      }
+
       logger.info({
         processed: result.processed,
         updated: result.updated,
-        assets: result.assetsDownloaded,
-        errors: result.errors
+        assets: result.assetsDownloaded || 0,
+        errors: result.errors,
+        provider: result.provider || 'unknown'
       }, 'Scheduled scraping completed');
 
       // Trigger AI analysis for new assets
-      if (result.assetsDownloaded > 0) {
+      if (result.updated > 0) {
         logger.info('Triggering AI analysis for new assets');
         setTimeout(() => this.runAIAnalysis(), 5000); // Wait 5 seconds then analyze
       }
 
     } catch (error) {
       logger.error({ err: error }, 'Scheduled scraping failed');
-      
+
       // Log the failure for monitoring
       await this.logScheduledTaskFailure('full-scraping', error.message);
     }

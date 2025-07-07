@@ -1,0 +1,50 @@
+{
+  "property": "10 Evelyn",
+  "url": "https://www.ecoprop.com/projectdetail/10-Evelyn",
+  "hasUnitMixTable": true,
+  "unitMix": [
+    {
+      "type": "1 BEDROOM",
+      "sizeRange": {
+        "raw": "495 - 785",
+        "min": 495,
+        "max": 785,
+        "unit": "sqft"
+      },
+      "priceRange": {
+        "raw": "$1.43M -\n          $1.85M",
+        "min": 1430000,
+        "max": 1850000,
+        "currency": "SGD"
+      },
+      "availability": {
+        "raw": "8 / 28",
+        "available": 8,
+        "total": 28,
+        "percentage": 29
+      }
+    },
+    {
+      "type": "PENTHOUSE",
+      "sizeRange": {
+        "raw": "1410 - 1431",
+        "min": 1410,
+        "max": 1431,
+        "unit": "sqft"
+      },
+      "priceRange": {
+        "raw": "$3.39M -\n          $3.48M",
+        "min": 3390000,
+        "max": 3480000,
+        "currency": "SGD"
+      },
+      "availability": {
+        "raw": "2 / 4",
+        "available": 2,
+        "total": 4,
+        "percentage": 50
+      }
+    }
+  ],
+  "testDate": "2025-07-07T09:32:48.427Z"
+}
