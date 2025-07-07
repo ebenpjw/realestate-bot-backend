@@ -100,7 +100,10 @@ router.post('/property-data', [
       } catch (error) {
         logger.error({
           err: error,
-          property: propertyData.name
+          property: propertyData.name,
+          errorMessage: error.message,
+          errorStack: error.stack,
+          propertyDataKeys: Object.keys(propertyData || {})
         }, 'Failed to process property from webhook');
         errorCount++;
       }
@@ -390,7 +393,13 @@ async function savePropertyFromWebhook(propertyData, source) {
     return project;
 
   } catch (error) {
-    logger.error({ err: error }, 'Failed to save property from webhook');
+    logger.error({
+      err: error,
+      propertyName: propertyData?.name,
+      errorMessage: error.message,
+      errorStack: error.stack,
+      propertyData: JSON.stringify(propertyData, null, 2)
+    }, 'Failed to save property from webhook');
     throw error;
   }
 }
