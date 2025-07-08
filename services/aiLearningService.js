@@ -516,10 +516,9 @@ class AILearningService {
         insights_generated: outcome.insights
       };
 
-      // Store in database
-      const { error } = await supabase
-        .from('simulation_results')
-        .insert(simulationResult);
+      // Store in database (simulation_results table removed in cleanup)
+      // For now, log simulation results instead of storing
+      logger.info({ simulationResult }, 'Simulation completed');
 
       if (error) {
         logger.warn({ err: error, batchId }, 'Failed to store simulation result');

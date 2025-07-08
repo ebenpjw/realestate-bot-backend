@@ -31,7 +31,7 @@ router.get('/projects', [
     const { district, property_type, limit = 20, offset = 0 } = req.query;
 
     let query = supabase
-      .from('project_summary')
+      .from('enhanced_project_summary')
       .select('*')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
@@ -105,12 +105,12 @@ router.get('/projects/:projectId', [
       logger.error({ err: assetsError }, 'Failed to fetch visual assets');
     }
 
-    // Get property units
+    // Get property unit mix
     const { data: units, error: unitsError } = await supabase
-      .from('property_units')
+      .from('property_unit_mix')
       .select('*')
       .eq('project_id', projectId)
-      .order('bedrooms', { ascending: true });
+      .order('unit_type', { ascending: true });
 
     if (unitsError) {
       logger.error({ err: unitsError }, 'Failed to fetch property units');
@@ -163,7 +163,7 @@ router.get('/search', [
       .from('property_projects')
       .select(`
         *,
-        property_units(*),
+        property_unit_mix(*),
         property_search_index(*)
       `)
       .limit(limit);
@@ -179,7 +179,8 @@ router.get('/search', [
     }
 
     if (bedrooms) {
-      query = query.eq('property_units.bedrooms', bedrooms);
+      // Filter by unit type containing bedroom count
+      query = query.or(`unit_type.ilike.%${bedrooms} bedroom%,unit_type.ilike.%${bedrooms}br%`);
     }
 
     const { data: results, error } = await query;
@@ -395,7 +396,7 @@ router.get('/recommendations/:leadId', [
       .from('property_projects')
       .select(`
         *,
-        property_units(*),
+        property_unit_mix(*),
         property_search_index(*),
         visual_assets(id, asset_type, public_url)
       `)

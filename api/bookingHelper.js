@@ -6,7 +6,8 @@ const logger = require('../logger');
 const {
   formatToFullISO,
   getNowInSg,
-  createSgDate
+  createSgDate,
+  toSgTime
 } = require('../utils/timezoneUtils');
 
 const SLOT_DURATION_MINUTES = 60; // 1 hour consultations
@@ -448,6 +449,22 @@ function parsePreferredTime(message) {
  */
 async function isTimeSlotAvailable(agentId, requestedTime) {
     try {
+        // CRITICAL: Check if the requested time is in the past
+        const now = new Date();
+        const nowSg = toSgTime(now);
+        const requestedSg = toSgTime(requestedTime);
+
+        if (requestedSg <= nowSg) {
+            logger.info({
+                agentId,
+                requestedTime: requestedTime.toISOString(),
+                requestedTimeLocal: requestedTime.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' }),
+                currentTime: now.toISOString(),
+                currentTimeLocal: now.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+            }, 'PAST TIME REJECTION: Requested time is in the past');
+            return false;
+        }
+
         const workingHours = await getAgentWorkingHours(agentId);
 
         // CRITICAL DEBUG: Log working hours retrieval
@@ -486,7 +503,7 @@ async function isTimeSlotAvailable(agentId, requestedTime) {
             return false;
         }
 
-        // Check for calendar conflicts with enhanced logging
+        // Check Google Calendar for conflicts (single source of truth for availability)
         const slotStart = formatToFullISO(requestedTime);
         const slotEnd = formatToFullISO(new Date(requestedTime.getTime() + 60 * 60 * 1000)); // 1 hour later
 

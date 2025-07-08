@@ -4695,7 +4695,7 @@ FOCUS ON STRATEGIC IMPACT, NOT CHARACTER COUNTS!
         .from('property_projects')
         .select(`
           *,
-          property_units(*),
+          property_unit_mix(*),
           visual_assets(id, asset_type, public_url, ai_visual_analysis(*)),
           property_search_index(*)
         `)
@@ -4712,7 +4712,8 @@ FOCUS ON STRATEGIC IMPACT, NOT CHARACTER COUNTS!
       }
 
       if (searchCriteria.bedrooms) {
-        query = query.eq('property_units.bedrooms', searchCriteria.bedrooms);
+        // Filter by unit type containing bedroom count
+        query = query.or(`property_unit_mix.unit_type.ilike.%${searchCriteria.bedrooms} bedroom%,property_unit_mix.unit_type.ilike.%${searchCriteria.bedrooms}br%`);
       }
 
       if (searchCriteria.maxPrice) {
@@ -4755,7 +4756,7 @@ FOCUS ON STRATEGIC IMPACT, NOT CHARACTER COUNTS!
               min: property.price_range_min,
               max: property.price_range_max
             },
-            units: property.property_units || [],
+            units: property.property_unit_mix || [],
             floorPlansCount: floorPlans.length,
             brochuresCount: brochures.length,
             aiInsights: aiInsights.map(insight => ({
@@ -4886,8 +4887,8 @@ FOCUS ON STRATEGIC IMPACT, NOT CHARACTER COUNTS!
       snippet += ` Price range: $${property.price_range_min.toLocaleString()} - $${property.price_range_max.toLocaleString()}.`;
     }
 
-    if (property.property_units && property.property_units.length > 0) {
-      const unitTypes = property.property_units.map(unit => `${unit.bedrooms}BR`).join(', ');
+    if (property.property_unit_mix && property.property_unit_mix.length > 0) {
+      const unitTypes = property.property_unit_mix.map(unit => unit.unit_type).join(', ');
       snippet += ` Available units: ${unitTypes}.`;
     }
 

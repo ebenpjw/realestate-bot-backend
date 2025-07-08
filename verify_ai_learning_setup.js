@@ -19,8 +19,8 @@ function checkDatabaseTables() {
   console.log('   • conversation_outcomes');
   console.log('   • strategy_performance');
   console.log('   • strategy_optimizations');
-  console.log('   • ab_tests');
-  console.log('   • simulation_results');
+  console.log('   ⚠️  ab_tests (removed in cleanup)');
+  console.log('   ⚠️  simulation_results (removed in cleanup)');
   console.log('\n💡 You can verify by running this query in Supabase SQL Editor:');
   console.log(`
 SELECT table_name 
@@ -28,10 +28,8 @@ FROM information_schema.tables
 WHERE table_schema = 'public' 
 AND table_name IN (
   'conversation_outcomes',
-  'strategy_performance', 
-  'strategy_optimizations',
-  'ab_tests',
-  'simulation_results'
+  'strategy_performance',
+  'strategy_optimizations'
 )
 ORDER BY table_name;
   `);

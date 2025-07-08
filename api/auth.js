@@ -22,7 +22,9 @@ const oauth2Client = new google.auth.OAuth2(
 
 const scopes = [
   'https://www.googleapis.com/auth/calendar.events',
-  'https://www.googleapis.com/auth/calendar.freebusy'
+  'https://www.googleapis.com/auth/calendar.freebusy',
+  'https://www.googleapis.com/auth/calendar.readonly',
+  'https://www.googleapis.com/auth/calendar.calendars.readonly'
 ];
 
 // Test endpoint to check if agent exists

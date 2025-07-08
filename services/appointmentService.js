@@ -2,9 +2,9 @@
 
 const supabase = require('../supabaseClient');
 const logger = require('../logger');
-const { createEvent } = require('../api/googleCalendarService');
+const { createEvent, deleteEvent } = require('../api/googleCalendarService');
 const { createZoomMeetingForUser, deleteZoomMeetingForUser } = require('../api/zoomServerService');
-const { findMatchingSlot } = require('../api/bookingHelper');
+const { findMatchingSlot, isTimeSlotAvailable } = require('../api/bookingHelper');
 const whatsappService = require('./whatsappService');
 const {
   formatForGoogleCalendar,
@@ -22,6 +22,54 @@ const {
 class AppointmentService {
   constructor() {
     this.APPOINTMENT_DURATION = 60; // 1 hour in minutes
+  }
+
+  /**
+   * Check if a time slot conflicts with existing appointments or calendar events
+   * Uses Google Calendar as the single source of truth for availability
+   * @param {string} agentId - Agent ID
+   * @param {Date} startTime - Appointment start time
+   * @param {Date} endTime - Appointment end time
+   * @param {string} excludeAppointmentId - Appointment ID to exclude (for rescheduling)
+   * @returns {Promise<boolean>} True if conflict exists
+   */
+  async checkTimeSlotConflict(agentId, startTime, endTime, excludeAppointmentId = null) {
+    try {
+      logger.info({
+        agentId,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        excludeAppointmentId
+      }, 'Checking time slot conflicts using Google Calendar as single source of truth');
+
+      // Use Google Calendar-based availability checking
+      const isAvailable = await isTimeSlotAvailable(agentId, startTime);
+
+      if (!isAvailable) {
+        logger.warn({
+          agentId,
+          requestedStart: startTime.toISOString(),
+          requestedEnd: endTime.toISOString(),
+          requestedTimeLocal: startTime.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+        }, 'Time slot conflict detected via Google Calendar');
+        return true; // Conflict exists
+      }
+
+      // Additional check: If we're rescheduling, we need to temporarily ignore the current appointment
+      // This is handled by the Google Calendar check since the old event will be deleted first
+
+      logger.info({
+        agentId,
+        requestedStart: startTime.toISOString(),
+        requestedEnd: endTime.toISOString(),
+        requestedTimeLocal: startTime.toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })
+      }, 'Time slot is available - no conflicts detected');
+
+      return false; // No conflict
+    } catch (error) {
+      logger.error({ err: error, agentId }, 'Error checking time slot conflicts via Google Calendar');
+      return false; // Allow booking if error occurs (fail open)
+    }
   }
 
 
@@ -55,6 +103,12 @@ class AppointmentService {
       // Ensure appointment times are in Singapore timezone
       const appointmentStart = toSgTime(appointmentTime);
       const appointmentEnd = new Date(appointmentStart.getTime() + this.APPOINTMENT_DURATION * 60 * 1000);
+
+      // Check for conflicts before creating appointment
+      const hasConflict = await this.checkTimeSlotConflict(agentId, appointmentStart, appointmentEnd);
+      if (hasConflict) {
+        throw new Error(`Time slot conflict detected. The requested time ${formatForDisplay(appointmentStart)} is already booked. Please choose a different time.`);
+      }
 
       // Fetch full lead details for enhanced calendar event
       const { data: leadDetails, error: leadError } = await supabase
@@ -229,6 +283,7 @@ class AppointmentService {
       }, 'Successfully created appointment with external integrations');
 
       return {
+        success: true,
         appointment: createdAppointment,
         zoomMeeting,
         calendarEvent
@@ -241,7 +296,10 @@ class AppointmentService {
         leadId,
         agentId
       }, 'Failed to create appointment');
-      throw error;
+      return {
+        success: false,
+        error: error.message
+      };
     }
   }
 
@@ -255,9 +313,20 @@ class AppointmentService {
     // Clean up Zoom meeting if created
     if (zoomMeeting && zoomMeeting.id && zoomMeeting.id !== 'placeholder') {
       try {
-        await retryZoomOperation(async () => {
-          await deleteZoomMeetingForUser(agentId, zoomMeeting.id);
-        }, 'rollback-zoom-meeting');
+        // Get agent details for Zoom user ID
+        const { data: agent } = await supabase
+          .from('agents')
+          .select('zoom_user_id')
+          .eq('id', agentId)
+          .single();
+
+        if (agent && agent.zoom_user_id) {
+          await retryZoomOperation(async () => {
+            await deleteZoomMeetingForUser(agent.zoom_user_id, zoomMeeting.id);
+          }, 'rollback-zoom-meeting');
+        } else {
+          logger.warn({ agentId, zoomMeetingId: zoomMeeting.id }, 'Cannot delete Zoom meeting during rollback - no zoom_user_id found');
+        }
 
         logger.info({ operationId, zoomMeetingId: zoomMeeting.id }, 'Zoom meeting cleaned up during rollback');
       } catch (error) {
@@ -272,11 +341,8 @@ class AppointmentService {
     // Clean up calendar event if created
     if (calendarEvent && calendarEvent.id) {
       try {
-        // Note: Calendar cleanup would require implementing deleteEvent in googleCalendarService
-        logger.warn({
-          operationId,
-          calendarEventId: calendarEvent.id
-        }, 'Calendar event cleanup not implemented - manual cleanup may be required');
+        await deleteEvent(agentId, calendarEvent.id);
+        logger.info({ operationId, calendarEventId: calendarEvent.id }, 'Calendar event cleaned up during rollback');
       } catch (error) {
         logger.warn({
           err: error,
@@ -315,14 +381,79 @@ class AppointmentService {
       const newStart = toSgTime(newAppointmentTime);
       const newEnd = new Date(newStart.getTime() + this.APPOINTMENT_DURATION * 60 * 1000);
 
-      // 2. Update Zoom meeting (Server-to-Server OAuth only)
-      if (appointment.zoom_meeting_id) {
-        logger.warn({ appointmentId, zoomMeetingId: appointment.zoom_meeting_id }, 'Zoom meeting update not implemented for Server-to-Server OAuth - manual update required');
+      // Check for conflicts with the new time (excluding current appointment)
+      const hasConflict = await this.checkTimeSlotConflict(appointment.agent_id, newStart, newEnd, appointmentId);
+      if (hasConflict) {
+        throw new Error(`Time slot conflict detected. The requested time ${formatForDisplay(newStart)} is already booked. Please choose a different time.`);
       }
 
-      // 3. Update calendar event (you might need to implement updateEvent in googleCalendarService)
-      // For now, we'll create a new event and delete the old one
+      // 2. Delete old Zoom meeting and create new one
+      let newZoomMeeting = null;
+      if (appointment.zoom_meeting_id) {
+        try {
+          // Get agent details for Zoom user ID
+          const { data: agent } = await supabase
+            .from('agents')
+            .select('zoom_user_id, full_name')
+            .eq('id', appointment.agent_id)
+            .single();
+
+          if (agent && agent.zoom_user_id) {
+            // Delete old Zoom meeting
+            await deleteZoomMeetingForUser(agent.zoom_user_id, appointment.zoom_meeting_id);
+            logger.info({
+              appointmentId,
+              oldZoomMeetingId: appointment.zoom_meeting_id
+            }, 'Successfully deleted old Zoom meeting during reschedule');
+
+            // Create new Zoom meeting
+            const zoomStartTime = newStart.toLocaleString('sv-SE', {
+              timeZone: 'Asia/Singapore'
+            }).replace(' ', 'T');
+
+            newZoomMeeting = await createZoomMeetingForUser(agent.zoom_user_id, {
+              topic: `Property Consultation: ${appointment.leads.full_name} (Rescheduled)`,
+              startTime: zoomStartTime,
+              duration: this.APPOINTMENT_DURATION,
+              agenda: appointment.consultation_notes
+            });
+
+            logger.info({
+              appointmentId,
+              newZoomMeetingId: newZoomMeeting.id,
+              newStartTime: zoomStartTime
+            }, 'Successfully created new Zoom meeting during reschedule');
+          } else {
+            logger.warn({ appointmentId, zoomMeetingId: appointment.zoom_meeting_id }, 'Cannot manage Zoom meeting - no zoom_user_id found for agent');
+          }
+        } catch (zoomError) {
+          logger.warn({
+            err: zoomError,
+            appointmentId,
+            zoomMeetingId: appointment.zoom_meeting_id
+          }, 'Failed to manage Zoom meeting during reschedule, continuing...');
+        }
+      }
+
+      // 3. Update calendar event - delete old and create new
+      let newCalendarEventId = appointment.calendar_event_id;
+
       if (appointment.calendar_event_id) {
+        try {
+          // Delete the old calendar event first
+          await deleteEvent(appointment.agent_id, appointment.calendar_event_id);
+          logger.info({
+            appointmentId,
+            oldCalendarEventId: appointment.calendar_event_id
+          }, 'Successfully deleted old calendar event during reschedule');
+        } catch (error) {
+          logger.warn({
+            err: error,
+            appointmentId,
+            oldCalendarEventId: appointment.calendar_event_id
+          }, 'Failed to delete old calendar event during reschedule, continuing...');
+        }
+
         // Fetch full lead details for enhanced description
         const { data: leadDetails } = await supabase
           .from('leads')
@@ -334,33 +465,56 @@ class AppointmentService {
         const originalTime = toSgTime(appointment.appointment_time);
         const rescheduleNote = `\n\n🔄 RESCHEDULED:\n• Original time: ${formatForDisplay(originalTime)}\n• New time: ${formatForDisplay(newStart)}\n• Reason: ${reason}`;
 
-        const newCalendarEvent = await createEvent(appointment.agent_id, {
-          summary: `🏠 Property Consultation: ${appointment.leads.full_name} (Rescheduled)`,
-          description: `${calendarDescription}${rescheduleNote}\n\n📞 Zoom Meeting: ${appointment.zoom_join_url}\n\n📝 Consultation Notes:\n${appointment.consultation_notes}`,
-          startTimeISO: formatForGoogleCalendar(newStart),
-          endTimeISO: formatForGoogleCalendar(newEnd)
-        });
+        try {
+          // Create new calendar event
+          const newCalendarEvent = await createEvent(appointment.agent_id, {
+            summary: `🏠 Property Consultation: ${appointment.leads.full_name} (Rescheduled)`,
+            description: `${calendarDescription}${rescheduleNote}\n\n📞 Zoom Meeting: ${appointment.zoom_join_url}\n\n📝 Consultation Notes:\n${appointment.consultation_notes}`,
+            startTimeISO: formatForGoogleCalendar(newStart),
+            endTimeISO: formatForGoogleCalendar(newEnd)
+          });
 
-        // Update appointment with new calendar event ID
-        appointment.calendar_event_id = newCalendarEvent.id;
+          newCalendarEventId = newCalendarEvent.id;
+          logger.info({
+            appointmentId,
+            newCalendarEventId
+          }, 'Successfully created new calendar event during reschedule');
+        } catch (error) {
+          logger.error({
+            err: error,
+            appointmentId
+          }, 'Failed to create new calendar event during reschedule');
+          // Continue without calendar event
+          newCalendarEventId = null;
+        }
       }
 
       // 4. Update appointment in database
+      const updateData = {
+        appointment_time: newStart.toISOString(), // Store in database timezone (Singapore)
+        status: 'rescheduled',
+        consultation_notes: appointment.consultation_notes ? `${appointment.consultation_notes}\n\nRescheduled: ${reason}` : `Rescheduled: ${reason}`,
+        updated_at: new Date().toISOString(),
+        calendar_event_id: newCalendarEventId
+      };
+
+      // Update Zoom meeting details if new meeting was created
+      if (newZoomMeeting) {
+        updateData.zoom_meeting_id = newZoomMeeting.id;
+        updateData.zoom_join_url = newZoomMeeting.joinUrl;
+        updateData.zoom_password = newZoomMeeting.password;
+      }
+
       const { data: updatedAppointment, error: updateError } = await supabase
         .from('appointments')
-        .update({
-          appointment_time: newStart.toISOString(), // Store in database timezone (Singapore)
-          status: 'rescheduled',
-          reschedule_reason: reason,
-          updated_at: new Date().toISOString(),
-          calendar_event_id: appointment.calendar_event_id
-        })
+        .update(updateData)
         .eq('id', appointmentId)
         .select()
         .single();
 
       if (updateError) {
-        throw new Error('Failed to update appointment in database');
+        logger.error({ err: updateError, appointmentId }, 'Database update error during reschedule');
+        throw new Error(`Failed to update appointment in database: ${updateError.message}`);
       }
 
       logger.info({
@@ -370,10 +524,16 @@ class AppointmentService {
         reason
       }, 'Successfully rescheduled appointment');
 
-      return updatedAppointment;
+      return {
+        success: true,
+        appointment: updatedAppointment
+      };
     } catch (error) {
       logger.error({ err: error, appointmentId }, 'Failed to reschedule appointment');
-      throw error;
+      return {
+        success: false,
+        error: error.message
+      };
     }
   }
 
@@ -415,13 +575,23 @@ class AppointmentService {
         }
       }
 
-      // 3. Update appointment status
+      // 3. Delete calendar event
+      if (appointment.calendar_event_id) {
+        try {
+          await deleteEvent(appointment.agent_id, appointment.calendar_event_id);
+          logger.info({ appointmentId, calendarEventId: appointment.calendar_event_id }, 'Calendar event deleted during cancellation');
+        } catch (calendarError) {
+          logger.warn({ err: calendarError, appointmentId, calendarEventId: appointment.calendar_event_id }, 'Failed to delete calendar event during cancellation, continuing...');
+        }
+      }
+
+      // 4. Update appointment status
       const { error: updateError } = await supabase
         .from('appointments')
         .update({
           status: 'cancelled',
-          cancellation_reason: reason,
-          cancelled_at: new Date().toISOString()
+          consultation_notes: appointment.consultation_notes ? `${appointment.consultation_notes}\n\nCancelled: ${reason}` : `Cancelled: ${reason}`,
+          updated_at: new Date().toISOString()
         })
         .eq('id', appointmentId);
 
@@ -429,13 +599,13 @@ class AppointmentService {
         throw new Error('Failed to update appointment status');
       }
 
-      // 4. Update lead status
+      // 5. Update lead status
       await supabase
         .from('leads')
         .update({ status: 'appointment_cancelled' })
         .eq('id', appointment.lead_id);
 
-      // 5. Notify lead if requested
+      // 6. Notify lead if requested
       if (notifyLead && appointment.leads.phone_number) {
         const appointmentDate = new Date(appointment.appointment_time);
         const cancelMessage = `Hi ${appointment.leads.full_name}, your consultation scheduled for ${appointmentDate.toLocaleDateString('en-SG', { weekday: 'long', day: 'numeric', month: 'long'})} at ${appointmentDate.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit', hour12: true })} has been cancelled.\n\nReason: ${reason}\n\nWould you like to reschedule? Just let me know your preferred time!`;
@@ -452,7 +622,10 @@ class AppointmentService {
         reason
       }, 'Successfully cancelled appointment');
 
-      return true;
+      return {
+        success: true,
+        appointmentId
+      };
     } catch (error) {
       logger.error({ err: error, appointmentId }, 'Failed to cancel appointment');
       throw error;

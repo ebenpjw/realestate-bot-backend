@@ -54,8 +54,8 @@ class AILearningManager {
       
       const results = {
         strategy_analysis: null,
-        simulation_results: null,
-        ab_test_results: null,
+        simulation_results: null, // Note: simulation_results table removed in cleanup
+        ab_test_results: null, // Note: ab_tests table removed in cleanup
         optimization_applied: false,
         performance_improvement: null
       };
@@ -63,11 +63,13 @@ class AILearningManager {
       // 1. Analyze current strategy effectiveness
       results.strategy_analysis = await aiLearningService.analyzeStrategyEffectiveness();
       
-      // 2. Run simulations for underperforming strategies
+      // 2. Run simulations for underperforming strategies (simulation_results table removed)
       if (results.strategy_analysis) {
         const underperformingStrategies = this._identifyUnderperformingStrategies(results.strategy_analysis);
         if (underperformingStrategies.length > 0) {
-          results.simulation_results = await this._runTargetedSimulations(underperformingStrategies);
+          // Log simulation intent instead of running (table removed)
+          logger.info({ underperformingStrategies }, 'Would run targeted simulations');
+          results.simulation_results = { total_simulations: 0, note: 'simulation_results table removed' };
         }
       }
 
@@ -243,16 +245,14 @@ class AILearningManager {
           const significance = this._calculateStatisticalSignificance(updatedTest);
           
           if (significance.is_significant) {
-            // Mark test as completed
-            await supabase
-              .from('ab_tests')
-              .update({
-                status: 'completed',
-                end_date: new Date().toISOString(),
-                statistical_significance: significance.p_value,
-                winner: significance.winner
-              })
-              .eq('id', testId);
+            // Mark test as completed (ab_tests table removed in cleanup)
+            // For now, log completion instead of updating database
+            logger.info({
+              testId,
+              status: 'completed',
+              winner: significance.winner,
+              significance: significance.p_value
+            }, 'A/B test completed');
 
             results.push({
               test_id: testId,
@@ -589,12 +589,10 @@ class AILearningManager {
    */
   async _getSimulationSummary() {
     try {
-      const { data: simulations, error } = await supabase
-        .from('simulation_results')
-        .select('outcome, engagement_score')
-        .gte('simulation_timestamp', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
-
-      if (error || !simulations) return { total: 0, success_rate: 0 };
+      // simulation_results table removed in cleanup
+      // Return empty summary for now
+      logger.info('Simulation summary requested but simulation_results table was removed in cleanup');
+      return { total: 0, success_rate: 0, note: 'simulation_results table removed' };
 
       const total = simulations.length;
       const successful = simulations.filter(s => s.outcome === 'appointment_booked').length;

@@ -18,6 +18,8 @@ class LocalPropertyScraper {
     this.authToken = process.env.WEBHOOK_SECRET || 'default-webhook-secret';
     this.maxPages = null; // Will be detected dynamically
     this.propertiesPerPage = 10; // Properties per page
+    this.downloadImages = process.env.DOWNLOAD_FLOOR_PLANS === 'true'; // Optional image download
+    this.imageStoragePath = './downloaded-floor-plans'; // Local storage path
   }
 
   // Load progress from file
@@ -258,20 +260,62 @@ class LocalPropertyScraper {
       console.log('   ➡️ Going to next page...');
 
       const nextClicked = await page.evaluate(() => {
-        const nextButton = document.querySelector('.btn-next');
-        if (nextButton && !nextButton.disabled) {
-          nextButton.click();
-          return true;
+        // Try multiple selectors for next button
+        const selectors = [
+          '.btn-next',
+          '.el-pager .btn-next',
+          '.pagination .next',
+          '.el-pagination .btn-next',
+          'button[aria-label="Next"]'
+        ];
+
+        for (const selector of selectors) {
+          const nextButton = document.querySelector(selector);
+          if (nextButton && !nextButton.disabled && !nextButton.classList.contains('disabled')) {
+            console.log(`Found next button with selector: ${selector}`);
+            nextButton.click();
+            return true;
+          }
         }
+
+        // Fallback: try to find any clickable element with "next" text
+        const allButtons = document.querySelectorAll('button, a, .btn, [role="button"]');
+        for (const btn of allButtons) {
+          const text = btn.textContent?.toLowerCase() || '';
+          const ariaLabel = btn.getAttribute('aria-label')?.toLowerCase() || '';
+          if ((text.includes('next') || text.includes('下一页') || ariaLabel.includes('next')) &&
+              !btn.disabled && !btn.classList.contains('disabled')) {
+            console.log(`Found next button by text: ${btn.textContent}`);
+            btn.click();
+            return true;
+          }
+        }
+
         return false;
       });
 
       if (nextClicked) {
-        await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 15000 });
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        return true;
+        // Wait for AJAX content to load (no navigation expected)
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
+        // Verify that we actually moved to the next page by checking page content
+        const pageChanged = await page.evaluate(() => {
+          // Look for page indicators or project cards to confirm page change
+          const pageIndicators = document.querySelectorAll('.el-pager .number.active, .current-page, .active-page');
+          const projectCards = document.querySelectorAll('.project_info, .project-card');
+          return pageIndicators.length > 0 || projectCards.length > 0;
+        });
+
+        if (pageChanged) {
+          console.log('   ✅ Successfully navigated to next page');
+          return true;
+        } else {
+          console.log('   ⚠️ Page content did not change after clicking next');
+          return false;
+        }
       }
 
+      console.log('   ⚠️ No next button found or clickable');
       return false;
     } catch (error) {
       console.log(`   ❌ Failed to go to next page: ${error.message}`);
@@ -801,13 +845,32 @@ class LocalPropertyScraper {
         return data;
       });
 
-      // Extract floor plans separately with interaction
-      console.log('   📐 Extracting floor plans...');
-      const floorPlans = await this.extractFloorPlans(page);
-
-      // Extract unit mix information
+      // Extract unit mix information first to check availability
       console.log('   📊 Extracting unit mix data...');
       const unitMix = await this.extractUnitMix(page);
+
+      let floorPlans = [];
+
+      // Only extract floor plans if there are available units for sale
+      if (unitMix && unitMix.length > 0) {
+        const hasAvailableUnits = unitMix.some(unit => {
+          // Check if unit has availability info and available units > 0
+          const availabilityStr = String(unit.availability || '');
+          const availMatch = availabilityStr.match(/(\d+)\/\d+/);
+          const availableCount = availMatch ? parseInt(availMatch[1]) : 0;
+          return availableCount > 0;
+        });
+
+        if (hasAvailableUnits) {
+          console.log(`   ✅ Found ${unitMix.length} unit types with available units - extracting floor plans...`);
+          console.log('   📐 Extracting floor plans...');
+          floorPlans = await this.extractFloorPlans(page);
+        } else {
+          console.log(`   ⚠️ Found ${unitMix.length} unit types but all sold out - skipping floor plan extraction`);
+        }
+      } else {
+        console.log('   ⚠️ No unit mix data found (likely sold out or no pricing) - skipping floor plan extraction');
+      }
 
       // Combine basic info with detailed info
       return {
@@ -931,107 +994,59 @@ class LocalPropertyScraper {
               // Wait for image to load
               await new Promise(resolve => setTimeout(resolve, 1500));
 
-              // Try to click on the floor plan image to enlarge it
-              try {
-                const imageClicked = await page.evaluate(() => {
-                  // Look for floor plan images that can be clicked
-                  const selectors = [
-                    'img[src*="floorPlanImg"]',
-                    '.el-image img',
-                    'img[src*="img.singmap.com"]'
-                  ];
+              // Wait for the floor plan image to appear in the right panel after clicking the floor plan type
+              await new Promise(resolve => setTimeout(resolve, 2000));
 
-                  for (const selector of selectors) {
-                    const imgs = document.querySelectorAll(selector);
-                    for (const img of imgs) {
-                      if (img.src &&
-                          img.src.includes('img.singmap.com') &&
-                          img.naturalWidth > 100 &&
-                          !img.src.includes('logo')) {
-                        // Try clicking on the image or its parent container
-                        const clickTarget = img.closest('.el-image') || img;
-                        clickTarget.click();
-                        return true;
-                      }
-                    }
-                  }
-                  return false;
-                });
+              // Extract the floor plan image that corresponds to the clicked floor plan type
+              const floorPlanImage = await page.evaluate((floorPlanName) => {
+                // Look for the floor plan image that matches the clicked floor plan type
+                // The image should have the floor plan name in the URL (e.g., floorPlanImg/A2.jpg)
 
-                if (imageClicked) {
-                  console.log(`           🔍 Clicked to enlarge floor plan image...`);
-                  await new Promise(resolve => setTimeout(resolve, 2500)); // Wait for enlarged image to load
-                }
-              } catch (clickError) {
-                console.log(`           ⚠️ Could not click to enlarge: ${clickError.message}`);
-              }
+                const floorPlanImages = document.querySelectorAll('img[src*="floorPlanImg"]');
 
-              // Extract the floor plan image from the right panel
-              const floorPlanImage = await page.evaluate(() => {
-                // First priority: Look for the enlarged image viewer (after clicking)
-                const enlargedImg = document.querySelector('.el-image-viewer__img');
-                if (enlargedImg && enlargedImg.src && enlargedImg.src.includes('floorPlanImg')) {
-                  return {
-                    url: enlargedImg.src,
-                    alt: enlargedImg.alt || '',
-                    width: enlargedImg.naturalWidth,
-                    height: enlargedImg.naturalHeight,
-                    filename: enlargedImg.src.split('/').pop()?.split('?')[0] || 'floorplan.jpg',
-                    isEnlarged: true,
-                    source: 'el-image-viewer'
-                  };
-                }
-
-                // Second priority: Look for floor plan images in the main display
-                const imageSelectors = [
-                  'img[src*="floorPlanImg"]', // Direct floor plan images
-                  '.el-image img',
-                  '.image-display img',
-                  '.plan-viewer img'
-                ];
-
-                for (const selector of imageSelectors) {
-                  const imgs = document.querySelectorAll(selector);
-                  for (const img of imgs) {
-                    if (img && img.src &&
-                        img.src.includes('img.singmap.com') &&
-                        (img.src.includes('floorPlanImg') || img.src.includes('floor')) &&
-                        img.naturalWidth > 100) {
-                      return {
-                        url: img.src,
-                        alt: img.alt || '',
-                        width: img.naturalWidth,
-                        height: img.naturalHeight,
-                        filename: img.src.split('/').pop()?.split('?')[0] || 'floorplan.jpg',
-                        isEnlarged: false,
-                        source: selector
-                      };
-                    }
-                  }
-                }
-
-                // Fallback: find any large image from singmap that might be a floor plan
-                const allImages = Array.from(document.querySelectorAll('img'));
-                for (const img of allImages) {
+                // First, try to find an image that specifically matches the floor plan name
+                for (const img of floorPlanImages) {
                   if (img.src &&
-                      img.src.includes('img.singmap.com') &&
-                      img.naturalWidth > 200 &&
-                      img.naturalHeight > 200 &&
-                      !img.src.includes('logo')) {
+                      img.src.includes('floorPlanImg/') &&
+                      img.src.includes(floorPlanName) &&
+                      img.offsetWidth > 100 &&
+                      img.offsetHeight > 100) {
+
+                    console.log(`Found matching floor plan image: ${img.src.substring(0, 100)}...`);
                     return {
                       url: img.src,
                       alt: img.alt || '',
                       width: img.naturalWidth,
                       height: img.naturalHeight,
                       filename: img.src.split('/').pop()?.split('?')[0] || 'floorplan.jpg',
-                      isEnlarged: false,
-                      source: 'fallback'
+                      source: 'matched-floorplan'
                     };
                   }
                 }
 
+                // If no exact match, find the most visible floor plan image
+                for (const img of floorPlanImages) {
+                  if (img.src &&
+                      img.src.includes('floorPlanImg/') &&
+                      img.offsetWidth > 100 &&
+                      img.offsetHeight > 100 &&
+                      img.naturalWidth > 200) {
+
+                    console.log(`Found visible floor plan image: ${img.src.substring(0, 100)}...`);
+                    return {
+                      url: img.src,
+                      alt: img.alt || '',
+                      width: img.naturalWidth,
+                      height: img.naturalHeight,
+                      filename: img.src.split('/').pop()?.split('?')[0] || 'floorplan.jpg',
+                      source: 'visible-floorplan'
+                    };
+                  }
+                }
+
+                console.log(`No floor plan image found for ${floorPlanName}`);
                 return null;
-              });
+              }, floorPlanType.name);
 
               // Extract bedroom count from type
               const bedroomMatch = floorPlanType.type.match(/(\d+)\s*Bedroom/i);
@@ -1122,47 +1137,76 @@ class LocalPropertyScraper {
                   // Only add if it looks like valid unit data
                   if (typeText && (typeText.toLowerCase().includes('bedroom') ||
                                   typeText.toLowerCase().includes('penthouse') ||
-                                  typeText.toLowerCase().includes('studio'))) {
+                                  typeText.toLowerCase().includes('studio') ||
+                                  typeText.match(/\d+br/i) ||  // Match patterns like 1BR, 2BR, etc.
+                                  typeText.toLowerCase().includes('flexi'))) {
 
                     // Parse availability (e.g., "8 / 28")
                     const availMatch = availText.match(/(\d+)\s*\/\s*(\d+)/);
                     const available = availMatch ? parseInt(availMatch[1]) : null;
                     const total = availMatch ? parseInt(availMatch[2]) : null;
 
-                    // Parse size range (e.g., "495 - 785")
-                    const sizeMatch = sizeText.match(/(\d+)\s*-\s*(\d+)/);
+                    // Parse size range (e.g., "495", "700 - 829", "1335 - 1679")
+                    const sizeMatch = sizeText.match(/(\d+)(?:\s*-\s*(\d+))?/);
                     const minSize = sizeMatch ? parseInt(sizeMatch[1]) : null;
-                    const maxSize = sizeMatch ? parseInt(sizeMatch[2]) : null;
+                    const maxSize = sizeMatch && sizeMatch[2] ? parseInt(sizeMatch[2]) : minSize;
 
-                    // Parse price range (e.g., "$1.43M - $1.85M")
+                    // Parse price range (e.g., "$1.95M - $2.04M", "$3.25M - $3.36M")
                     const priceMatch = priceText.match(/\$?([\d.]+)M?\s*-\s*\$?([\d.]+)M?/);
                     const minPrice = priceMatch ? parseFloat(priceMatch[1]) : null;
-                    const maxPrice = priceMatch ? parseFloat(priceMatch[2]) : null;
+                    const maxPrice = priceMatch ? parseFloat(priceMatch[2]) : minPrice; // Use minPrice if no range
 
                     // Convert millions to actual numbers
                     const minPriceActual = minPrice && priceText.includes('M') ? minPrice * 1000000 : minPrice;
                     const maxPriceActual = maxPrice && priceText.includes('M') ? maxPrice * 1000000 : maxPrice;
 
+                    // Extract bedroom count and features for bot intelligence
+                    const bedroomMatch = typeText.match(/(\d+)\s*(?:br|bedroom)/i);
+                    const bedroomCount = bedroomMatch ? parseInt(bedroomMatch[1]) : 0;
+                    const hasStudy = typeText.toLowerCase().includes('study');
+                    const hasFlexi = typeText.toLowerCase().includes('flexi');
+                    const isPenthouse = typeText.toLowerCase().includes('penthouse');
+
+                    // Create standardized type for bot understanding
+                    let standardizedType = `${bedroomCount} Bedroom`;
+                    if (hasStudy) standardizedType += ' + Study';
+                    if (hasFlexi) standardizedType += ' + Flexi';
+                    if (isPenthouse) standardizedType += ' Penthouse';
+
                     unitMix.push({
+                      // Original raw data
                       type: typeText,
-                      sizeRange: {
-                        raw: sizeText,
-                        min: minSize,
-                        max: maxSize,
-                        unit: 'sqft' // EcoProp uses SQFT
-                      },
-                      priceRange: {
-                        raw: priceText,
-                        min: minPriceActual,
-                        max: maxPriceActual,
-                        currency: 'SGD'
-                      },
-                      availability: {
-                        raw: availText,
-                        available: available,
-                        total: total,
-                        percentage: total ? Math.round((available / total) * 100) : null
-                      }
+                      size: sizeText,
+                      price: priceText,
+                      availability: availText,
+
+                      // Structured data for bot intelligence
+                      bedroom_count: bedroomCount,
+                      standardized_type: standardizedType,
+                      has_study: hasStudy,
+                      has_flexi: hasFlexi,
+                      is_penthouse: isPenthouse,
+
+                      // Size information
+                      size_min_sqft: minSize,
+                      size_max_sqft: maxSize,
+                      size_range_text: minSize === maxSize ? `${minSize} sqft` : `${minSize} - ${maxSize} sqft`,
+
+                      // Price information (in SGD)
+                      price_min_sgd: minPriceActual,
+                      price_max_sgd: maxPriceActual,
+                      price_range_text: `$${(minPriceActual/1000000).toFixed(2)}M - $${(maxPriceActual/1000000).toFixed(2)}M`,
+
+                      // Availability information
+                      available_units: available,
+                      total_units: total,
+                      availability_percentage: total ? Math.round((available / total) * 100) : 0,
+                      is_available: available > 0,
+
+                      // Calculated fields for bot recommendations
+                      price_per_sqft: minSize > 0 && minPriceActual > 0 ? Math.round(minPriceActual / minSize) : null,
+                      avg_price: minPriceActual && maxPriceActual ? (minPriceActual + maxPriceActual) / 2 : minPriceActual,
+                      avg_size: minSize && maxSize ? (minSize + maxSize) / 2 : minSize
                     });
                   }
                 }
@@ -1178,7 +1222,7 @@ class LocalPropertyScraper {
 
       console.log(`     ✅ Extracted ${unitMixData.length} unit types`);
       unitMixData.forEach(unit => {
-        console.log(`       📋 ${unit.type}: ${unit.sizeRange.raw} sqft | ${unit.priceRange.raw} | ${unit.availability.available}/${unit.availability.total} available`);
+        console.log(`       📋 ${unit.standardized_type}: ${unit.size_range_text} | ${unit.price_range_text} | ${unit.available_units}/${unit.total_units} available (${unit.availability_percentage}%)`);
       });
 
       return unitMixData;

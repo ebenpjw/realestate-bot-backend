@@ -390,9 +390,160 @@ async function testCalendarIntegration(agentId) {
     }
 }
 
+/**
+ * Delete a Google Calendar event
+ * @param {string} agentId - Agent ID
+ * @param {string} eventId - Calendar event ID to delete
+ * @returns {Promise<boolean>} Success status
+ */
+async function deleteEvent(agentId, eventId) {
+    try {
+        logger.info({
+            agentId,
+            eventId
+        }, 'Starting Google Calendar event deletion');
+
+        const { authClient, agent } = await getAuthenticatedClient(agentId);
+        if (!authClient || !agent) {
+            const error = 'Could not authenticate or retrieve agent details to delete Google Calendar event.';
+            logger.error({ agentId, eventId }, error);
+            throw new Error(error);
+        }
+
+        const calendar = google.calendar({ version: 'v3', auth: authClient });
+
+        await calendar.events.delete({
+            calendarId: 'primary',
+            eventId: eventId
+        });
+
+        logger.info({
+            agentId,
+            eventId,
+            agentEmail: agent.google_email
+        }, 'Successfully deleted calendar event');
+
+        return true;
+    } catch (error) {
+        // Handle specific errors
+        if (error.code === 404) {
+            logger.warn({
+                agentId,
+                eventId,
+                errorMessage: error.message
+            }, 'Calendar event not found (may have been already deleted)');
+            return true; // Consider this a success since the event is gone
+        }
+
+        if (error.message?.includes('invalid_grant') || error.code === 400) {
+            logger.warn({
+                agentId,
+                eventId,
+                errorMessage: error.message,
+                errorCode: error.code
+            }, 'Google Calendar authentication failed during event deletion - token may be expired');
+
+            // Mark agent's Google token as needing refresh
+            try {
+                await supabase.from('agents').update({
+                    google_token_status: 'needs_refresh',
+                    google_token_last_error: error.message,
+                    google_token_error_at: new Date().toISOString()
+                }).eq('id', agentId);
+            } catch (updateError) {
+                logger.error({ err: updateError, agentId }, 'Failed to update agent token status');
+            }
+        }
+
+        logger.error({
+            err: error,
+            agentId,
+            eventId,
+            responseData: error.response?.data,
+            responseStatus: error.response?.status
+        }, 'Failed to delete calendar event');
+
+        throw error;
+    }
+}
+
+/**
+ * Update a Google Calendar event
+ * @param {string} agentId - Agent ID
+ * @param {string} eventId - Calendar event ID to update
+ * @param {Object} eventDetails - Updated event details
+ * @returns {Promise<Object>} Updated event data
+ */
+async function updateEvent(agentId, eventId, eventDetails) {
+    try {
+        logger.info({
+            agentId,
+            eventId,
+            eventDetails: {
+                summary: eventDetails.summary,
+                startTime: eventDetails.startTimeISO,
+                endTime: eventDetails.endTimeISO
+            }
+        }, 'Starting Google Calendar event update');
+
+        const { authClient, agent } = await getAuthenticatedClient(agentId);
+        if (!authClient || !agent) {
+            const error = 'Could not authenticate or retrieve agent details to update Google Calendar event.';
+            logger.error({ agentId, eventId }, error);
+            throw new Error(error);
+        }
+
+        const calendar = google.calendar({ version: 'v3', auth: authClient });
+
+        const event = {
+            summary: eventDetails.summary,
+            description: eventDetails.description,
+            start: {
+                dateTime: eventDetails.startTimeISO
+            },
+            end: {
+                dateTime: eventDetails.endTimeISO
+            },
+            attendees: [
+                { email: agent.google_email }
+            ],
+            reminders: {
+                useDefault: true,
+            },
+        };
+
+        const response = await calendar.events.update({
+            calendarId: 'primary',
+            eventId: eventId,
+            resource: event
+        });
+
+        logger.info({
+            agentId,
+            eventId,
+            eventLink: response.data.htmlLink,
+            responseStatus: response.status
+        }, 'Successfully updated calendar event');
+
+        return response.data;
+    } catch (error) {
+        logger.error({
+            err: error,
+            agentId,
+            eventId,
+            responseData: error.response?.data,
+            responseStatus: error.response?.status
+        }, 'Failed to update calendar event');
+
+        throw error;
+    }
+}
+
 module.exports = {
     getAuthenticatedClient,
     checkAvailability,
     createEvent,
+    deleteEvent,
+    updateEvent,
     testCalendarIntegration,
 };

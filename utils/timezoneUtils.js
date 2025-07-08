@@ -85,21 +85,32 @@ function formatForGoogleCalendar(date) {
   // Google Calendar API expects RFC3339 format with timezone offset
   // Convert to Singapore timezone and format as RFC3339
 
-  // Get Singapore time components
-  const sgYear = sgDate.toLocaleString('en-CA', { timeZone: 'Asia/Singapore', year: 'numeric' });
-  const sgMonth = sgDate.toLocaleString('en-CA', { timeZone: 'Asia/Singapore', month: '2-digit' });
-  const sgDay = sgDate.toLocaleString('en-CA', { timeZone: 'Asia/Singapore', day: '2-digit' });
-  const sgHour = sgDate.toLocaleString('en-CA', { timeZone: 'Asia/Singapore', hour: '2-digit', hour12: false });
-  const sgMinute = sgDate.toLocaleString('en-CA', { timeZone: 'Asia/Singapore', minute: '2-digit' });
-  const sgSecond = sgDate.toLocaleString('en-CA', { timeZone: 'Asia/Singapore', second: '2-digit' });
+  // Use a more reliable method to get Singapore time components
+  // Create a date formatter for Singapore timezone
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Singapore',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+
+  const parts = formatter.formatToParts(sgDate);
+  const partsMap = {};
+  parts.forEach(part => {
+    partsMap[part.type] = part.value;
+  });
 
   // Create RFC3339 format with Singapore timezone offset (+08:00)
-  const rfc3339String = `${sgYear}-${sgMonth}-${sgDay}T${sgHour}:${sgMinute}:${sgSecond}+08:00`;
+  const rfc3339String = `${partsMap.year}-${partsMap.month}-${partsMap.day}T${partsMap.hour}:${partsMap.minute}:${partsMap.second}+08:00`;
 
   logger.info({
     inputDate: date,
     sgDate: sgDate.toISOString(),
-    sgComponents: { sgYear, sgMonth, sgDay, sgHour, sgMinute, sgSecond },
+    sgComponents: partsMap,
     finalRfc3339String: rfc3339String
   }, 'Formatted date for Google Calendar (RFC3339)');
 

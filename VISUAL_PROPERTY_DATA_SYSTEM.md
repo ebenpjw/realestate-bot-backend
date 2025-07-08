@@ -53,10 +53,10 @@ This document outlines the comprehensive Visual Property Data Collection System 
 - Links to visual assets and AI analysis results
 - Scraping status tracking and metadata
 
-#### `property_units`
+#### `property_unit_mix`
 - Individual unit specifications within projects
-- Bedroom/bathroom counts, size, and pricing details
-- Availability tracking
+- Unit type, size ranges, pricing details, and availability tracking
+- Enhanced structure for comprehensive unit data
 
 #### `visual_assets`
 - Storage metadata for floor plans, brochures, and images
@@ -79,8 +79,9 @@ This document outlines the comprehensive Visual Property Data Collection System 
 - Session management and cleanup
 
 ### Views and Indexes
-- `project_summary`: Complete project overview with asset counts
-- `ai_analysis_summary`: AI analysis aggregation by project
+- `enhanced_project_summary`: Complete project overview with asset counts and availability data
+- `enhanced_ai_analysis_summary`: AI analysis aggregation by project with enhanced features
+- `unit_mix_bot_view`: Optimized view for bot queries with intelligent categorization
 - Performance-optimized indexes for all search operations
 
 ## 🔄 Data Collection Workflow

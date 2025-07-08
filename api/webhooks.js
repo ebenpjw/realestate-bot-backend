@@ -267,68 +267,187 @@ async function savePropertyFromWebhook(propertyData, source) {
 
     const priceRange = parsePriceRange(propertyData.priceRange?.raw);
 
-    // Insert or update property project with enhanced fields
-    const { data: project, error: projectError } = await supabase
+    // Map property type to allowed values
+    const mapPropertyType = (type) => {
+      if (!type) return 'Private Condo';
+
+      const typeMap = {
+        'Residential Lowrise': 'Private Condo',
+        'Residential Highrise': 'Private Condo',
+        'Residential': 'Private Condo',
+        'Condo': 'Private Condo',
+        'Condominium': 'Private Condo',
+        'Executive Condo': 'Executive Condo',
+        'EC': 'Executive Condo',
+        'Landed': 'Landed House',
+        'Landed House': 'Landed House',
+        'Terrace': 'Landed House',
+        'Semi-Detached': 'Landed House',
+        'Detached': 'Landed House',
+        'Bungalow': 'Landed House',
+        'Townhouse': 'Landed House',
+        'Commercial': 'Business Space',
+        'Business': 'Business Space',
+        'Office': 'Business Space',
+        'Retail': 'Business Space',
+        'Mixed Development': 'Mixed',
+        'Mixed Use': 'Mixed'
+      };
+
+      // Direct match
+      if (typeMap[type]) return typeMap[type];
+
+      // Partial match
+      const lowerType = type.toLowerCase();
+      for (const [key, value] of Object.entries(typeMap)) {
+        if (lowerType.includes(key.toLowerCase()) || key.toLowerCase().includes(lowerType)) {
+          return value;
+        }
+      }
+
+      // Default fallback
+      return 'Private Condo';
+    };
+
+    const mappedPropertyType = mapPropertyType(propertyData.propertyType);
+
+    // Check if property already exists
+    const { data: existingProject } = await supabase
       .from('property_projects')
-      .upsert({
-        project_name: propertyData.name,
-        developer: propertyData.developer || 'Unknown Developer',
-        address: propertyData.address || 'Singapore',
-        district: propertyData.district || 'Unknown',
-        property_type: propertyData.propertyType || 'Private Condo',
-        tenure: propertyData.tenure || null,
-        price_range_min: priceRange.min,
-        price_range_max: priceRange.max,
-        price_range_raw: propertyData.priceRange?.raw,
-        description: propertyData.description,
-        units_count: propertyData.units ? parseInt(propertyData.units) : null,
-        blocks_info: propertyData.blocks,
-        size_range_sqft: propertyData.sizeRange,
-        source_url: propertyData.sourceUrl || `webhook://${source}`,
-        scraped_at: propertyData.scrapedAt || new Date().toISOString(),
-        extracted_data: propertyData.extractedData || {},
-        last_scraped: new Date().toISOString(),
-        scraping_status: 'completed'
-      }, {
-        onConflict: 'project_name',
-        ignoreDuplicates: false
-      })
-      .select()
+      .select('*')
+      .eq('project_name', propertyData.name)
       .single();
 
-    if (projectError) {
-      throw new Error(`Failed to save property: ${projectError.message}`);
+    let project;
+    if (existingProject) {
+      // Update existing property
+      const { data: updatedProject, error: updateError } = await supabase
+        .from('property_projects')
+        .update({
+          developer: propertyData.developer || existingProject.developer || 'Unknown Developer',
+          address: propertyData.address || existingProject.address || 'Singapore',
+          district: propertyData.district || existingProject.district || 'Unknown',
+          property_type: mappedPropertyType || existingProject.property_type || 'Private Condo',
+          tenure: propertyData.tenure || existingProject.tenure,
+          price_range_min: priceRange.min || existingProject.price_range_min,
+          price_range_max: priceRange.max || existingProject.price_range_max,
+          price_range_raw: propertyData.priceRange?.raw || existingProject.price_range_raw,
+          description: propertyData.description || existingProject.description,
+          units_count: propertyData.units ? parseInt(propertyData.units) : existingProject.units_count,
+          blocks_info: propertyData.blocks || existingProject.blocks_info,
+          size_range_sqft: propertyData.sizeRange || existingProject.size_range_sqft,
+          source_url: propertyData.sourceUrl || existingProject.source_url || `webhook://${source}`,
+          scraped_at: propertyData.scrapedAt || new Date().toISOString(),
+          extracted_data: propertyData.extractedData || existingProject.extracted_data || {},
+          last_scraped: new Date().toISOString(),
+          scraping_status: 'completed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingProject.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        throw new Error(`Failed to update property: ${updateError.message}`);
+      }
+      project = updatedProject;
+    } else {
+      // Insert new property
+      const { data: newProject, error: insertError } = await supabase
+        .from('property_projects')
+        .insert({
+          project_name: propertyData.name,
+          developer: propertyData.developer || 'Unknown Developer',
+          address: propertyData.address || 'Singapore',
+          district: propertyData.district || 'Unknown',
+          property_type: mappedPropertyType,
+          tenure: propertyData.tenure || null,
+          price_range_min: priceRange.min,
+          price_range_max: priceRange.max,
+          price_range_raw: propertyData.priceRange?.raw,
+          description: propertyData.description,
+          units_count: propertyData.units ? parseInt(propertyData.units) : null,
+          blocks_info: propertyData.blocks,
+          size_range_sqft: propertyData.sizeRange,
+          source_url: propertyData.sourceUrl || `webhook://${source}`,
+          scraped_at: propertyData.scrapedAt || new Date().toISOString(),
+          extracted_data: propertyData.extractedData || {},
+          last_scraped: new Date().toISOString(),
+          scraping_status: 'completed'
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        throw new Error(`Failed to insert property: ${insertError.message}`);
+      }
+      project = newProject;
     }
+
+
 
     // Save floor plans if provided (enhanced format)
     if (propertyData.floorPlans && propertyData.floorPlans.length > 0) {
       for (const floorPlan of propertyData.floorPlans) {
-        await supabase
+        const fileName = floorPlan.filename || floorPlan.name || 'floor_plan.jpg';
+
+        // Check if floor plan already exists
+        const { data: existingAsset } = await supabase
           .from('visual_assets')
-          .upsert({
-            project_id: project.id,
-            asset_type: 'floor_plan',
-            file_name: floorPlan.filename || floorPlan.name || 'floor_plan.jpg',
-            storage_path: `floor-plans/${project.id}/${floorPlan.filename || floorPlan.name}`,
-            public_url: floorPlan.url,
-            original_url: floorPlan.url,
-            alt_text: floorPlan.alt || floorPlan.name || '',
-            bedroom_type: floorPlan.bedroomType,
-            bedroom_count: floorPlan.bedroomCount ? parseInt(floorPlan.bedroomCount) : null,
-            image_width: floorPlan.imageWidth,
-            image_height: floorPlan.imageHeight,
-            has_image: floorPlan.hasImage !== false,
-            source_filename: floorPlan.filename,
-            extraction_metadata: {
-              type: floorPlan.type,
-              name: floorPlan.name,
-              extractedAt: new Date().toISOString()
-            },
-            processing_status: 'completed'
-          }, {
-            onConflict: 'project_id,file_name',
-            ignoreDuplicates: false
-          });
+          .select('*')
+          .eq('project_id', project.id)
+          .eq('file_name', fileName)
+          .single();
+
+        if (existingAsset) {
+          // Update existing floor plan
+          await supabase
+            .from('visual_assets')
+            .update({
+              public_url: floorPlan.url,
+              original_url: floorPlan.url,
+              alt_text: floorPlan.alt || floorPlan.name || '',
+              bedroom_type: floorPlan.bedroomType,
+              bedroom_count: floorPlan.bedroomCount ? parseInt(floorPlan.bedroomCount) : null,
+              image_width: floorPlan.imageWidth,
+              image_height: floorPlan.imageHeight,
+              has_image: floorPlan.hasImage !== false,
+              source_filename: floorPlan.filename,
+              extraction_metadata: {
+                type: floorPlan.type,
+                name: floorPlan.name,
+                extractedAt: new Date().toISOString()
+              },
+              processing_status: 'completed',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingAsset.id);
+        } else {
+          // Insert new floor plan
+          await supabase
+            .from('visual_assets')
+            .insert({
+              project_id: project.id,
+              asset_type: 'floor_plan',
+              file_name: fileName,
+              storage_path: `floor-plans/${project.id}/${fileName}`,
+              public_url: floorPlan.url,
+              original_url: floorPlan.url,
+              alt_text: floorPlan.alt || floorPlan.name || '',
+              bedroom_type: floorPlan.bedroomType,
+              bedroom_count: floorPlan.bedroomCount ? parseInt(floorPlan.bedroomCount) : null,
+              image_width: floorPlan.imageWidth,
+              image_height: floorPlan.imageHeight,
+              has_image: floorPlan.hasImage !== false,
+              source_filename: floorPlan.filename,
+              extraction_metadata: {
+                type: floorPlan.type,
+                name: floorPlan.name,
+                extractedAt: new Date().toISOString()
+              },
+              processing_status: 'completed'
+            });
+        }
       }
     }
 
@@ -366,21 +485,31 @@ async function savePropertyFromWebhook(propertyData, source) {
     // Legacy visual assets support (for backward compatibility)
     if (propertyData.visualAssets && propertyData.visualAssets.length > 0) {
       for (const asset of propertyData.visualAssets) {
-        await supabase
+        const fileName = asset.filename || 'unknown.jpg';
+
+        // Check if asset already exists
+        const { data: existingAsset } = await supabase
           .from('visual_assets')
-          .upsert({
-            project_id: project.id,
-            asset_type: asset.type || 'property_image',
-            file_name: asset.filename || 'unknown.jpg',
-            storage_path: `legacy-assets/${project.id}/${asset.filename}`,
-            public_url: asset.url,
-            original_url: asset.url,
-            alt_text: asset.alt || '',
-            processing_status: 'completed'
-          }, {
-            onConflict: 'project_id,file_name',
-            ignoreDuplicates: true
-          });
+          .select('*')
+          .eq('project_id', project.id)
+          .eq('file_name', fileName)
+          .single();
+
+        if (!existingAsset) {
+          // Only insert if it doesn't exist (ignoreDuplicates: true behavior)
+          await supabase
+            .from('visual_assets')
+            .insert({
+              project_id: project.id,
+              asset_type: asset.type || 'property_image',
+              file_name: fileName,
+              storage_path: `legacy-assets/${project.id}/${fileName}`,
+              public_url: asset.url,
+              original_url: asset.url,
+              alt_text: asset.alt || '',
+              processing_status: 'completed'
+            });
+        }
       }
     }
 
