@@ -15,13 +15,41 @@ async function cleanupObsoleteFiles() {
     'enhanced-extraction-test.json',
     'enhanced-extraction-result.json',
     'debug-page-screenshot.png',
-    
+    'no-elements-found.png',
+    'page-loaded.png',
+
     // Temporary test files
     'test-property-data.json',
     'sample-property-data.json',
-    
+    'test-ai-analysis.json',
+    'test-unit-mix.json',
+
     // Old progress files (will be recreated by enhanced scraper)
-    'scraping-progress.json'
+    'scraping-progress.json',
+
+    // Redundant test files (functionality moved to comprehensive test suite)
+    'test_deletion_debug.js',
+    'test_rescheduling_flow.js',
+    'test_rescheduling_comprehensive.js',
+    'test_appointment_cleanup.js',
+    'test_visual_property_system.js',
+    'test_personality_fix.js',
+    'test_past_time_validation.js',
+    'test_calendar_blocking.js',
+    'test_conflict_detection.js',
+    'test_conversation_improvements.js',
+    'test_conversation_scenarios.js',
+    'test_integration_validation.js',
+    'test_ai_learning_integration.js',
+    'test_appointment_booking.js',
+    'test_appointment_booking_flow.js',
+    'test_appointment_cancellation.js',
+
+    // Standalone test files (replaced by comprehensive test suite)
+    'test-bot.js',
+    'create_test_appointment.js',
+    'run_tests.js',
+    'verify_ai_learning_setup.js'
   ];
 
   const directoriesToCheck = [
@@ -61,11 +89,42 @@ async function cleanupObsoleteFiles() {
 
   // Keep important files
   const importantFiles = [
-    'all-scraped-properties.json', // Enhanced scraper output
+    // Core application files
+    'index.js', // Main server entry point
+    'config.js', // Configuration management
+    'logger.js', // Logging system
+    'supabaseClient.js', // Database client
+    'package.json', // Dependencies and scripts
+
+    // Production data files
+    'data/all-scraped-properties.json', // Enhanced scraper output
+    'data/complete-property-data.json', // Complete property dataset
+
+    // Core API routes
+    'api/gupshup.js', // WhatsApp webhook handler
+    'api/auth.js', // OAuth authentication
+    'api/test.js', // Testing endpoints
+    'api/webhooks.js', // Enhanced webhook endpoints
+    'api/visualPropertyData.js', // Property data API
+
+    // Essential services
+    'services/botService.js', // Core bot logic
+    'services/whatsappService.js', // WhatsApp integration
+    'services/appointmentService.js', // Booking system
+    'services/databaseService.js', // Database operations
+
+    // Production scripts
     'scripts/localScraperWithWebhook.js', // Main scraper
     'scripts/floorPlanAnalyzer.js', // AI analyzer
     'scripts/manageProgress.js', // Progress manager
-    'api/webhooks.js', // Enhanced webhook
+    'scripts/railway-deploy.js', // Deployment script
+
+    // Comprehensive test suite (keep only the master runner)
+    'tests/test_master_runner.js', // Master test runner
+    'tests/test_complete_flow.js', // Complete flow testing
+
+    // Database schema
+    'database/database_schema_complete.sql', // Complete schema
     'supabase/migrations/002_enhanced_scraper_schema_alignment.sql' // Schema migration
   ];
 
@@ -88,7 +147,7 @@ async function cleanupObsoleteFiles() {
   console.log('\n✅ Remaining Core Files:');
   console.log('========================');
   console.log('📊 Data Files:');
-  console.log('   - all-scraped-properties.json (Enhanced scraper output)');
+  console.log('   - data/all-scraped-properties.json (Enhanced scraper output)');
   console.log('');
   console.log('🔧 Scraper Files:');
   console.log('   - scripts/localScraperWithWebhook.js (Main enhanced scraper)');

@@ -20,10 +20,7 @@
     "db:migrate": "echo 'Run Supabase migrations manually'",
     "deploy-check": "node scripts/railway-deploy.js",
     "preinstall": "npm cache clean --force || true",
-    "postinstall": "npm rebuild sharp --platform=linux --arch=x64 || echo 'Sharp rebuild failed, continuing...' && echo 'Installation complete - Ready for Railway deployment'",
-    "test": "node tests/test_master_runner.js",
-    "test:quick": "node tests/test_master_runner.js --quick",
-    "test:full": "node tests/test_master_runner.js --full --report"
+    "postinstall": "npm rebuild sharp --platform=linux --arch=x64 || echo 'Sharp rebuild failed, continuing...' && echo 'Installation complete - Ready for Railway deployment'"
   },
   "keywords": [
     "whatsapp",

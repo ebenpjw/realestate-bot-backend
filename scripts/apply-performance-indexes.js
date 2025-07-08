@@ -16,7 +16,7 @@ async function applyPerformanceIndexes() {
     const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_KEY);
     
     // Read the SQL file
-    const sqlFilePath = path.join(__dirname, '..', 'database_performance_indexes.sql');
+    const sqlFilePath = path.join(__dirname, '..', 'database', 'database_performance_indexes.sql');
     const sqlContent = fs.readFileSync(sqlFilePath, 'utf8');
     
     // Split SQL content into individual statements

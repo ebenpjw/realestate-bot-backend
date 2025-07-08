@@ -10,7 +10,7 @@ async function testEnhancedWebhook() {
     console.log('🌐 Testing Enhanced Webhook Integration...\n');
 
     // Load sample enhanced property data
-    const scrapedData = await fs.readFile('all-scraped-properties.json', 'utf8');
+    const scrapedData = await fs.readFile('data/all-scraped-properties.json', 'utf8');
     const properties = JSON.parse(scrapedData);
     
     if (properties.length === 0) {

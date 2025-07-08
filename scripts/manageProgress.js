@@ -8,7 +8,7 @@ const fs = require('fs').promises;
 class ProgressManager {
   constructor() {
     this.progressFile = 'scraping-progress.json';
-    this.propertiesFile = 'all-scraped-properties.json';
+    this.propertiesFile = 'data/all-scraped-properties.json';
   }
 
   async viewProgress() {

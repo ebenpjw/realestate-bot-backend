@@ -15,27 +15,27 @@ The testing system includes:
 
 ### Run All Tests
 ```bash
-node test_master_runner.js --full --report
+node tests/test_master_runner.js --full --report
 ```
 
 ### Run Specific Test Categories
 ```bash
 # Integration tests only
-node test_master_runner.js --integration
+node tests/test_master_runner.js --integration
 
 # Conversation scenarios only
-node test_master_runner.js --conversation
+node tests/test_master_runner.js --conversation
 
 # Appointment booking tests only
-node test_master_runner.js --booking
+node tests/test_master_runner.js --booking
 
 # Complete flow tests only
-node test_master_runner.js --flow
+node tests/test_master_runner.js --flow
 ```
 
 ## 📋 Test Categories
 
-### 1. Complete Flow Testing (`test_complete_flow.js`)
+### 1. Complete Flow Testing (`tests/test_complete_flow.js`)
 
 Tests the entire lead qualification to appointment booking journey.
 
@@ -49,13 +49,13 @@ Tests the entire lead qualification to appointment booking journey.
 **Usage:**
 ```bash
 # Run all flow scenarios
-node test_complete_flow.js all
+node tests/test_complete_flow.js all
 
 # Run specific scenario
-node test_complete_flow.js basic
+node tests/test_complete_flow.js basic
 
 # Interactive mode
-node test_complete_flow.js --interactive
+node tests/test_complete_flow.js --interactive
 ```
 
 **What it tests:**
@@ -135,10 +135,10 @@ Validates all external service integrations.
 **Usage:**
 ```bash
 # Validate all integrations
-node test_integration_validation.js all
+node tests/test_integration_validation.js all
 
 # Validate specific integration
-node test_integration_validation.js google
+node tests/test_integration_validation.js google
 ```
 
 **What it tests:**
@@ -148,7 +148,7 @@ node test_integration_validation.js google
 - Configuration validation
 - Error handling
 
-## 🎮 Master Test Runner (`test_master_runner.js`)
+## 🎮 Master Test Runner (`tests/test_master_runner.js`)
 
 Comprehensive test suite that runs all test categories and generates detailed reports.
 
@@ -225,7 +225,7 @@ RAILWAY_URL=http://localhost:3000  # or your deployed URL
 
 ### Database Requirements
 - Agents table with at least one agent
-- Proper database schema (see `database_schema_complete.sql`)
+- Proper database schema (see `database/database_schema_complete.sql`)
 - Google Calendar OAuth setup for agents
 - Zoom OAuth setup for agents
 

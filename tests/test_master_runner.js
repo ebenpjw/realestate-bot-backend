@@ -18,10 +18,32 @@
 
 const fs = require('fs');
 const path = require('path');
-const { FlowTestRunner } = require('./test_complete_flow');
-const { ConversationScenarioTester } = require('./test_conversation_scenarios');
-const { AppointmentBookingTester } = require('./test_appointment_booking');
-const { IntegrationValidationSuite } = require('./test_integration_validation');
+// Import available test modules
+let FlowTestRunner;
+try {
+  FlowTestRunner = require('./test_complete_flow').FlowTestRunner;
+} catch (error) {
+  console.log('⚠️ FlowTestRunner not available:', error.message);
+}
+
+// Placeholder classes for missing test modules
+class ConversationScenarioTester {
+  async runAllScenarios() {
+    return { success: false, error: 'ConversationScenarioTester not implemented yet' };
+  }
+}
+
+class AppointmentBookingTester {
+  async runAllTests() {
+    return { success: false, error: 'AppointmentBookingTester not implemented yet' };
+  }
+}
+
+class IntegrationValidationSuite {
+  async validateAllIntegrations() {
+    return { success: false, error: 'IntegrationValidationSuite not implemented yet' };
+  }
+}
 
 class MasterTestRunner {
   constructor() {

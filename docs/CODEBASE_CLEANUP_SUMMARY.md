@@ -98,6 +98,6 @@ The new schema is organized by **usage frequency and relevance**:
 
 ## **Database Schema File**
 
-The complete, production-ready schema is in: `database_schema_complete.sql`
+The complete, production-ready schema is in: `database/database_schema_complete.sql`
 
 **To apply:** Copy the entire SQL content and paste it into your Supabase SQL editor.

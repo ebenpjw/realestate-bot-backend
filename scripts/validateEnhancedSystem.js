@@ -13,7 +13,7 @@ async function validateEnhancedSystem() {
     console.log('📊 1. Validating Enhanced Scraper Data Format');
     console.log('==============================================');
     
-    const scrapedData = await fs.readFile('all-scraped-properties.json', 'utf8');
+    const scrapedData = await fs.readFile('data/all-scraped-properties.json', 'utf8');
     const properties = JSON.parse(scrapedData);
     
     console.log(`✅ Loaded ${properties.length} properties from enhanced scraper`);

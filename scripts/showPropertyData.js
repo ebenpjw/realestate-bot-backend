@@ -6,7 +6,7 @@ const puppeteer = require('puppeteer');
 
 class PropertyDataExtractor {
   constructor() {
-    this.outputFile = 'complete-property-data.json';
+    this.outputFile = 'data/complete-property-data.json';
   }
 
   async extractSingleProperty() {
