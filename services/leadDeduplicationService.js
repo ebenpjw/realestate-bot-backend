@@ -6,7 +6,7 @@ const config = require('../config');
 
 class LeadDeduplicationService {
     constructor() {
-        this.supabase = createClient(config.SUPABASE_URL, config.SUPABASE_SERVICE_KEY);
+        this.supabase = createClient(config.SUPABASE_URL, config.SUPABASE_KEY);
     }
 
     /**

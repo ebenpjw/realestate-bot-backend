@@ -17487,5 +17487,1831 @@
       "basicInfoOnly": true,
       "hasComprehensiveInfo": true
     }
+  },
+  {
+    "name": "Mattar Residences",
+    "developer": "L.K.Ang Construction Pte Ltd",
+    "address": "7 Mattar Road",
+    "district": "D14",
+    "propertyType": "Residential Lowrise",
+    "priceRange": "TBC",
+    "sizeRange": "N/A",
+    "totalUnits": "26",
+    "blocksLevels": "Mattar Residences/05",
+    "expectedTOP": "Jun 2023",
+    "tenure": "Freehold",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Mattar-Residences",
+    "scrapedAt": "2025-07-11T09:08:12.766Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Mayfair Gardens",
+    "developer": "Citrine Property Pte Ltd",
+    "address": "8-16 Rifle Range Road",
+    "district": "D21",
+    "propertyType": "Residential Lowrise",
+    "priceRange": "TBC",
+    "sizeRange": "N/A",
+    "totalUnits": "215",
+    "blocksLevels": "Block 10/05、Block 12/05、Block 16/05、Block 8/05",
+    "expectedTOP": "Obtained TOP",
+    "tenure": "99 Years",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Mayfair-Gardens",
+    "scrapedAt": "2025-07-11T09:08:35.199Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Mayfair Modern",
+    "developer": "Citrine Property Pte Ltd",
+    "address": "2-6 Rifle Range Road",
+    "district": "D21",
+    "propertyType": "Residential Lowrise",
+    "priceRange": "TBC",
+    "sizeRange": "N/A",
+    "totalUnits": "171",
+    "blocksLevels": "Block 2/08、Block 6/08",
+    "expectedTOP": "Dec 2024",
+    "tenure": "99 Years",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Mayfair-Modern",
+    "scrapedAt": "2025-07-11T09:08:57.569Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Mega @ Woodlands",
+    "developer": "Unknown Developer",
+    "address": "Singapore",
+    "district": "Unknown",
+    "propertyType": "Private Condo",
+    "priceRange": "-",
+    "sizeRange": "N/A",
+    "totalUnits": "Unknown",
+    "blocksLevels": "Unknown",
+    "expectedTOP": "Unknown",
+    "tenure": "Unknown",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Mega--Woodlands",
+    "scrapedAt": "2025-07-11T09:09:20.226Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Meyer Blue",
+    "developer": "United Venture Development(Meyer Blue)Pte. Ltd.",
+    "address": "83 Meyer Road",
+    "district": "D15",
+    "propertyType": "Residential Highrise",
+    "priceRange": "$3,001,000-$6,106,000",
+    "sizeRange": "990-1905",
+    "totalUnits": "226",
+    "blocksLevels": "83 MEYER ROAD/26",
+    "expectedTOP": "31 Dec 2028",
+    "tenure": "Freehold",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Meyer-Blue",
+    "scrapedAt": "2025-07-11T09:10:04.134Z",
+    "unitMix": [
+      {
+        "unitType": "3BR",
+        "size": "990",
+        "priceRange": "$3.0M -\n          $3.03M",
+        "availableUnits": 2,
+        "totalUnits": 25,
+        "availability": "2 / 25"
+      },
+      {
+        "unitType": "3BR Premium",
+        "size": "1141",
+        "priceRange": "$3.47M -\n          $3.81M",
+        "availableUnits": 6,
+        "totalUnits": 24,
+        "availability": "6 / 24"
+      },
+      {
+        "unitType": "4BR Premium (w Private Lift)",
+        "size": "1518 - 1528",
+        "priceRange": "$4.58M -\n          $4.72M",
+        "availableUnits": 32,
+        "totalUnits": 50,
+        "availability": "32 / 50"
+      },
+      {
+        "unitType": "4BR Premium + Study (w Private Lift)",
+        "size": "1733",
+        "priceRange": "$5.22M -\n          $5.73M",
+        "availableUnits": 19,
+        "totalUnits": 25,
+        "availability": "19 / 25"
+      },
+      {
+        "unitType": "5BR Suite (w Private Lift)",
+        "size": "1905",
+        "priceRange": "$5.66M -\n          $6.11M",
+        "availableUnits": 14,
+        "totalUnits": 25,
+        "availability": "14 / 25"
+      }
+    ],
+    "floorPlans": [
+      {
+        "name": "BP1",
+        "bedroomType": "2BR Premium",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/a0a87c09a8fa45f1b629fd39f27224c6/83b9b826f1f0445ca23b38813aea6358/floorPlanImg/20240907/BP1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "BP1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "BP1(p)",
+        "bedroomType": "2BR Premium",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/a0a87c09a8fa45f1b629fd39f27224c6/83b9b826f1f0445ca23b38813aea6358/floorPlanImg/20240907/BP1(p).png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "BP1_p_.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "BPS1",
+        "bedroomType": "2BR Premium + Study",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/a0a87c09a8fa45f1b629fd39f27224c6/83b9b826f1f0445ca23b38813aea6358/floorPlanImg/20240907/BPS1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "BPS1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "BPS1(p)",
+        "bedroomType": "2BR Premium + Study",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/a0a87c09a8fa45f1b629fd39f27224c6/83b9b826f1f0445ca23b38813aea6358/floorPlanImg/20240907/BPS1(p).png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "BPS1_p_.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "C1",
+        "bedroomType": "3BR",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/a0a87c09a8fa45f1b629fd39f27224c6/83b9b826f1f0445ca23b38813aea6358/floorPlanImg/20240907/C1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "C1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "C1(p)",
+        "bedroomType": "3BR",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/a0a87c09a8fa45f1b629fd39f27224c6/83b9b826f1f0445ca23b38813aea6358/floorPlanImg/20240907/C1(p).png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "C1_p_.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "CP1",
+        "bedroomType": "3BR Premium",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/a0a87c09a8fa45f1b629fd39f27224c6/83b9b826f1f0445ca23b38813aea6358/floorPlanImg/20240907/CP1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "CP1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "DP1",
+        "bedroomType": "4BR Premium (w Private Lift)",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/a0a87c09a8fa45f1b629fd39f27224c6/83b9b826f1f0445ca23b38813aea6358/floorPlanImg/20240907/DP1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "DP1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "DP1(p)",
+        "bedroomType": "4BR Premium (w Private Lift)",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/a0a87c09a8fa45f1b629fd39f27224c6/83b9b826f1f0445ca23b38813aea6358/floorPlanImg/20240907/DP1(p).png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "DP1_p_.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "DP2",
+        "bedroomType": "4BR Premium (w Private Lift)",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/a0a87c09a8fa45f1b629fd39f27224c6/83b9b826f1f0445ca23b38813aea6358/floorPlanImg/20240907/DP2.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "DP2.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "DP2(p)",
+        "bedroomType": "4BR Premium (w Private Lift)",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/a0a87c09a8fa45f1b629fd39f27224c6/83b9b826f1f0445ca23b38813aea6358/floorPlanImg/20240907/DP2(p).png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "DP2_p_.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "DPS1",
+        "bedroomType": "4BR Premium + Study (w Private Lift)",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/a0a87c09a8fa45f1b629fd39f27224c6/83b9b826f1f0445ca23b38813aea6358/floorPlanImg/20240907/DPS1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "DPS1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "DPS1(p)",
+        "bedroomType": "4BR Premium + Study (w Private Lift)",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/a0a87c09a8fa45f1b629fd39f27224c6/83b9b826f1f0445ca23b38813aea6358/floorPlanImg/20240907/DPS1(p).png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "DPS1_p_.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "E1",
+        "bedroomType": "5BR Suite (w Private Lift)",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/a0a87c09a8fa45f1b629fd39f27224c6/83b9b826f1f0445ca23b38813aea6358/floorPlanImg/20240907/E1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "E1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "E1(p)",
+        "bedroomType": "5BR Suite (w Private Lift)",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/a0a87c09a8fa45f1b629fd39f27224c6/83b9b826f1f0445ca23b38813aea6358/floorPlanImg/20240907/E1(p).png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "E1_p_.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "PH1",
+        "bedroomType": "Penthouse",
+        "bedroomCount": "4+",
+        "bedroomCategory": "Penthouse",
+        "imageUrl": "https://img.singmap.com/upload/broke/a0a87c09a8fa45f1b629fd39f27224c6/83b9b826f1f0445ca23b38813aea6358/floorPlanImg/20240917/PH1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "PH1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "PH2",
+        "bedroomType": "Penthouse",
+        "bedroomCount": "4+",
+        "bedroomCategory": "Penthouse",
+        "imageUrl": "https://img.singmap.com/upload/broke/a0a87c09a8fa45f1b629fd39f27224c6/83b9b826f1f0445ca23b38813aea6358/floorPlanImg/20240917/PH2.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "PH2.jpg",
+        "hasImage": true
+      }
+    ],
+    "extractedData": {
+      "hasDetailedInfo": true,
+      "basicInfoOnly": false,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Meyer Mansion 美雅豪苑",
+    "developer": "GuocoLand",
+    "address": "79 Meyer Rd",
+    "district": "D15",
+    "propertyType": "Residential Highrise",
+    "priceRange": "TBC",
+    "sizeRange": "N/A",
+    "totalUnits": "200",
+    "blocksLevels": "Meyer Mansion/25",
+    "expectedTOP": "2H 2024",
+    "tenure": "Freehold",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Meyer-Mansion-美雅豪苑",
+    "scrapedAt": "2025-07-11T09:10:28.695Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "MeyerHouse",
+    "developer": "Secure Venture Development No. 1 Pte Ltd",
+    "address": "128 Meyer Road",
+    "district": "D15",
+    "propertyType": "Residential Highrise",
+    "priceRange": "TBC",
+    "sizeRange": "N/A",
+    "totalUnits": "56",
+    "blocksLevels": "MeyerHouse/05",
+    "expectedTOP": "Mar 2022(TOP Obtained)",
+    "tenure": "Freehold",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/MeyerHouse",
+    "scrapedAt": "2025-07-11T09:10:51.140Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Midtown Bay 滨海名汇",
+    "developer": "GuocoLand",
+    "address": "122 Beach Rd",
+    "district": "D07",
+    "propertyType": "Commercial/Residential",
+    "priceRange": "$1,598,000-$5,452,000",
+    "sizeRange": "409-1324",
+    "totalUnits": "219",
+    "blocksLevels": "Midtown Bay/32",
+    "expectedTOP": "TOP -2Q 2024",
+    "tenure": "99 Years",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Midtown-Bay-滨海名汇",
+    "scrapedAt": "2025-07-11T09:11:44.589Z",
+    "unitMix": [
+      {
+        "unitType": "1 Bedroom",
+        "size": "409 - 484",
+        "priceRange": "$1.6M -\n          $2.1M",
+        "availableUnits": 37,
+        "totalUnits": 107,
+        "availability": "37 / 107"
+      },
+      {
+        "unitType": "2 Bedroom",
+        "size": "732 - 753",
+        "priceRange": "$2.31M -\n          $2.86M",
+        "availableUnits": 10,
+        "totalUnits": 72,
+        "availability": "10 / 72"
+      },
+      {
+        "unitType": "2 Bedroom Duplex",
+        "size": "990 - 1152",
+        "priceRange": "$3.02M -\n          $4.11M",
+        "availableUnits": 25,
+        "totalUnits": 32,
+        "availability": "25 / 32"
+      },
+      {
+        "unitType": "3 Bedroom Duplex",
+        "size": "1324",
+        "priceRange": "$4.71M -\n          $5.45M",
+        "availableUnits": 4,
+        "totalUnits": 8,
+        "availability": "4 / 8"
+      }
+    ],
+    "floorPlans": [
+      {
+        "name": "A1",
+        "bedroomType": "1 Bedroom",
+        "bedroomCount": "1",
+        "bedroomCategory": "1Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/A1.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "A1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "A1-G",
+        "bedroomType": "1 Bedroom",
+        "bedroomCount": "1",
+        "bedroomCategory": "1Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/A1-G.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "A1_G.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "A1a",
+        "bedroomType": "1 Bedroom",
+        "bedroomCount": "1",
+        "bedroomCategory": "1Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/A1a.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "A1a.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "A2",
+        "bedroomType": "1 Bedroom",
+        "bedroomCount": "1",
+        "bedroomCategory": "1Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/A2.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "A2.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "A2a",
+        "bedroomType": "1 Bedroom",
+        "bedroomCount": "1",
+        "bedroomCategory": "1Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/A2a.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "A2a.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "A2a-G",
+        "bedroomType": "1 Bedroom",
+        "bedroomCount": "1",
+        "bedroomCategory": "1Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/A2a-G.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "A2a_G.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "A3",
+        "bedroomType": "1 Bedroom",
+        "bedroomCount": "1",
+        "bedroomCategory": "1Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/A3.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "A3.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "A3a",
+        "bedroomType": "1 Bedroom",
+        "bedroomCount": "1",
+        "bedroomCategory": "1Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/A3a.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "A3a.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B1",
+        "bedroomType": "2 Bedroom",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/B1.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B1a",
+        "bedroomType": "2 Bedroom",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/B1a.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B1a.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B2",
+        "bedroomType": "2 Bedroom",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/B2.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B2.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B3",
+        "bedroomType": "2 Bedroom",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/B3.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B3.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B3-G",
+        "bedroomType": "2 Bedroom",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/B3-G.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B3_G.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B2-DP",
+        "bedroomType": "2 Bedroom Duplex",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/B2-DP.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B2_DP.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B3-DP",
+        "bedroomType": "2 Bedroom Duplex",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/B3-DP.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B3_DP.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B4-DP",
+        "bedroomType": "2 Bedroom Duplex",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/B4-DP.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B4_DP.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B5-DP",
+        "bedroomType": "2 Bedroom Duplex",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/B5-DP.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B5_DP.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B6-DP",
+        "bedroomType": "2 Bedroom Duplex",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/B6-DP.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B6_DP.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B6a-DP",
+        "bedroomType": "2 Bedroom Duplex",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/B6a-DP.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B6a_DP.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B7-DP",
+        "bedroomType": "2 Bedroom Duplex",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/B7-DP.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B7_DP.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B7a-DP",
+        "bedroomType": "2 Bedroom Duplex",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/B7a-DP.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B7a_DP.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B1-DP",
+        "bedroomType": "3 Bedroom Duplex",
+        "bedroomCount": "3",
+        "bedroomCategory": "3Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/B1-DP.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B1_DP.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B1a-DP",
+        "bedroomType": "3 Bedroom Duplex",
+        "bedroomCount": "3",
+        "bedroomCategory": "3Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/4a789c5dccda41b099ee2b217508d541/0988f8aa42bf469c83868349e1b637b7/floorPlanImg/B1a-DP.jpg?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B1a_DP.jpg",
+        "hasImage": true
+      }
+    ],
+    "extractedData": {
+      "hasDetailedInfo": true,
+      "basicInfoOnly": false,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Midtown Modern 名汇庭苑",
+    "developer": "GuocoLand, Hong Leong Holdings and Hong Realty",
+    "address": "16 Tan Quee Lan St",
+    "district": "D07",
+    "propertyType": "Commercial/Residential",
+    "priceRange": "TBC",
+    "sizeRange": "N/A",
+    "totalUnits": "558",
+    "blocksLevels": "North Tower/30、South Tower/30",
+    "expectedTOP": "1H 2025",
+    "tenure": "99 Years",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Midtown-Modern-名汇庭苑",
+    "scrapedAt": "2025-07-11T09:12:09.548Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Mon Jervois 梦雅轩",
+    "developer": "Singland Development (Jervois) Pte. Ltd.",
+    "address": "43 Jervois Road",
+    "district": "D10",
+    "propertyType": "Residential Highrise",
+    "priceRange": "TBC",
+    "sizeRange": "N/A",
+    "totalUnits": "109",
+    "blocksLevels": "Block 39/05、Block 41/05、Block 43/05、Block 45/05、Block 47/05",
+    "expectedTOP": "Nov 2017",
+    "tenure": "99 Years",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Mon-Jervois-梦雅轩",
+    "scrapedAt": "2025-07-11T09:12:31.981Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Mori",
+    "developer": "RL East Pte. Ltd",
+    "address": "223 Guillemard Rd",
+    "district": "D14",
+    "propertyType": "Residential Highrise",
+    "priceRange": "TBC",
+    "sizeRange": "N/A",
+    "totalUnits": "137",
+    "blocksLevels": "BLK 223/08",
+    "expectedTOP": "Dec 2026",
+    "tenure": "Freehold",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Mori",
+    "scrapedAt": "2025-07-11T09:13:05.574Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Mountbatten Square",
+    "developer": "Mezzo Properties Pte Ltd",
+    "address": "229 Mountbatten Rd",
+    "district": "D14",
+    "propertyType": "Industrial",
+    "priceRange": "TBC",
+    "sizeRange": "N/A",
+    "totalUnits": "141",
+    "blocksLevels": "Mountbatten Square/03",
+    "expectedTOP": "Completed",
+    "tenure": "30 Years",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Mountbatten-Square",
+    "scrapedAt": "2025-07-11T09:13:22.982Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "MYRA",
+    "developer": "Tiara Land Pte Ltd",
+    "address": "9 Meyappa Chettiar Rd",
+    "district": "D13",
+    "propertyType": "Residential Highrise",
+    "priceRange": "TBC",
+    "sizeRange": "N/A",
+    "totalUnits": "85",
+    "blocksLevels": "MYRA/12",
+    "expectedTOP": "Nov 2025",
+    "tenure": "Freehold",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/MYRA",
+    "scrapedAt": "2025-07-11T09:13:46.109Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Nava Grove",
+    "developer": "Golden Ray Edge 3 Pte. Ltd.",
+    "address": "38, 40, 42 Pine Grove, Singapore",
+    "district": "D21",
+    "propertyType": "Residential Highrise",
+    "priceRange": "$1,932,600-$4,584,000",
+    "sizeRange": "700-1722",
+    "totalUnits": "552",
+    "blocksLevels": "Block 38/24、Block 40/24、Block 42/24",
+    "expectedTOP": "14 November 2028",
+    "tenure": "99 Years",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Nava-Grove",
+    "scrapedAt": "2025-07-11T09:14:30.590Z",
+    "unitMix": [
+      {
+        "unitType": "2 Bedroom + Study",
+        "size": "786",
+        "priceRange": "$2.14M -\n          $2.18M",
+        "availableUnits": 10,
+        "totalUnits": 46,
+        "availability": "10 / 46"
+      },
+      {
+        "unitType": "2 Bedroom Premium",
+        "size": "700",
+        "priceRange": "$1.93M -\n          $1.94M",
+        "availableUnits": 2,
+        "totalUnits": 92,
+        "availability": "2 / 92"
+      },
+      {
+        "unitType": "3 Bedroom",
+        "size": "947",
+        "priceRange": "$2.53M -\n          $2.58M",
+        "availableUnits": 6,
+        "totalUnits": 92,
+        "availability": "6 / 92"
+      },
+      {
+        "unitType": "3 Bedroom Premium",
+        "size": "1109",
+        "priceRange": "$2.96M -\n          $3.0M",
+        "availableUnits": 3,
+        "totalUnits": 92,
+        "availability": "3 / 92"
+      },
+      {
+        "unitType": "4 Bedroom",
+        "size": "1335",
+        "priceRange": "$3.22M -\n          $3.59M",
+        "availableUnits": 28,
+        "totalUnits": 46,
+        "availability": "28 / 46"
+      },
+      {
+        "unitType": "4 Bedroom + Study",
+        "size": "1464",
+        "priceRange": "$3.47M -\n          $3.85M",
+        "availableUnits": 23,
+        "totalUnits": 23,
+        "availability": "23 / 23"
+      },
+      {
+        "unitType": "4 Bedroom Premium + Private Lift",
+        "size": "1550",
+        "priceRange": "$3.91M -\n          $4.12M",
+        "availableUnits": 19,
+        "totalUnits": 46,
+        "availability": "19 / 46"
+      },
+      {
+        "unitType": "5 Bedroom Premium + Private Lift",
+        "size": "1722",
+        "priceRange": "$4.37M -\n          $4.58M",
+        "availableUnits": 7,
+        "totalUnits": 23,
+        "availability": "7 / 23"
+      }
+    ],
+    "floorPlans": [
+      {
+        "name": "B",
+        "bedroomType": "2 Bedroom",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/367c376feb684b5b9361fbfe0defa451/4a25b483869c44f38fad81c15c945c4f/floorPlanImg/20250620/B.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "BS",
+        "bedroomType": "2 Bedroom + Study",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/367c376feb684b5b9361fbfe0defa451/4a25b483869c44f38fad81c15c945c4f/floorPlanImg/20250620/BS.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "BS.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "BP-1",
+        "bedroomType": "2 Bedroom Premium",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/367c376feb684b5b9361fbfe0defa451/4a25b483869c44f38fad81c15c945c4f/floorPlanImg/20250620/BP-1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "BP_1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "BP-2",
+        "bedroomType": "2 Bedroom Premium",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/367c376feb684b5b9361fbfe0defa451/4a25b483869c44f38fad81c15c945c4f/floorPlanImg/20250620/BP-2.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "BP_2.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "C-1",
+        "bedroomType": "3 Bedroom",
+        "bedroomCount": "3",
+        "bedroomCategory": "3Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/367c376feb684b5b9361fbfe0defa451/4a25b483869c44f38fad81c15c945c4f/floorPlanImg/20250620/C-1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "C_1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "C-2",
+        "bedroomType": "3 Bedroom",
+        "bedroomCount": "3",
+        "bedroomCategory": "3Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/367c376feb684b5b9361fbfe0defa451/4a25b483869c44f38fad81c15c945c4f/floorPlanImg/20250620/C-2.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "C_2.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "C-3",
+        "bedroomType": "3 Bedroom",
+        "bedroomCount": "3",
+        "bedroomCategory": "3Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/367c376feb684b5b9361fbfe0defa451/4a25b483869c44f38fad81c15c945c4f/floorPlanImg/20250620/C-3.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "C_3.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "CP-1",
+        "bedroomType": "3 Bedroom Premium",
+        "bedroomCount": "3",
+        "bedroomCategory": "3Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/367c376feb684b5b9361fbfe0defa451/4a25b483869c44f38fad81c15c945c4f/floorPlanImg/20250620/CP-1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "CP_1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "CP-2",
+        "bedroomType": "3 Bedroom Premium",
+        "bedroomCount": "3",
+        "bedroomCategory": "3Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/367c376feb684b5b9361fbfe0defa451/4a25b483869c44f38fad81c15c945c4f/floorPlanImg/20250620/CP-2.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "CP_2.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "CP-3",
+        "bedroomType": "3 Bedroom Premium",
+        "bedroomCount": "3",
+        "bedroomCategory": "3Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/367c376feb684b5b9361fbfe0defa451/4a25b483869c44f38fad81c15c945c4f/floorPlanImg/20250620/CP-3.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "CP_3.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "CP-4",
+        "bedroomType": "3 Bedroom Premium",
+        "bedroomCount": "3",
+        "bedroomCategory": "3Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/367c376feb684b5b9361fbfe0defa451/4a25b483869c44f38fad81c15c945c4f/floorPlanImg/20250620/CP-4.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "CP_4.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "D-1",
+        "bedroomType": "4 Bedroom",
+        "bedroomCount": "4",
+        "bedroomCategory": "4Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/367c376feb684b5b9361fbfe0defa451/4a25b483869c44f38fad81c15c945c4f/floorPlanImg/20250620/D-1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "D_1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "D-2",
+        "bedroomType": "4 Bedroom",
+        "bedroomCount": "4",
+        "bedroomCategory": "4Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/367c376feb684b5b9361fbfe0defa451/4a25b483869c44f38fad81c15c945c4f/floorPlanImg/20250620/D-2.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "D_2.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "DS",
+        "bedroomType": "4 Bedroom + Study",
+        "bedroomCount": "4",
+        "bedroomCategory": "4Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/367c376feb684b5b9361fbfe0defa451/4a25b483869c44f38fad81c15c945c4f/floorPlanImg/20250620/DS.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "DS.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "DP-1",
+        "bedroomType": "4 Bedroom Premium + Private Lift",
+        "bedroomCount": "4",
+        "bedroomCategory": "4Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/367c376feb684b5b9361fbfe0defa451/4a25b483869c44f38fad81c15c945c4f/floorPlanImg/20250620/DP-1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "DP_1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "DP-2",
+        "bedroomType": "4 Bedroom Premium + Private Lift",
+        "bedroomCount": "4",
+        "bedroomCategory": "4Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/367c376feb684b5b9361fbfe0defa451/4a25b483869c44f38fad81c15c945c4f/floorPlanImg/20250620/DP-2.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "DP_2.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "E",
+        "bedroomType": "5 Bedroom Premium + Private Lift",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/367c376feb684b5b9361fbfe0defa451/4a25b483869c44f38fad81c15c945c4f/floorPlanImg/20250620/E.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "E.jpg",
+        "hasImage": true
+      }
+    ],
+    "extractedData": {
+      "hasDetailedInfo": true,
+      "basicInfoOnly": false,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Neem Tree",
+    "developer": "Aylesbury Pte Ltd",
+    "address": "30 Jalan Kemaman",
+    "district": "D12",
+    "propertyType": "Residential Highrise",
+    "priceRange": "TBC",
+    "sizeRange": "N/A",
+    "totalUnits": "84",
+    "blocksLevels": "Neem Tree/16",
+    "expectedTOP": "Jul 2020",
+    "tenure": "Freehold",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Neem-Tree",
+    "scrapedAt": "2025-07-11T09:14:55.120Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Neu at Novena 新颖轩",
+    "developer": "Roxy-Pacific Holdings Ltd",
+    "address": "27 Moulmein Rise",
+    "district": "D11",
+    "propertyType": "Residential Highrise",
+    "priceRange": "TBC",
+    "sizeRange": "N/A",
+    "totalUnits": "87",
+    "blocksLevels": "Neu at Novena/17",
+    "expectedTOP": "Apr 2025",
+    "tenure": "Freehold",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Neu-at-Novena-新颖轩",
+    "scrapedAt": "2025-07-11T09:15:18.285Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "New Futura 银峰",
+    "developer": "City Developments Limited",
+    "address": "16, 18 Leonie Hill Road",
+    "district": "D09",
+    "propertyType": "Residential Highrise",
+    "priceRange": "TBC",
+    "sizeRange": "N/A",
+    "totalUnits": "124",
+    "blocksLevels": "North Tower BLK 16/35、South Tower BLK 18/35",
+    "expectedTOP": "Aug 2017",
+    "tenure": "Freehold",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/New-Futura-银峰",
+    "scrapedAt": "2025-07-11T09:15:40.555Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Newport Residences 铂海峰",
+    "developer": "City Developments Limited",
+    "address": "80 Anson Road",
+    "district": "D02",
+    "propertyType": "Residential Highrise",
+    "priceRange": "TBC",
+    "sizeRange": "431-12960",
+    "totalUnits": "246",
+    "blocksLevels": "Newport Residences/45",
+    "expectedTOP": "01 March 2030",
+    "tenure": "Freehold",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Newport-Residences-铂海峰",
+    "scrapedAt": "2025-07-11T09:16:28.378Z",
+    "unitMix": [
+      {
+        "unitType": "1 Bedroom",
+        "size": "431 - 495",
+        "priceRange": "TBC",
+        "availableUnits": 86,
+        "totalUnits": 86,
+        "availability": "86 / 86"
+      },
+      {
+        "unitType": "1 Bedroom + Study",
+        "size": "581",
+        "priceRange": "TBC",
+        "availableUnits": 22,
+        "totalUnits": 22,
+        "availability": "22 / 22"
+      },
+      {
+        "unitType": "2 Bedroom",
+        "size": "646 - 753",
+        "priceRange": "TBC",
+        "availableUnits": 24,
+        "totalUnits": 24,
+        "availability": "24 / 24"
+      },
+      {
+        "unitType": "2 Bedroom Premium",
+        "size": "689 - 710",
+        "priceRange": "TBC",
+        "availableUnits": 30,
+        "totalUnits": 30,
+        "availability": "30 / 30"
+      },
+      {
+        "unitType": "2 Bedroom Premium + Ensuite Study",
+        "size": "818 - 926",
+        "priceRange": "TBC",
+        "availableUnits": 33,
+        "totalUnits": 33,
+        "availability": "33 / 33"
+      },
+      {
+        "unitType": "3 Bedroom",
+        "size": "980",
+        "priceRange": "TBC",
+        "availableUnits": 7,
+        "totalUnits": 7,
+        "availability": "7 / 7"
+      },
+      {
+        "unitType": "3 Bedroom + Study",
+        "size": "1227",
+        "priceRange": "TBC",
+        "availableUnits": 10,
+        "totalUnits": 10,
+        "availability": "10 / 10"
+      },
+      {
+        "unitType": "3 Bedroom Premium",
+        "size": "1206",
+        "priceRange": "TBC",
+        "availableUnits": 15,
+        "totalUnits": 15,
+        "availability": "15 / 15"
+      },
+      {
+        "unitType": "4 Bedroom Premium",
+        "size": "2067",
+        "priceRange": "TBC",
+        "availableUnits": 18,
+        "totalUnits": 18,
+        "availability": "18 / 18"
+      },
+      {
+        "unitType": "Super Penthouse",
+        "size": "12960",
+        "priceRange": "TBC",
+        "availableUnits": 1,
+        "totalUnits": 1,
+        "availability": "1 / 1"
+      }
+    ],
+    "floorPlans": [
+      {
+        "name": "A1",
+        "bedroomType": "1 Bedroom",
+        "bedroomCount": "1",
+        "bedroomCategory": "1Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/89abbcafcb6d4b85a543d4131a5148fb/floorPlanImg/20230411/A1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "A1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "A2",
+        "bedroomType": "1 Bedroom",
+        "bedroomCount": "1",
+        "bedroomCategory": "1Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/89abbcafcb6d4b85a543d4131a5148fb/floorPlanImg/20230411/A2.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "A2.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "A3",
+        "bedroomType": "1 Bedroom",
+        "bedroomCount": "1",
+        "bedroomCategory": "1Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/89abbcafcb6d4b85a543d4131a5148fb/floorPlanImg/20230411/A3.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "A3.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "A4",
+        "bedroomType": "1 Bedroom",
+        "bedroomCount": "1",
+        "bedroomCategory": "1Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/89abbcafcb6d4b85a543d4131a5148fb/floorPlanImg/20230411/A4.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "A4.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "A5",
+        "bedroomType": "1 Bedroom",
+        "bedroomCount": "1",
+        "bedroomCategory": "1Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/89abbcafcb6d4b85a543d4131a5148fb/floorPlanImg/20230411/A5.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "A5.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "AS1",
+        "bedroomType": "1 Bedroom + Study",
+        "bedroomCount": "1",
+        "bedroomCategory": "1Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/89abbcafcb6d4b85a543d4131a5148fb/floorPlanImg/20230411/AS1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "AS1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B1",
+        "bedroomType": "2 Bedroom",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/89abbcafcb6d4b85a543d4131a5148fb/floorPlanImg/20230411/B1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B2",
+        "bedroomType": "2 Bedroom",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/89abbcafcb6d4b85a543d4131a5148fb/floorPlanImg/20230411/B2.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B2.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B3",
+        "bedroomType": "2 Bedroom",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/89abbcafcb6d4b85a543d4131a5148fb/floorPlanImg/20230411/B3.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B3.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "BP1",
+        "bedroomType": "2 Bedroom Premium",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/89abbcafcb6d4b85a543d4131a5148fb/floorPlanImg/20230411/BP1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "BP1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "BP2",
+        "bedroomType": "2 Bedroom Premium",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/89abbcafcb6d4b85a543d4131a5148fb/floorPlanImg/20230411/BP2.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "BP2.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "BP3",
+        "bedroomType": "2 Bedroom Premium",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/89abbcafcb6d4b85a543d4131a5148fb/floorPlanImg/20230417/BP3.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "BP3.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "BPS1",
+        "bedroomType": "2 Bedroom Premium + Ensuite Study",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/89abbcafcb6d4b85a543d4131a5148fb/floorPlanImg/20230411/BPS1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "BPS1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "BPS2",
+        "bedroomType": "2 Bedroom Premium + Ensuite Study",
+        "bedroomCount": "2",
+        "bedroomCategory": "2Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/89abbcafcb6d4b85a543d4131a5148fb/floorPlanImg/20230411/BPS2.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "BPS2.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "C1",
+        "bedroomType": "3 Bedroom",
+        "bedroomCount": "3",
+        "bedroomCategory": "3Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/89abbcafcb6d4b85a543d4131a5148fb/floorPlanImg/20230411/C1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "C1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "CP1",
+        "bedroomType": "3 Bedroom Premium",
+        "bedroomCount": "3",
+        "bedroomCategory": "3Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/89abbcafcb6d4b85a543d4131a5148fb/floorPlanImg/20230411/CP1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "CP1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "CPS1",
+        "bedroomType": "3 Bedroom Premium + Study",
+        "bedroomCount": "3",
+        "bedroomCategory": "3Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/89abbcafcb6d4b85a543d4131a5148fb/floorPlanImg/20230411/CPS1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "CPS1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "D1",
+        "bedroomType": "4 Bedroom Premium",
+        "bedroomCount": "4",
+        "bedroomCategory": "4Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/89abbcafcb6d4b85a543d4131a5148fb/floorPlanImg/20230411/D1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "D1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "D1a",
+        "bedroomType": "4 Bedroom Premium",
+        "bedroomCount": "4",
+        "bedroomCategory": "4Bed",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/89abbcafcb6d4b85a543d4131a5148fb/floorPlanImg/20230411/D1a.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "D1a.jpg",
+        "hasImage": true
+      }
+    ],
+    "extractedData": {
+      "hasDetailedInfo": true,
+      "basicInfoOnly": false,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Nim Collection",
+    "developer": "Bukit Sembawang Estates Limited",
+    "address": "Nim Road/Ang Mo Kio Ave 5",
+    "district": "D28",
+    "propertyType": "Residential Landed",
+    "priceRange": "TBC",
+    "sizeRange": "N/A",
+    "totalUnits": "98",
+    "blocksLevels": "Nim Rise/、Nim Terrace/",
+    "expectedTOP": "P1: 31Mar2021, P2: 30Jun2021",
+    "tenure": "99 Years",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Nim-Collection",
+    "scrapedAt": "2025-07-11T09:16:53.140Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "NoMa",
+    "developer": "Macly 33 Pte Ltd",
+    "address": "331 - 335 Guillemard Rd",
+    "district": "D14",
+    "propertyType": "Residential Lowrise",
+    "priceRange": "TBC",
+    "sizeRange": "N/A",
+    "totalUnits": "50",
+    "blocksLevels": "East BLK/05、North BLK/08、West BLK/05",
+    "expectedTOP": "Nov 2024",
+    "tenure": "Freehold",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/NoMa",
+    "scrapedAt": "2025-07-11T09:17:15.577Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Nordcom 1",
+    "developer": "Grow - Tech Properties Pte. Ltd.",
+    "address": "3 Gambas Cres",
+    "district": "D27",
+    "propertyType": "Commercial",
+    "priceRange": "$495,418-$2,253,815",
+    "sizeRange": "1658-5404",
+    "totalUnits": "131",
+    "blocksLevels": "Nordcom 1/G",
+    "expectedTOP": "Mar 2027",
+    "tenure": "30 Years",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Nordcom-1",
+    "scrapedAt": "2025-07-11T09:17:53.652Z",
+    "unitMix": [
+      {
+        "unitType": "Factory",
+        "size": "1658 - 5404",
+        "priceRange": "$495.42K -\n          $2.21M",
+        "availableUnits": 52,
+        "totalUnits": 53,
+        "availability": "52 / 53"
+      },
+      {
+        "unitType": "Terrace Factory",
+        "size": "5339 - 5404",
+        "priceRange": "$2.15M -\n          $2.25M",
+        "availableUnits": 11,
+        "totalUnits": 11,
+        "availability": "11 / 11"
+      }
+    ],
+    "floorPlans": [
+      {
+        "name": "1st Storey",
+        "bedroomType": "Factory",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2bb941dfc39445998b241147df411af3/2de0f1d455d04dacb301e8f28dee9245/floorPlanImg/20250604/1st_Storey.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "1st_Storey.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "2nd Storey",
+        "bedroomType": "Factory",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2bb941dfc39445998b241147df411af3/2de0f1d455d04dacb301e8f28dee9245/floorPlanImg/20250604/2nd_Storey.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "2nd_Storey.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "3rd Storey",
+        "bedroomType": "Factory",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2bb941dfc39445998b241147df411af3/2de0f1d455d04dacb301e8f28dee9245/floorPlanImg/20250604/3rd_Storey.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "3rd_Storey.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "7th Storey",
+        "bedroomType": "Factory",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2bb941dfc39445998b241147df411af3/2de0f1d455d04dacb301e8f28dee9245/floorPlanImg/20250604/7th_Storey.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "7th_Storey.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "8th Storey",
+        "bedroomType": "Factory",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2bb941dfc39445998b241147df411af3/2de0f1d455d04dacb301e8f28dee9245/floorPlanImg/20250604/8th_Storey.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "8th_Storey.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "9th Storey",
+        "bedroomType": "Factory",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2bb941dfc39445998b241147df411af3/2de0f1d455d04dacb301e8f28dee9245/floorPlanImg/20250604/9th_Storey.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "9th_Storey.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "Type TF",
+        "bedroomType": "Terrace Factory",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2bb941dfc39445998b241147df411af3/2de0f1d455d04dacb301e8f28dee9245/floorPlanImg/20250604/Type_TF.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "Type_TF.jpg",
+        "hasImage": true
+      }
+    ],
+    "extractedData": {
+      "hasDetailedInfo": true,
+      "basicInfoOnly": false,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Nordcom 2",
+    "developer": "Grow - Tech Properties Pte. Ltd.",
+    "address": "2 Gambas Cres",
+    "district": "D27",
+    "propertyType": "Commercial",
+    "priceRange": "$574,997-$6,024,243",
+    "sizeRange": "1658-5070",
+    "totalUnits": "347",
+    "blocksLevels": "Nordcom 2/07",
+    "expectedTOP": "Dec 2017",
+    "tenure": "30 Years",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Nordcom-2",
+    "scrapedAt": "2025-07-11T09:18:18.025Z",
+    "unitMix": [
+      {
+        "unitType": "ChildCare Centre",
+        "size": "5027 - 5070",
+        "priceRange": "$5.79M -\n          $6.02M",
+        "availableUnits": 2,
+        "totalUnits": 2,
+        "availability": "2 / 2"
+      },
+      {
+        "unitType": "Factory",
+        "size": "1658 - 2713",
+        "priceRange": "$575.0K -\n          $3.16M",
+        "availableUnits": 26,
+        "totalUnits": 27,
+        "availability": "26 / 27"
+      }
+    ],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": true,
+      "basicInfoOnly": false,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Normanton Park 鑫悦府",
+    "developer": "Kingsford Huray Development Pte Ltd",
+    "address": "Normanton Park",
+    "district": "D05",
+    "propertyType": "Residential Highrise",
+    "priceRange": "TBC",
+    "sizeRange": "N/A",
+    "totalUnits": "1862",
+    "blocksLevels": "BLK 45/24、BLK 47/24、BLK 49/24、BLK 51/24、BLK 53/24、BLK 55/24、BLK 57/24、BLK 59/24、BLK 61/24、BLK 63/01、Terrace House/00",
+    "expectedTOP": "Dec 2023",
+    "tenure": "99 Years",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Normanton-Park-鑫悦府",
+    "scrapedAt": "2025-07-11T09:18:41.577Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "North Gaia",
+    "developer": "Sing Holdings (Yishun) Pte Ltd.",
+    "address": "Yishun Close",
+    "district": "D27",
+    "propertyType": "Executive Condominium",
+    "priceRange": "TBC",
+    "sizeRange": "N/A",
+    "totalUnits": "616",
+    "blocksLevels": "Blk 25/14、Blk 27/14、Blk 29/14、Blk 31/14、Blk 33/14、Blk 35/14、Blk 37/14、Blk 39/14、Blk 41/14、Blk 43/14、Blk 45/14",
+    "expectedTOP": "Jun 2027",
+    "tenure": "99 Years",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/North-Gaia",
+    "scrapedAt": "2025-07-11T09:19:04.688Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Norwood Grand 景林嘉园",
+    "developer": "CDL Stellar Pte. Ltd.",
+    "address": "2 , 6, 8  and  10 Champions Way",
+    "district": "D25",
+    "propertyType": "Residential Highrise",
+    "priceRange": "$2,616,000-$2,786,000",
+    "sizeRange": "1313-1335",
+    "totalUnits": "348",
+    "blocksLevels": "BLOCK 10/11、BLOCK 2/11、BLOCK 6/11、BLOCK 8/11",
+    "expectedTOP": "31 March 2030",
+    "tenure": "99 Years",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Norwood-Grand-景林嘉园",
+    "scrapedAt": "2025-07-11T09:19:59.803Z",
+    "unitMix": [
+      {
+        "unitType": "4 BEDROOM PREMIUM + STUDY",
+        "size": "1313 - 1335",
+        "priceRange": "$2.62M -\n          $2.79M",
+        "availableUnits": 51,
+        "totalUnits": 76,
+        "availability": "51 / 76"
+      }
+    ],
+    "floorPlans": [
+      {
+        "name": "A1S",
+        "bedroomType": "1 BEDROOM + STUDY",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/A1S.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "A1S.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "A1S(P)",
+        "bedroomType": "1 BEDROOM + STUDY",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/A1S(P).png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "A1S_P_.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B1",
+        "bedroomType": "2 BEDROOM",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/B1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B1(P)",
+        "bedroomType": "2 BEDROOM",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/B1(P).png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B1_P_.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B1S",
+        "bedroomType": "2 BEDROOM + ENSUITE",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/B1S.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B1S.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B1S(P)",
+        "bedroomType": "2 BEDROOM + ENSUITE",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/B1S(P).png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B1S_P_.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B2S",
+        "bedroomType": "2 BEDROOM + STUDY",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/B2S.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B2S.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "B2S(P)",
+        "bedroomType": "2 BEDROOM + STUDY",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/B2S(P).png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "B2S_P_.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "C3S",
+        "bedroomType": "3 BEDROOM + STUDY",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/C3S.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "C3S.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "C3S(P)",
+        "bedroomType": "3 BEDROOM + STUDY",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/C3S(P).png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "C3S_P_.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "C1",
+        "bedroomType": "3 BEDROOM DELUXE",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/C1.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "C1.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "C1(P)",
+        "bedroomType": "3 BEDROOM DELUXE",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/C1(P).png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "C1_P_.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "C2",
+        "bedroomType": "3 BEDROOM DELUXE",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/C2.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "C2.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "C2(P)",
+        "bedroomType": "3 BEDROOM DELUXE",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/C2(P).png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "C2_P_.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "C4PS",
+        "bedroomType": "3 BEDROOM PREMIUM + STUDY",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/C4PS.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "C4PS.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "C4PS(P)",
+        "bedroomType": "3 BEDROOM PREMIUM + STUDY",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/C4PS(P).png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "C4PS_P_.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "C5PS",
+        "bedroomType": "3 BEDROOM PREMIUM + STUDY",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/C5PS.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "C5PS.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "C5PS(P)",
+        "bedroomType": "3 BEDROOM PREMIUM + STUDY",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/C5PS(P).png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "C5PS_P_.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "D1S",
+        "bedroomType": "4 BEDROOM DELUXE + STUDY",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/D1S.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "D1S.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "D1S(P)",
+        "bedroomType": "4 BEDROOM DELUXE + STUDY",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/D1S(P).png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "D1S_P_.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "D2PS",
+        "bedroomType": "4 BEDROOM PREMIUM + STUDY",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/D2PS.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "D2PS.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "D2PS(P)",
+        "bedroomType": "4 BEDROOM PREMIUM + STUDY",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/D2PS(P).png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "D2PS_P_.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "D3PS",
+        "bedroomType": "4 BEDROOM PREMIUM + STUDY",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/D3PS.png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "D3PS.jpg",
+        "hasImage": true
+      },
+      {
+        "name": "D3PS(P)",
+        "bedroomType": "4 BEDROOM PREMIUM + STUDY",
+        "bedroomCount": "0",
+        "bedroomCategory": "Unknown",
+        "imageUrl": "https://img.singmap.com/upload/broke/2029c11d79004b5e915809fbd6e19f7b/3afb1fde3a244b79bc85e5f39d888ab4/floorPlanImg/20241005/D3PS(P).png?x-oss-process=image/auto-orient,1/interlace,1/quality,q_50/watermark,image_dXBsb2FkL2Jyb2tlL2Vjb3Byb3Avd2F0ZXJtYXJrLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSxQXzQw,g_se,t_30,x_30,y_1",
+        "filename": "D3PS_P_.jpg",
+        "hasImage": true
+      }
+    ],
+    "extractedData": {
+      "hasDetailedInfo": true,
+      "basicInfoOnly": false,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Nouvel 18 名筑",
+    "developer": "Summervale Properties Pte Ltd",
+    "address": "18 Anderson Road",
+    "district": "D10",
+    "propertyType": "Residential Highrise",
+    "priceRange": "TBC",
+    "sizeRange": "N/A",
+    "totalUnits": "156",
+    "blocksLevels": "Block 16/36、Block 18/36",
+    "expectedTOP": "Oct 2014(TOP+CSC Obtained)",
+    "tenure": "Freehold",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Nouvel-18-名筑",
+    "scrapedAt": "2025-07-11T09:20:24.416Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
+  },
+  {
+    "name": "Novelty Techpoint",
+    "developer": "Novelty Dept. Store Pte Ltd",
+    "address": "27 New Industrial Rd",
+    "district": "D19",
+    "propertyType": "Industrial",
+    "priceRange": "TBC",
+    "sizeRange": "N/A",
+    "totalUnits": "61",
+    "blocksLevels": "Novelty/09",
+    "expectedTOP": "TOP Obtained",
+    "tenure": "Freehold",
+    "sourceUrl": "https://www.ecoprop.com/projectdetail/Novelty-Techpoint",
+    "scrapedAt": "2025-07-11T09:20:46.784Z",
+    "unitMix": [],
+    "floorPlans": [],
+    "extractedData": {
+      "hasDetailedInfo": false,
+      "basicInfoOnly": true,
+      "hasComprehensiveInfo": true
+    }
   }
 ]

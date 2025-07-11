@@ -1,5 +1,5 @@
 {
-  "currentPage": 14,
+  "currentPage": 16,
   "completedPages": [
     1,
     2,
@@ -13,10 +13,12 @@
     10,
     11,
     12,
-    13
+    13,
+    14,
+    15
   ],
-  "totalPropertiesScraped": 130,
-  "lastSuccessfulProperty": "Martin Modern 玛庭豪苑",
+  "totalPropertiesScraped": 157,
+  "lastSuccessfulProperty": "Novelty Techpoint",
   "startTime": "2025-07-11T07:38:39.670Z",
   "errors": [],
   "totalPages": 30,
