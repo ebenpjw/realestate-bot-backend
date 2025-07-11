@@ -25,6 +25,187 @@ class AppointmentService {
   }
 
   /**
+   * Book appointment with multi-layer AI integration
+   * Handles consultant briefing and intelligent scheduling
+   * @param {Object} params - Booking parameters
+   * @returns {Promise<Object>} Booking result
+   */
+  async bookAppointment({
+    leadId,
+    senderWaId,
+    leadData,
+    consultantBriefing = null,
+    source = 'multilayer_ai'
+  }) {
+    try {
+      logger.info({
+        leadId,
+        senderWaId,
+        source,
+        hasBriefing: !!consultantBriefing
+      }, 'Processing appointment booking from multi-layer AI');
+
+      // Get default agent (you can enhance this to select best agent)
+      const agentId = process.env.DEFAULT_AGENT_ID || 'default-agent';
+
+      // Find next available slot (within next 7 days)
+      const availableSlot = await this._findNextAvailableSlot(agentId);
+
+      if (!availableSlot) {
+        return {
+          success: false,
+          error: 'No available appointment slots found in the next 7 days'
+        };
+      }
+
+      // Prepare consultation notes from briefing
+      const consultationNotes = this._formatConsultantBriefing(consultantBriefing, leadData);
+
+      // Create appointment
+      const appointmentResult = await this.createAppointment({
+        leadId,
+        agentId,
+        appointmentTime: availableSlot,
+        leadName: leadData?.name || 'Lead',
+        consultationNotes,
+        source
+      });
+
+      if (appointmentResult.success) {
+        logger.info({
+          leadId,
+          appointmentId: appointmentResult.appointment.id,
+          appointmentTime: availableSlot.toISOString(),
+          source
+        }, 'Appointment booked successfully via multi-layer AI');
+
+        return {
+          success: true,
+          appointmentId: appointmentResult.appointment.id,
+          appointmentTime: formatForDisplay(availableSlot),
+          zoomLink: appointmentResult.zoomMeeting?.join_url,
+          consultantBriefing
+        };
+      }
+
+      return appointmentResult;
+
+    } catch (error) {
+      logger.error({
+        err: error,
+        leadId,
+        senderWaId
+      }, 'Error booking appointment via multi-layer AI');
+
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Find next available appointment slot
+   * @private
+   */
+  async _findNextAvailableSlot(agentId, daysAhead = 7) {
+    try {
+      const now = new Date();
+
+      // Check each day for available slots
+      for (let day = 0; day < daysAhead; day++) {
+        const checkDate = new Date(now.getTime() + (day * 24 * 60 * 60 * 1000));
+
+        // Check business hours (9 AM to 6 PM Singapore time)
+        for (let hour = 9; hour <= 17; hour++) {
+          const slotTime = new Date(checkDate);
+          slotTime.setHours(hour, 0, 0, 0);
+
+          // Skip past times
+          if (slotTime <= now) continue;
+
+          // Check if slot is available
+          const isAvailable = await isTimeSlotAvailable(agentId, slotTime);
+          if (isAvailable) {
+            return slotTime;
+          }
+        }
+      }
+
+      return null;
+
+    } catch (error) {
+      logger.error({ err: error, agentId }, 'Error finding available slot');
+      return null;
+    }
+  }
+
+  /**
+   * Format consultant briefing for appointment notes
+   * @private
+   */
+  _formatConsultantBriefing(consultantBriefing, leadData) {
+    if (!consultantBriefing) {
+      return `Lead consultation scheduled via Multi-Layer AI system.\n\nLead: ${leadData?.name || 'Unknown'}\nSource: ${leadData?.source || 'Unknown'}\nBudget: ${leadData?.budget || 'Not specified'}`;
+    }
+
+    let notes = `=== MULTI-LAYER AI CONSULTATION BRIEFING ===\n\n`;
+
+    // Lead Profile
+    if (consultantBriefing.leadProfile) {
+      notes += `LEAD PSYCHOLOGY:\n`;
+      notes += `- Communication Style: ${consultantBriefing.leadProfile.communicationStyle}\n`;
+      notes += `- Resistance Level: ${consultantBriefing.leadProfile.resistanceLevel}\n`;
+      notes += `- Urgency Score: ${consultantBriefing.leadProfile.urgencyScore}\n`;
+      notes += `- Profile: ${consultantBriefing.leadProfile.psychologicalProfile}\n\n`;
+    }
+
+    // Requirements
+    if (consultantBriefing.requirements) {
+      notes += `LEAD REQUIREMENTS:\n`;
+      notes += `- Budget: ${consultantBriefing.requirements.budget || 'Not specified'}\n`;
+      notes += `- Intent: ${consultantBriefing.requirements.intent || 'Unknown'}\n`;
+      notes += `- Timeline: ${consultantBriefing.requirements.timeline || 'Not specified'}\n`;
+      if (consultantBriefing.requirements.preferences?.length > 0) {
+        notes += `- Preferences: ${consultantBriefing.requirements.preferences.join(', ')}\n`;
+      }
+      notes += `\n`;
+    }
+
+    // Recommended Properties
+    if (consultantBriefing.recommendedProperties?.length > 0) {
+      notes += `RECOMMENDED PROPERTIES:\n`;
+      consultantBriefing.recommendedProperties.forEach((prop, index) => {
+        notes += `${index + 1}. ${prop.name}\n`;
+        notes += `   - Developer: ${prop.developer}\n`;
+        notes += `   - Price: ${prop.priceRange}\n`;
+        notes += `   - District: ${prop.district}\n`;
+        notes += `   - Verified: ${prop.verified ? 'Yes' : 'No'}\n`;
+      });
+      notes += `\n`;
+    }
+
+    // Conversation Strategy
+    if (consultantBriefing.conversationStrategy) {
+      notes += `CONVERSATION STRATEGY:\n`;
+      notes += `- Approach: ${consultantBriefing.conversationStrategy.approach}\n`;
+      if (consultantBriefing.conversationStrategy.objectionHandling?.length > 0) {
+        notes += `- Objection Handling: ${consultantBriefing.conversationStrategy.objectionHandling.join(', ')}\n`;
+      }
+      if (consultantBriefing.conversationStrategy.trustBuildingTactics?.length > 0) {
+        notes += `- Trust Building: ${consultantBriefing.conversationStrategy.trustBuildingTactics.join(', ')}\n`;
+      }
+      notes += `\n`;
+    }
+
+    // Next Steps & Conversion Notes
+    notes += `NEXT STEPS: ${consultantBriefing.nextSteps || 'Continue consultation'}\n`;
+    notes += `CONVERSION NOTES: ${consultantBriefing.conversionNotes || 'Standard consultation approach'}\n`;
+
+    return notes;
+  }
+
+  /**
    * Check if a time slot conflicts with existing appointments or calendar events
    * Uses Google Calendar as the single source of truth for availability
    * @param {string} agentId - Agent ID

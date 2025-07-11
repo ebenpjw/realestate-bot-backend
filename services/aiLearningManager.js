@@ -121,11 +121,10 @@ class AILearningManager {
         created_by: 'ai_learning_manager'
       };
 
-      const { data: createdTest, error } = await supabase
-        .from('ab_tests')
-        .insert(abTest)
-        .select()
-        .single();
+      // A/B testing system disabled - ab_tests table removed during cleanup
+      logger.info({ abTest }, 'A/B test creation skipped - system disabled');
+      const createdTest = null;
+      const error = null;
 
       if (error) {
         throw new Error(`Failed to create A/B test: ${error.message}`);
@@ -230,12 +229,10 @@ class AILearningManager {
       for (const [testId, test] of this.abTests) {
         if (test.status !== 'active') continue;
 
-        // Get current test data
-        const { data: updatedTest, error } = await supabase
-          .from('ab_tests')
-          .select('*')
-          .eq('id', testId)
-          .single();
+        // A/B testing system disabled - ab_tests table removed during cleanup
+        logger.debug({ testId }, 'A/B test evaluation skipped - system disabled');
+        const updatedTest = null;
+        const error = null;
 
         if (error || !updatedTest) continue;
 
@@ -341,10 +338,10 @@ class AILearningManager {
    */
   async _loadActiveABTests() {
     try {
-      const { data: activeTests, error } = await supabase
-        .from('ab_tests')
-        .select('*')
-        .eq('status', 'active');
+      // A/B testing system disabled - ab_tests table removed during cleanup
+      logger.info('A/B testing system disabled - using default strategies');
+      const activeTests = [];
+      const error = null;
 
       if (error) {
         logger.warn({ err: error }, 'Failed to load active A/B tests');

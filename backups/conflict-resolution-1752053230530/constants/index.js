@@ -47,16 +47,6 @@ const APP_CONSTANTS = {
   },
   
   // AI configuration
-  // Multi-Layer AI Configuration
-  MULTILAYER_AI: {
-    LAYER1_TEMPERATURE: 0.3,  // Psychology Analysis
-    LAYER2_TEMPERATURE: 0.2,  // Intelligence Gathering  
-    LAYER3_TEMPERATURE: 0.4,  // Strategic Planning
-    LAYER4_TEMPERATURE: 0.6,  // Content Generation
-    LAYER5_TEMPERATURE: 0.2,  // Synthesis & Validation
-    NO_TOKEN_LIMITS: true,    // Internal processing has no constraints
-    FACT_CHECK_ENABLED: true
-  },
   AI: {
     DEFAULT_TEMPERATURE: 0.7,
     MAX_TOKENS: 1200,

@@ -6,6 +6,8 @@ const { DORO_PERSONALITY, getPersonalityPrompt, getToneForUser, getStageGuidelin
 const whatsappService = require('./whatsappService');
 const databaseService = require('./databaseService');
 const aiLearningService = require('./aiLearningService');
+const conversationPacingService = require('./conversationPacingService');
+const conversationFlowValidator = require('./conversationFlowValidator');
 const { AI } = require('../constants');
 
 const { toSgTime, formatForDisplay } = require('../utils/timezoneUtils');
@@ -4500,18 +4502,9 @@ For lead_updates.intent, ONLY use:
         conversationHistory = 'No previous conversation history available.';
       }
 
-      // Conversation pacing is handled by the 5-layer AI architecture
-      // Simple fallback for legacy code compatibility
-      const pacingAnalysis = {
-        currentStage: contextAnalysis.conversation_stage || 'rapport_building',
-        questionsInRecentCycle: 0,
-        maxQuestionsAllowed: 2,
-        canAskQuestion: true,
-        shouldPreferStatements: false,
-        pacingScore: 85, // Higher default score since AI handles this intelligently
-        violations: []
-      };
-      const responseGuidelines = { preferredStructure: 'balanced' };
+      // ENHANCED: Analyze conversation pacing to prevent message flooding
+      const pacingAnalysis = conversationPacingService.analyzePacing(lead.id, _messages, contextAnalysis);
+      const responseGuidelines = conversationPacingService.generateResponseGuidelines(pacingAnalysis);
 
       // Get unified personality configuration
       const userTone = getToneForUser(contextAnalysis.user_psychology, contextAnalysis.comfort_level);
@@ -4832,9 +4825,16 @@ FOCUS ON STRATEGIC IMPACT, NOT CHARACTER COUNTS!
         responseGuidelines
       });
 
-      // Legacy services removed - conversation flow validation is handled by Layer 5 (Synthesis & Validation)
-      // The 5-layer AI architecture provides superior conversation management
-      const flowValidation = { isValid: true, recommendations: [] };
+      // Update conversation pacing metrics
+      conversationPacingService.updateMetrics(lead.id, messages.join(' '), contextAnalysis);
+
+      // ENHANCED: Validate conversation flow and strategic progression
+      const flowValidation = conversationFlowValidator.validateConversationFlow(
+        { message: messages.join(' '), strategic_response: strategicResponse, internal_strategy: internalStrategy },
+        contextAnalysis,
+        pacingAnalysis,
+        _messages
+      );
 
       logger.info({
         leadId: lead.id,
@@ -4925,23 +4925,15 @@ FOCUS ON STRATEGIC IMPACT, NOT CHARACTER COUNTS!
         hasEngineId: !!this.config.GOOGLE_SEARCH_ENGINE_ID
       }, 'Executing Google Custom Search');
 
-      // Add current date context for 2025 information
-      const currentDate = new Date().toLocaleDateString('en-SG', {
-        year: 'numeric',
-        month: 'long'
-      });
-      const enhancedQuery = `${query} ${currentDate} 2025`;
-
       const response = await customsearch.cse.list({
         auth: this.config.GOOGLE_SEARCH_API_KEY,
         cx: this.config.GOOGLE_SEARCH_ENGINE_ID,
-        q: enhancedQuery,
+        q: query,
         num: 5, // Get top 5 results
         safe: 'active',
         lr: 'lang_en', // English results
         gl: 'sg', // Singapore region
-        dateRestrict: 'y1', // Last 1 year for current 2025 data
-        sort: 'date' // Prioritize recent results
+        dateRestrict: 'm6' // Last 6 months for fresh data
       });
 
       if (response.data.items && response.data.items.length > 0) {

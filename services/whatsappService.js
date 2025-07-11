@@ -35,6 +35,31 @@ class WhatsAppService {
    */
   async sendMessage({ to, message }, _options = {}) {
     try {
+      // CRITICAL SAFETY CHECK: Block test phone numbers
+      const testNumbers = ['+6591234567', '+6587654321', '+6512345678'];
+      if (testNumbers.includes(to)) {
+        logger.error({
+          to,
+          messageLength: message?.length,
+          reason: 'Test phone number blocked'
+        }, '🚫 CRITICAL SAFETY: Test phone number blocked - NO MESSAGE SENT');
+
+        return this._createMockResponse(to, message);
+      }
+
+      // SAFETY CHECK: Prevent real messages during testing/development
+      if (config.DISABLE_WHATSAPP_SENDING || config.TESTING_MODE || config.DRY_RUN_MODE) {
+        logger.warn({
+          to,
+          messageLength: message?.length,
+          disableFlag: config.DISABLE_WHATSAPP_SENDING,
+          testingMode: config.TESTING_MODE,
+          dryRunMode: config.DRY_RUN_MODE
+        }, '🚫 SAFETY: WhatsApp message sending disabled - returning mock response');
+
+        return this._createMockResponse(to, message);
+      }
+
       // Validate inputs
       this._validateMessageParams({ to, message });
 
@@ -98,6 +123,35 @@ class WhatsAppService {
    */
   async sendTemplateMessage({ to, templateId, params = [], templateName = '', category = 'UTILITY' }) {
     try {
+      // CRITICAL SAFETY CHECK: Block test phone numbers
+      const testNumbers = ['+6591234567', '+6587654321', '+6512345678'];
+      if (testNumbers.includes(to)) {
+        logger.error({
+          to,
+          templateId,
+          templateName,
+          reason: 'Test phone number blocked'
+        }, '🚫 CRITICAL SAFETY: Test phone number blocked - NO TEMPLATE SENT');
+
+        return this._createMockTemplateResponse(to, templateId, templateName);
+      }
+
+      // SAFETY CHECK: Prevent real template messages during testing/development
+      if (config.DISABLE_WHATSAPP_SENDING || config.TESTING_MODE || config.DRY_RUN_MODE) {
+        logger.warn({
+          to,
+          templateId,
+          templateName,
+          category,
+          params: params.length,
+          disableFlag: config.DISABLE_WHATSAPP_SENDING,
+          testingMode: config.TESTING_MODE,
+          dryRunMode: config.DRY_RUN_MODE
+        }, '🚫 SAFETY: WhatsApp template sending disabled - returning mock response');
+
+        return this._createMockTemplateResponse(to, templateId, templateName);
+      }
+
       // Validate inputs
       this._validateTemplateParams({ to, templateId, params });
 
@@ -443,10 +497,68 @@ class WhatsAppService {
 
 
   /**
+   * Create mock response for testing/development safety
+   * @private
+   */
+  _createMockResponse(to, message) {
+    const messageParts = this._splitMessage(message);
+    const mockResults = messageParts.map((part, index) => ({
+      success: true,
+      messageId: `mock_msg_${Date.now()}_${index}`,
+      status: 'sent',
+      to,
+      message: part,
+      timestamp: new Date().toISOString(),
+      mock: true
+    }));
+
+    return {
+      success: true,
+      results: mockResults,
+      totalParts: messageParts.length,
+      mock: true,
+      reason: 'Safety mode enabled - no real message sent'
+    };
+  }
+
+  /**
+   * Create mock template response for testing/development safety
+   * @private
+   */
+  _createMockTemplateResponse(to, templateId, templateName) {
+    return {
+      success: true,
+      messageId: `mock_template_${Date.now()}`,
+      status: 'sent',
+      to,
+      templateId,
+      templateName,
+      timestamp: new Date().toISOString(),
+      mock: true,
+      reason: 'Safety mode enabled - no real template sent'
+    };
+  }
+
+  /**
    * Health check for WhatsApp service
    */
   async healthCheck() {
     try {
+      // Check if safety modes are enabled
+      if (config.DISABLE_WHATSAPP_SENDING || config.TESTING_MODE || config.DRY_RUN_MODE) {
+        return {
+          status: 'healthy',
+          service: 'whatsapp',
+          mode: 'safety_enabled',
+          message: 'WhatsApp service running in safe mode - no real messages will be sent',
+          safetyFlags: {
+            disableWhatsappSending: config.DISABLE_WHATSAPP_SENDING,
+            testingMode: config.TESTING_MODE,
+            dryRunMode: config.DRY_RUN_MODE
+          }
+        };
+      }
+
       // Check if required configuration is present
       if (!this.apiKey || !this.wabaNumber) {
         return {

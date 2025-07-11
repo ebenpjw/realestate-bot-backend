@@ -1,0 +1,33 @@
+{
+  "name": "local-property-scraper",
+  "version": "2.0.0",
+  "description": "Local property scraper with direct Supabase integration",
+  "main": "localScraperWithWebhook.js",
+  "scripts": {
+    "scrape": "node localScraperWithWebhook.js scrape",
+    "schedule": "node localScraperWithWebhook.js schedule",
+    "test": "node localScraperWithWebhook.js test",
+    "validate": "node validate-integration.js",
+    "test-unit-mix": "node test-unit-mix-extraction.js",
+    "test-complete": "node test-complete-integration.js",
+    "test-pause-resume": "node test-pause-resume.js",
+    "pause": "node pause-scraper.js",
+    "resume": "node resume-scraper.js",
+    "stop": "node stop-scraper.js",
+    "status": "node scraper-status.js"
+  },
+  "dependencies": {
+    "puppeteer": "^21.0.0",
+    "@supabase/supabase-js": "^2.38.0",
+    "dotenv": "^16.3.0"
+  },
+  "keywords": [
+    "scraper",
+    "property",
+    "ecoprop",
+    "supabase",
+    "real-estate"
+  ],
+  "author": "Real Estate Bot",
+  "license": "MIT"
+}

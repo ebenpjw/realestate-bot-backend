@@ -24,6 +24,7 @@ const testRouter = require('./api/test');
 const authRouter = require('./api/auth');
 const testCalendarRouter = require('./api/testCalendar');
 const aiLearningRouter = require('./api/aiLearning');
+const orchestratorRouter = require('./api/orchestrator');
 
 
 // Initialize Express app
@@ -217,6 +218,7 @@ app.use('/api/test', testRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/test-calendar', testCalendarRouter);
 app.use('/api/ai-learning', aiLearningRouter);
+app.use('/api/orchestrator', orchestratorRouter);
 // Visual property API (optional - may not work if dependencies missing)
 try {
   app.use('/api/visual-property', require('./api/visualPropertyData'));

@@ -1,16 +1,17 @@
-// api/gupshup.js - Simplified webhook handler using unified bot service
+// api/gupshup.js - Enhanced webhook handler using Message Processing Orchestrator
 
 const express = require('express');
 const router = express.Router();
 const logger = require('../logger');
-const botService = require('../services/botService');
+const messageOrchestrator = require('../services/messageOrchestrator');
 
 /**
- * Simple message processing using unified bot service
+ * Enhanced message processing using Message Processing Orchestrator
+ * Implements intelligent batching, anti-spam protection, and unified processing
  */
 async function processMessage({ senderWaId, userText, senderName }) {
-  // All logic is now handled by the unified bot service
-  await botService.processMessage({ senderWaId, userText, senderName });
+  // Process through Message Processing Orchestrator for enhanced capabilities
+  await messageOrchestrator.processMessage({ senderWaId, userText, senderName });
 }
 
 // GET endpoint for webhook verification

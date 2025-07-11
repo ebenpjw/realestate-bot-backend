@@ -1,0 +1,141 @@
+{
+  "timestamp": "2025-07-09T09:28:43.159Z",
+  "summary": {
+    "totalTests": 6,
+    "passedTests": 4,
+    "failedTests": 2,
+    "overallScore": 0.6666666666666666
+  },
+  "layerTests": {
+    "psychology": {
+      "success": true,
+      "processingTime": 4364,
+      "hasRequiredFields": true
+    },
+    "intelligence": {
+      "success": true,
+      "processingTime": 1454,
+      "hasPropertyData": true,
+      "factChecked": true,
+      "dataConfidence": 0.3
+    }
+  },
+  "integrationTests": {
+    "messageProcessing": {
+      "success": true,
+      "hasResponse": true,
+      "processingTime": 19455,
+      "qualityScore": 0.92,
+      "appointmentIntent": true,
+      "synthesized": true
+    }
+  },
+  "scenarioTests": {
+    "Resistant Singaporean Buyer": {
+      "success": true,
+      "response": "Hi! 👋\n\nThank you for reaching out about the Singapore property market. I understand it can be a lot to take in, especially with so many options available. If you have any specific questions or areas you're interested in—such as location, property type, or investment potential—please let me know. I'm here to provide clear, unbiased information to help you make informed decisions, at your own pace.\n\nWhenever you're ready, feel free to share what you're looking for or any concerns you might have. Looking forward to assisting you on your property journey!",
+      "analysis": {
+        "scores": {
+          "shouldBuildRapport": 1,
+          "shouldNotPushAppointment": 1,
+          "shouldProvideValue": 1,
+          "shouldAddressResistance": 0
+        },
+        "overallScore": 0.75
+      },
+      "processingTime": 19051,
+      "qualityScore": 0.85,
+      "meetsExpectations": true
+    },
+    "Serious Investor with Specific Requirements": {
+      "success": true,
+      "response": "*Hi! Thank you for your interest in property investment opportunities in Singapore.*\n\n*To help you maximize your returns, I’d love to understand your investment goals and preferences. Would you be open to a quick call or chat? This way, I can share tailored strategies and current market insights that have benefited my clients.*\n\n*Let me know your preferred time, and I’ll be happy to assist you further!*",
+      "analysis": {
+        "scores": {
+          "shouldProvideSpecificProperties": 1,
+          "shouldIncludeFloorPlans": 0,
+          "shouldMentionRentalYield": 0,
+          "shouldOfferConsultation": 1
+        },
+        "overallScore": 0.5
+      },
+      "processingTime": 15033,
+      "qualityScore": 0.92,
+      "meetsExpectations": false
+    },
+    "First-Time Buyer with Budget Concerns": {
+      "success": true,
+      "response": "*Hi! Thanks so much for reaching out about the Singapore property market.*\n\nI know exploring property options can feel overwhelming, especially with so many choices available. If you have any questions—about current market trends, property types, or financing options—I'm here to help and make things clearer for you.\n\nEveryone’s needs are different, so if you could share a bit about your goals or what you’re looking for (e.g., own stay or investment, preferred locations, or budget), I can provide more tailored recommendations.\n\nWhenever you’re comfortable, we can also arrange a no-obligation chat to discuss your plans in more detail—no pressure at all. Just let me know what works for you!\n\nLooking forward to supporting you on your property journey. 😊",
+      "analysis": {
+        "scores": {
+          "shouldProvideAffordableOptions": 0,
+          "shouldEducateAboutProcess": 0,
+          "shouldBuildConfidence": 0,
+          "shouldMentionGovernmentSchemes": 0
+        },
+        "overallScore": 0
+      },
+      "processingTime": 25505,
+      "qualityScore": 0.92,
+      "meetsExpectations": false
+    }
+  },
+  "factCheckTests": {
+    "Marina One Residences Singapore price launch date": {
+      "success": false,
+      "resultsCount": 0,
+      "hasRelevantResults": false,
+      "averageRelevance": 0
+    },
+    "Parc Esta Eunos new launch developer": {
+      "success": false,
+      "resultsCount": 0,
+      "hasRelevantResults": false,
+      "averageRelevance": 0
+    }
+  },
+  "performanceTests": {
+    "healthStatus": "warning",
+    "averageProcessingTime": 19392.5,
+    "successRate": 1,
+    "conversionRate": 0.75,
+    "layerHealth": {
+      "psychology": {
+        "successRate": 1,
+        "averageTime": 5018,
+        "recentFailures": 0,
+        "status": "healthy"
+      },
+      "intelligence": {
+        "successRate": 1,
+        "averageTime": 409.4,
+        "recentFailures": 0,
+        "status": "healthy"
+      },
+      "strategy": {
+        "successRate": 1,
+        "averageTime": 0,
+        "recentFailures": 0,
+        "status": "healthy"
+      },
+      "content": {
+        "successRate": 1,
+        "averageTime": 0,
+        "recentFailures": 0,
+        "status": "healthy"
+      },
+      "synthesis": {
+        "successRate": 1,
+        "averageTime": 0,
+        "recentFailures": 0,
+        "status": "healthy"
+      }
+    },
+    "activeAlerts": 1,
+    "recommendations": []
+  },
+  "recommendations": [
+    "System performance below 80% - review failed tests and improve layer processing",
+    "Active monitoring alerts detected - review system health"
+  ]
+}
