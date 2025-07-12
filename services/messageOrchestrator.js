@@ -272,6 +272,64 @@ class MessageOrchestrator {
       // Process batch through enhanced pipeline with agent context
       const result = await this._processBatchedMessages(senderWaId, queue.messages, queue.agentId);
 
+      // CRITICAL: Send the AI response back to WhatsApp (unless already sent)
+      if (result?.success) {
+        if (result?.alreadySent) {
+          // Multi-tenant mode: message already sent by botService
+          logger.info({
+            operationId,
+            senderWaId,
+            agentId: queue.agentId
+          }, '[ORCHESTRATOR] Message already sent by botService (multi-tenant mode)');
+
+        } else if (result?.response) {
+          // Legacy mode: send the AI response
+          try {
+            const whatsappService = require('./whatsappService');
+            await whatsappService.sendMessage({
+              to: senderWaId,
+              message: result.response
+            });
+
+            logger.info({
+              operationId,
+              senderWaId,
+              responseLength: result.response.length,
+              agentId: queue.agentId
+            }, '[ORCHESTRATOR] AI response sent to WhatsApp successfully');
+
+          } catch (sendError) {
+            logger.error({
+              err: sendError,
+              operationId,
+              senderWaId,
+              responseLength: result.response?.length
+            }, '[ORCHESTRATOR] Failed to send AI response to WhatsApp');
+
+            // Try emergency fallback
+            await this._emergencyFallback(senderWaId);
+          }
+        } else {
+          logger.warn({
+            operationId,
+            senderWaId,
+            hasResponse: !!result?.response,
+            alreadySent: !!result?.alreadySent
+          }, '[ORCHESTRATOR] No response to send and not already sent - triggering emergency fallback');
+
+          await this._emergencyFallback(senderWaId);
+        }
+      } else {
+        logger.warn({
+          operationId,
+          senderWaId,
+          resultSuccess: result?.success,
+          hasResponse: !!result?.response
+        }, '[ORCHESTRATOR] Processing failed - triggering emergency fallback');
+
+        await this._emergencyFallback(senderWaId);
+      }
+
       const endTime = Date.now();
       const processingTime = endTime - startTime;
 
@@ -358,6 +416,7 @@ class MessageOrchestrator {
 
       if (agentId) {
         // Multi-tenant mode: use bot service directly with agent context
+        // Note: botService.processMessage() handles sending the WhatsApp message internally
         const botService = require('./botService');
 
         // Process the most recent message with full context
@@ -370,11 +429,13 @@ class MessageOrchestrator {
           agentId
         });
 
+        // Return success without response since botService already sent the message
         return {
           success: true,
-          response: 'Message processed through multi-tenant bot service',
+          response: null, // No response needed - already sent by botService
           synthesized: true,
-          metrics: { qualityScore: 1.0 }
+          metrics: { qualityScore: 1.0 },
+          alreadySent: true // Flag to indicate message was already sent
         };
       } else {
         // Legacy mode: use Multi-Layer AI Integration Service
@@ -572,8 +633,10 @@ class MessageOrchestrator {
     try {
       // Send error message to user
       const whatsappService = require('./whatsappService');
-      await whatsappService.sendMessage(senderWaId,
-        "I'm experiencing technical difficulties. Please try sending your message again.");
+      await whatsappService.sendMessage({
+        to: senderWaId,
+        message: "I'm experiencing technical difficulties. Please try sending your message again."
+      });
 
       // Log the system failure
       this.metrics.systemFailures = (this.metrics.systemFailures || 0) + 1;
