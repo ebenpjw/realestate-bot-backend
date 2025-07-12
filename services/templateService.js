@@ -1,5 +1,6 @@
 const whatsappService = require('./whatsappService');
 const databaseService = require('./databaseService');
+const multiTenantConfigService = require('./multiTenantConfigService');
 const logger = require('../logger');
 const { ValidationError } = require('../middleware/errorHandler');
 
@@ -427,6 +428,142 @@ class TemplateService {
         service: 'Template Service',
         error: error.message
       };
+    }
+  }
+
+  // ============================================================================
+  // MULTI-TENANT TEMPLATE METHODS
+  // ============================================================================
+
+  /**
+   * Send agent-specific welcome template
+   * @param {Object} params - Parameters
+   * @param {string} params.phoneNumber - Lead's phone number
+   * @param {string} params.leadName - Lead's name
+   * @param {string} params.agentId - Agent UUID
+   * @param {string} params.contactReason - Contact reason (optional)
+   * @returns {Promise<Object>} Send result
+   */
+  async sendAgentWelcomeTemplate({ phoneNumber, leadName, agentId, contactReason = 'your property enquiry' }) {
+    try {
+      this._validatePhoneNumber(phoneNumber);
+
+      // Get agent-specific templates
+      const agentTemplates = await multiTenantConfigService.getAgentTemplates(agentId, 'MARKETING');
+      const welcomeTemplate = agentTemplates.find(t => t.template_name.includes('welcome') || t.template_name.includes('intro'));
+
+      if (!welcomeTemplate) {
+        // Fallback to default template
+        logger.warn({ agentId, phoneNumber }, 'No agent-specific welcome template found, using default');
+        return this.sendWelcomeTemplate({ phoneNumber, leadName, contactReason });
+      }
+
+      // Get agent WABA configuration
+      const agentWABAConfig = await multiTenantConfigService.getAgentWABAConfig(agentId);
+
+      // Create agent-specific WhatsApp service
+      const agentWhatsAppService = new (require('./whatsappService').constructor)(agentWABAConfig);
+
+      const params = [leadName, contactReason];
+
+      logger.info({
+        phoneNumber,
+        agentId,
+        templateId: welcomeTemplate.template_id,
+        templateName: welcomeTemplate.template_name,
+        wabaNumber: agentWABAConfig.wabaNumber,
+        params
+      }, 'Sending agent-specific welcome template');
+
+      const result = await agentWhatsAppService.sendTemplateMessage({
+        to: phoneNumber,
+        templateId: welcomeTemplate.template_id,
+        params,
+        category: welcomeTemplate.template_category,
+        templateName: welcomeTemplate.template_name
+      });
+
+      // Log template usage for compliance
+      await this._logAgentTemplateUsage({
+        agentId,
+        phoneNumber,
+        templateId: welcomeTemplate.template_id,
+        templateName: welcomeTemplate.template_name,
+        category: welcomeTemplate.template_category,
+        params,
+        messageId: result.messageId
+      });
+
+      return result;
+
+    } catch (error) {
+      logger.error({ err: error, phoneNumber, agentId }, 'Failed to send agent-specific welcome template');
+      throw error;
+    }
+  }
+
+  /**
+   * Get agent-specific templates
+   * @param {string} agentId - Agent UUID
+   * @param {string} category - Template category (optional)
+   * @returns {Promise<Array>} Agent templates
+   */
+  async getAgentTemplates(agentId, category = null) {
+    try {
+      return await multiTenantConfigService.getAgentTemplates(agentId, category);
+    } catch (error) {
+      logger.error({ err: error, agentId, category }, 'Failed to get agent templates');
+      throw error;
+    }
+  }
+
+  /**
+   * Create or update agent template
+   * @param {string} agentId - Agent UUID
+   * @param {Object} templateData - Template data
+   * @returns {Promise<Object>} Created/updated template
+   */
+  async upsertAgentTemplate(agentId, templateData) {
+    try {
+      return await multiTenantConfigService.upsertAgentTemplate(agentId, templateData);
+    } catch (error) {
+      logger.error({ err: error, agentId, templateData }, 'Failed to upsert agent template');
+      throw error;
+    }
+  }
+
+  /**
+   * Log agent template usage for compliance
+   * @private
+   */
+  async _logAgentTemplateUsage(usageData) {
+    try {
+      const { error } = await databaseService.supabase
+        .from('template_usage_log')
+        .insert({
+          agent_id: usageData.agentId,
+          phone_number: usageData.phoneNumber,
+          template_id: usageData.templateId,
+          template_name: usageData.templateName,
+          template_category: usageData.category,
+          template_params: usageData.params,
+          message_id: usageData.messageId,
+          sent_at: new Date().toISOString(),
+          status: 'sent',
+          created_at: new Date().toISOString()
+        });
+
+      if (error) {
+        logger.error({ err: error, usageData }, 'Failed to log agent template usage');
+      } else {
+        logger.debug({
+          agentId: usageData.agentId,
+          templateName: usageData.templateName,
+          phoneNumber: usageData.phoneNumber
+        }, 'Agent template usage logged for compliance');
+      }
+    } catch (error) {
+      logger.error({ err: error, usageData }, 'Error logging agent template usage');
     }
   }
 }

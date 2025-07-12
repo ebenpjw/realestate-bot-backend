@@ -6,6 +6,8 @@ const { DORO_PERSONALITY, getPersonalityPrompt, getToneForUser, getStageGuidelin
 const whatsappService = require('./whatsappService');
 const databaseService = require('./databaseService');
 const aiLearningService = require('./aiLearningService');
+const multiTenantConfigService = require('./multiTenantConfigService');
+const leadDeduplicationService = require('./leadDeduplicationService');
 const { AI } = require('../constants');
 
 const { toSgTime, formatForDisplay } = require('../utils/timezoneUtils');
@@ -84,25 +86,39 @@ class BotService {
 
   /**
    * Main entry point - process incoming WhatsApp message
+   * Enhanced for multi-tenant support with agent context
    */
-  async processMessage({ senderWaId, userText, senderName }) {
+  async processMessage({ senderWaId, userText, senderName, agentId = null }) {
     const operationId = `process-message-${senderWaId}-${Date.now()}`;
-    let lead = null;
+    let conversation = null;
+    let agentConfig = null;
 
     try {
       logger.info({
         operationId,
         senderWaId,
         senderName,
+        agentId,
         messageLength: userText?.length
       }, `[ENTRY] Processing WhatsApp message: "${userText?.substring(0, 100)}${userText?.length > 100 ? '...' : ''}"`);
 
-      // 1. Find or create lead
-      lead = await this._findOrCreateLead({ senderWaId, senderName });
+      // 1. Get agent configuration if agentId provided (multi-tenant mode)
+      if (agentId) {
+        agentConfig = await multiTenantConfigService.getAgentConfig(agentId);
+        logger.info({ agentId, botName: agentConfig.bot_name }, 'Multi-tenant mode: Agent configuration loaded');
+      }
 
-      // 2. Save user message to conversation history FIRST
+      // 2. Find or create lead conversation (enhanced for multi-tenant)
+      conversation = await this._findOrCreateLeadConversation({
+        senderWaId,
+        senderName,
+        agentId,
+        agentConfig
+      });
+
+      // 3. Save user message to conversation history FIRST
       const { error: messageError } = await this.supabase.from('messages').insert({
-        lead_id: lead.id,
+        conversation_id: conversation.conversation.id,
         sender: 'lead',
         message: userText
       });
@@ -110,7 +126,7 @@ class BotService {
       if (messageError) {
         logger.error({
           err: messageError,
-          leadId: lead.id,
+          conversationId: conversation.conversation.id,
           errorCode: messageError.code,
           errorMessage: messageError.message,
           messageLength: userText?.length
@@ -120,14 +136,14 @@ class BotService {
         // Continue processing but this could impact AI context
       }
 
-      // 3. Get conversation history (now includes current message)
+      // 4. Get conversation history (now includes current message)
       let previousMessages;
       try {
-        previousMessages = await this._getConversationHistory(lead.id);
+        previousMessages = await this._getConversationHistory(conversation.conversation.id, agentId);
       } catch (historyError) {
         logger.error({
           err: historyError,
-          leadId: lead.id,
+          conversationId: conversation.conversation.id,
           senderWaId
         }, 'Failed to retrieve conversation history - using empty history for processing');
 
@@ -136,33 +152,43 @@ class BotService {
         previousMessages = [];
       }
 
-      // 4. Process message with strategic AI system
-      const response = await this._processMessageStrategically(lead, previousMessages, userText);
+      // 5. Process message with strategic AI system (enhanced with agent context)
+      const response = await this._processMessageStrategically(
+        conversation,
+        previousMessages,
+        userText,
+        agentConfig
+      );
 
-      // 5. Update lead with any changes from AI response and contextual inference
+      // 6. Update conversation with any changes from AI response
       if (response.lead_updates && Object.keys(response.lead_updates).length > 0) {
-        lead = await this._updateLead(lead, response.lead_updates);
+        await this._updateConversation(conversation.conversation.id, response.lead_updates);
       }
 
       // Note: Contextual inference is now handled within the strategic processing method
       // This avoids accessing undefined contextAnalysis when insufficient data mode is used
 
-      // 6. Send messages naturally (with human-like timing if multiple messages)
+      // 7. Send messages naturally (with human-like timing if multiple messages)
+      // Use agent-specific WhatsApp service if in multi-tenant mode
+      const whatsappSvc = agentConfig ?
+        await this._getAgentWhatsAppService(agentConfig) :
+        whatsappService;
+
       if (response.message) {
         // If it's a single consolidated message, send it
-        await whatsappService.sendMessage({ to: senderWaId, message: response.message });
+        await whatsappSvc.sendMessage({ to: senderWaId, message: response.message });
 
         // Save assistant response to conversation history
         const { error: assistantMessageError } = await this.supabase.from('messages').insert({
-          lead_id: lead.id,
-          sender: 'assistant',
+          conversation_id: conversation.conversation.id,
+          sender: 'bot',
           message: response.message
         });
 
         if (assistantMessageError) {
           logger.error({
             err: assistantMessageError,
-            leadId: lead.id,
+            conversationId: conversation.conversation.id,
             errorCode: assistantMessageError.code,
             errorMessage: assistantMessageError.message,
             responseLength: response.message?.length
@@ -246,11 +272,11 @@ Respond warmly and genuinely while following all personality guidelines above.`;
             message: processedResponse.message
           });
 
-          // Save AI message to conversation history if we have a lead
-          if (lead?.id) {
+          // Save AI message to conversation history if we have a conversation
+          if (conversation?.conversation?.id) {
             await this.supabase.from('messages').insert({
-              lead_id: lead.id,
-              sender: 'assistant',
+              conversation_id: conversation.conversation.id,
+              sender: 'bot',
               message: processedResponse.message
             });
           }
@@ -301,49 +327,130 @@ Respond warmly and genuinely while following all personality guidelines above.`;
   }
 
   /**
-   * Find or create lead with error handling
+   * Find or create lead conversation with multi-tenant support
    * @private
    */
-  async _findOrCreateLead({ senderWaId, senderName }) {
+  async _findOrCreateLeadConversation({ senderWaId, senderName, agentId, agentConfig }) {
     try {
-      const lead = await databaseService.findOrCreateLead({
-        phoneNumber: senderWaId,
-        fullName: senderName,
-        source: 'WA Direct'
-      });
+      if (agentId) {
+        // Multi-tenant mode: use lead deduplication service
+        const conversation = await leadDeduplicationService.findOrCreateLeadConversation({
+          phoneNumber: senderWaId,
+          agentId: agentId,
+          leadName: senderName,
+          source: 'WA Direct'
+        });
 
-      // Note: User message will be saved along with assistant response
+        logger.info({
+          conversationId: conversation.conversation.id,
+          globalLeadId: conversation.globalLead.id,
+          agentId,
+          isNewLead: conversation.isNewLead,
+          isNewConversation: conversation.isNewConversation,
+          hasInteractedWithOtherAgents: conversation.hasInteractedWithOtherAgents
+        }, 'Multi-tenant conversation found/created successfully');
 
-      logger.info({ leadId: lead.id, senderWaId }, 'Lead found/created successfully');
-      return lead;
+        return conversation;
+      } else {
+        // Legacy mode: use existing database service
+        const lead = await databaseService.findOrCreateLead({
+          phoneNumber: senderWaId,
+          fullName: senderName,
+          source: 'WA Direct'
+        });
+
+        // Wrap in conversation-like structure for compatibility
+        return {
+          conversation: { id: lead.id, ...lead },
+          globalLead: lead,
+          isNewLead: !lead.created_at || new Date() - new Date(lead.created_at) < 60000,
+          isNewConversation: true,
+          hasInteractedWithOtherAgents: false
+        };
+      }
     } catch (error) {
-      logger.error({ err: error, senderWaId, senderName }, 'Critical error in lead creation');
-      throw new Error(`Lead creation failed: ${error.message}`);
+      logger.error({ err: error, senderWaId, senderName, agentId }, 'Critical error in conversation creation');
+      throw new Error(`Conversation creation failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get agent-specific WhatsApp service instance
+   * @private
+   */
+  async _getAgentWhatsAppService(agentConfig) {
+    try {
+      // Create a new WhatsApp service instance with agent-specific configuration
+      const AgentWhatsAppService = require('./whatsappService').constructor;
+      const agentWhatsAppService = new AgentWhatsAppService();
+
+      // Override the configuration with agent-specific settings
+      const wabaConfig = await multiTenantConfigService.getAgentWABAConfig(agentConfig.id);
+      agentWhatsAppService.wabaNumber = wabaConfig.wabaNumber;
+      agentWhatsAppService.apiKey = wabaConfig.apiKey;
+      agentWhatsAppService.displayName = wabaConfig.displayName;
+
+      return agentWhatsAppService;
+    } catch (error) {
+      logger.error({ err: error, agentId: agentConfig.id }, 'Failed to create agent WhatsApp service');
+      // Fallback to default service
+      return whatsappService;
+    }
+  }
+
+  /**
+   * Update conversation with lead data
+   * @private
+   */
+  async _updateConversation(conversationId, updates) {
+    try {
+      const { error } = await this.supabase
+        .from('agent_lead_conversations')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', conversationId);
+
+      if (error) {
+        logger.error({ err: error, conversationId, updates }, 'Failed to update conversation');
+        throw error;
+      }
+
+      logger.info({ conversationId, updates }, 'Conversation updated successfully');
+    } catch (error) {
+      logger.error({ err: error, conversationId, updates }, 'Critical error updating conversation');
+      throw error;
     }
   }
 
   /**
    * Get enhanced conversation history with context analysis
+   * Enhanced for multi-tenant support
    * @private
    */
-  async _getConversationHistory(leadId) {
+  async _getConversationHistory(conversationId, agentId = null) {
     try {
-      if (!leadId) {
-        logger.error('Cannot retrieve conversation history - leadId is required');
-        throw new Error('Lead ID is required for conversation history retrieval');
+      if (!conversationId) {
+        logger.error('Cannot retrieve conversation history - conversationId is required');
+        throw new Error('Conversation ID is required for conversation history retrieval');
       }
+
+      // Determine which field to query based on multi-tenant mode
+      const queryField = agentId ? 'conversation_id' : 'lead_id';
 
       const { data: history, error } = await this.supabase
         .from('messages')
         .select('sender, message, created_at')
-        .eq('lead_id', leadId)
+        .eq(queryField, conversationId)
         .order('created_at', { ascending: false })
         .limit(15); // Get more messages for better context
 
       if (error) {
         logger.error({
           err: error,
-          leadId,
+          conversationId,
+          agentId,
           errorCode: error.code,
           errorMessage: error.message
         }, 'Failed to retrieve conversation history from database');
@@ -385,7 +492,8 @@ Respond warmly and genuinely while following all personality guidelines above.`;
     } catch (error) {
       logger.error({
         err: error,
-        leadId,
+        conversationId,
+        agentId,
         errorMessage: error.message
       }, 'Critical error in conversation history retrieval');
 
@@ -494,21 +602,35 @@ Respond warmly and genuinely while following all personality guidelines above.`;
   }
 
   /**
-   * Strategic multi-phase message processing - REVERTED to original with greeting fix
+   * Strategic multi-phase message processing - Enhanced for multi-tenant support
    * @private
    */
-  async _processMessageStrategically(lead, previousMessages, userText) {
+  async _processMessageStrategically(conversation, previousMessages, userText, agentConfig = null) {
     try {
-      logger.info({ leadId: lead.id }, 'Starting strategic conversation processing');
+      const leadData = conversation.globalLead || conversation.conversation;
+      const conversationData = conversation.conversation;
 
-      // Phase 1: Silent Context Analysis (with new lead detection and fallback)
+      logger.info({
+        conversationId: conversationData.id,
+        globalLeadId: leadData.id,
+        agentId: agentConfig?.id,
+        botName: agentConfig?.bot_name
+      }, 'Starting strategic conversation processing');
+
+      // Phase 1: Silent Context Analysis (enhanced with agent context)
       let contextAnalysis;
       try {
-        contextAnalysis = await this._analyzeStrategicContext(lead, previousMessages, userText);
+        contextAnalysis = await this._analyzeStrategicContext(
+          leadData,
+          previousMessages,
+          userText,
+          agentConfig,
+          conversation
+        );
       } catch (contextError) {
         logger.error({
           err: contextError,
-          leadId: lead.id,
+          conversationId: conversationData.id,
           messageLength: userText?.length,
           historyLength: previousMessages?.length
         }, 'Strategic context analysis failed - using simplified analysis');
@@ -642,7 +764,7 @@ Respond warmly and genuinely while following all personality guidelines above.`;
       };
 
     } catch (error) {
-      logger.error({ err: error, leadId: lead.id }, 'Error in strategic processing');
+      logger.error({ err: error, leadId: leadData.id }, 'Error in strategic processing');
       // Return a simple fallback response instead of legacy system
       return {
         message: "I'm having some technical difficulties right now. Let me get back to you in a moment!",
@@ -1108,7 +1230,7 @@ Follow all personality guidelines above.`;
             statusReason = 'Has been offered alternative time slots - waiting for selection';
           }
         } catch (parseError) {
-          logger.warn({ err: parseError, leadId, alternatives: leadData.booking_alternatives }, 'Error parsing booking alternatives');
+          logger.warn({ err: parseError, leadId: leadData.id, alternatives: leadData.booking_alternatives }, 'Error parsing booking alternatives');
         }
       } else if (leadData?.tentative_booking_time) {
         correctStatus = 'tentative_booking_offered';

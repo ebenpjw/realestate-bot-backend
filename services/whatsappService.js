@@ -5,13 +5,35 @@ const { MESSAGE, VALIDATION } = require('../constants');
 const { ExternalServiceError, ValidationError } = require('../middleware/errorHandler');
 
 class WhatsAppService {
-  constructor() {
+  constructor(agentConfig = null) {
     this.baseURL = 'https://api.gupshup.io/wa/api/v1';
     this.timeout = config.GUPSHUP_TIMEOUT || 10000;
-    this.apiKey = config.GUPSHUP_API_KEY;
-    this.wabaNumber = config.WABA_NUMBER;
-    
-    // Create axios instance with default config
+
+    // Multi-tenant support: use agent config if provided, otherwise use default config
+    if (agentConfig) {
+      this.apiKey = agentConfig.apiKey;
+      this.wabaNumber = agentConfig.wabaNumber;
+      this.displayName = agentConfig.displayName;
+      this.isMultiTenant = true;
+    } else {
+      this.apiKey = config.GUPSHUP_API_KEY;
+      this.wabaNumber = config.WABA_NUMBER;
+      this.displayName = 'SmartGuide Doro';
+      this.isMultiTenant = false;
+    }
+
+    // Create axios instance with configuration
+    this._createAxiosClient();
+
+    // Add request/response interceptors for logging
+    this._setupInterceptors();
+  }
+
+  /**
+   * Create or recreate axios client with current configuration
+   * @private
+   */
+  _createAxiosClient() {
     this.client = axios.create({
       baseURL: this.baseURL,
       timeout: this.timeout,
@@ -20,9 +42,26 @@ class WhatsAppService {
         'Content-Type': 'application/x-www-form-urlencoded'
       }
     });
+  }
 
-    // Add request/response interceptors for logging
+  /**
+   * Update configuration for multi-tenant support
+   * @param {Object} agentConfig - Agent WABA configuration
+   */
+  updateConfiguration(agentConfig) {
+    this.apiKey = agentConfig.apiKey;
+    this.wabaNumber = agentConfig.wabaNumber;
+    this.displayName = agentConfig.displayName;
+    this.isMultiTenant = true;
+
+    // Recreate axios client with new configuration
+    this._createAxiosClient();
     this._setupInterceptors();
+
+    logger.info({
+      wabaNumber: this.wabaNumber,
+      displayName: this.displayName
+    }, 'WhatsApp service configuration updated for agent');
   }
 
   /**
@@ -163,7 +202,7 @@ class WhatsAppService {
         channel: 'whatsapp',
         source: this.wabaNumber,
         destination: to,
-        'src.name': 'DoroSmartGuide',
+        'src.name': this.displayName,
         template: JSON.stringify(templateObject)
       }).toString();
 
@@ -313,7 +352,7 @@ class WhatsAppService {
         channel: 'whatsapp',
         source: this.wabaNumber,
         destination: to,
-        'src.name': 'SmartGuide Doro',
+        'src.name': this.displayName,
         message: JSON.stringify({ type: 'text', text: message })
       }).toString();
 

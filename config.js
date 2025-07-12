@@ -75,12 +75,6 @@ const config = {
   META_APP_SECRET: process.env.META_APP_SECRET,
   META_TIMEOUT: parseInteger(process.env.META_TIMEOUT, 10000),
 
-  // Facebook OAuth Configuration for Lead Ads
-  FACEBOOK_APP_ID: process.env.FACEBOOK_APP_ID,
-  FACEBOOK_APP_SECRET: process.env.FACEBOOK_APP_SECRET,
-  FACEBOOK_REDIRECT_URI: process.env.FACEBOOK_REDIRECT_URI || 'https://your-domain.com/api/auth/facebook/callback',
-  FACEBOOK_API_VERSION: process.env.FACEBOOK_API_VERSION || 'v18.0',
-
   // OpenAI Configuration
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   OPENAI_TEMPERATURE: parseFloatEnv(process.env.OPENAI_TEMPERATURE, 0.7),
@@ -133,8 +127,6 @@ const optionalConfig = {
   WEBHOOK_SECRET_TOKEN: 'Webhook security token required',
   META_VERIFY_TOKEN: 'Meta webhook verification required',
   META_APP_SECRET: 'Meta webhook signature verification required',
-  FACEBOOK_APP_ID: 'Facebook App ID required for Lead Ads integration',
-  FACEBOOK_APP_SECRET: 'Facebook App Secret required for Lead Ads integration',
   GOOGLE_CLIENT_ID: 'Google OAuth required for calendar integration',
   GOOGLE_CLIENT_SECRET: 'Google OAuth required for calendar integration',
   ZOOM_CLIENT_ID: 'Zoom OAuth required for meeting integration',

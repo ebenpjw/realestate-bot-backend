@@ -1,329 +1,448 @@
-// services/leadDeduplicationService.js
-
 const logger = require('../logger');
-const { createClient } = require('@supabase/supabase-js');
-const config = require('../config');
+const supabase = require('../supabaseClient');
+const { ExternalServiceError, ValidationError } = require('../middleware/errorHandler');
 
+/**
+ * Lead Deduplication Service
+ * Manages lead attribution, conversation isolation, and cross-agent deduplication
+ * Ensures proper lead tracking across multiple agents while maintaining conversation isolation
+ */
 class LeadDeduplicationService {
-    constructor() {
-        this.supabase = createClient(config.SUPABASE_URL, config.SUPABASE_KEY);
+  constructor() {
+    this.phoneNumberCache = new Map(); // Cache for phone number lookups
+    this.cacheTimeout = 10 * 60 * 1000; // 10 minutes cache timeout
+  }
+
+  /**
+   * Find or create a lead conversation for an agent
+   * This is the main entry point for lead management
+   * @param {Object} params - Lead parameters
+   * @param {string} params.phoneNumber - Lead's phone number
+   * @param {string} params.agentId - Agent UUID
+   * @param {string} params.leadName - Lead's name (optional)
+   * @param {string} params.source - Lead source (optional)
+   * @returns {Promise<Object>} Conversation object with lead data
+   */
+  async findOrCreateLeadConversation({ phoneNumber, agentId, leadName = null, source = 'WA Direct' }) {
+    try {
+      // Normalize phone number
+      const normalizedPhone = this._normalizePhoneNumber(phoneNumber);
+      
+      logger.info({ 
+        phoneNumber: normalizedPhone, 
+        agentId, 
+        leadName, 
+        source 
+      }, 'Finding or creating lead conversation');
+
+      // Step 1: Find or create global lead
+      const globalLead = await this._findOrCreateGlobalLead({
+        phoneNumber: normalizedPhone,
+        leadName,
+        source,
+        agentId
+      });
+
+      // Step 2: Find or create agent conversation
+      const conversation = await this._findOrCreateAgentConversation({
+        globalLeadId: globalLead.id,
+        agentId,
+        source
+      });
+
+      // Step 3: Check for cross-agent interactions
+      const crossAgentData = await this._getCrossAgentInteractionData(globalLead.id, agentId);
+
+      // Step 4: Return comprehensive conversation data
+      const result = {
+        conversation,
+        globalLead,
+        crossAgentData,
+        isNewLead: globalLead.isNew,
+        isNewConversation: conversation.isNew,
+        hasInteractedWithOtherAgents: crossAgentData.otherAgentsCount > 0
+      };
+
+      logger.info({
+        conversationId: conversation.id,
+        globalLeadId: globalLead.id,
+        isNewLead: result.isNewLead,
+        isNewConversation: result.isNewConversation,
+        otherAgentsCount: crossAgentData.otherAgentsCount
+      }, 'Lead conversation resolved');
+
+      return result;
+
+    } catch (error) {
+      logger.error({ err: error, phoneNumber, agentId }, 'Failed to find or create lead conversation');
+      throw error;
     }
+  }
 
-    /**
-     * Generate a duplicate check hash for a lead
-     * @param {Object} leadData - Lead data containing phone_number, full_name, email
-     * @returns {string} SHA-256 hash for duplicate detection
-     */
-    generateDuplicateHash(leadData) {
-        const { phone_number, full_name, email } = leadData;
-        const crypto = require('crypto');
-        
-        const hashInput = [
-            (phone_number || '').toLowerCase().trim(),
-            (full_name || '').toLowerCase().trim(),
-            (email || '').toLowerCase().trim()
-        ].join('|');
-        
-        return crypto.createHash('sha256').update(hashInput).digest('hex');
+  /**
+   * Get lead deduplication summary for a phone number
+   * @param {string} phoneNumber - Lead's phone number
+   * @returns {Promise<Object>} Deduplication summary
+   */
+  async getLeadDeduplicationSummary(phoneNumber) {
+    try {
+      const normalizedPhone = this._normalizePhoneNumber(phoneNumber);
+
+      const { data, error } = await supabase
+        .from('lead_deduplication_summary')
+        .select('*')
+        .eq('phone_number', normalizedPhone)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+        throw new ExternalServiceError('Supabase', `Failed to get deduplication summary: ${error.message}`, error);
+      }
+
+      return data || {
+        phone_number: normalizedPhone,
+        conversation_count: 0,
+        agents_contacted: [],
+        organizations_contacted: [],
+        first_contact: null,
+        last_interaction: null,
+        statuses: []
+      };
+
+    } catch (error) {
+      logger.error({ err: error, phoneNumber }, 'Failed to get lead deduplication summary');
+      throw error;
     }
+  }
 
-    /**
-     * Check for potential duplicate leads
-     * @param {Object} newLead - New lead data to check
-     * @returns {Array} Array of potential duplicate matches
-     */
-    async findPotentialDuplicates(newLead) {
-        const operationId = `find-duplicates-${Date.now()}`;
-        
-        try {
-            logger.info({ operationId, phone: newLead.phone_number }, 'Checking for potential duplicate leads');
+  /**
+   * Update lead profile across all conversations
+   * @param {string} phoneNumber - Lead's phone number
+   * @param {Object} profileData - Profile data to update
+   * @returns {Promise<void>}
+   */
+  async updateLeadProfile(phoneNumber, profileData) {
+    try {
+      const normalizedPhone = this._normalizePhoneNumber(phoneNumber);
 
-            const duplicateHash = this.generateDuplicateHash(newLead);
-            const potentialDuplicates = [];
+      // Update global lead profile
+      const { error: globalError } = await supabase
+        .from('global_leads')
+        .update({
+          lead_profile: profileData,
+          updated_at: new Date().toISOString()
+        })
+        .eq('phone_number', normalizedPhone);
 
-            // 1. Exact phone number match
-            if (newLead.phone_number) {
-                const { data: phoneMatches, error: phoneError } = await this.supabase
-                    .from('leads')
-                    .select('id, phone_number, full_name, primary_source, created_at')
-                    .eq('phone_number', newLead.phone_number)
-                    .neq('id', newLead.id || '00000000-0000-0000-0000-000000000000');
+      if (globalError) {
+        throw new ExternalServiceError('Supabase', `Failed to update global lead profile: ${globalError.message}`, globalError);
+      }
 
-                if (phoneError) {
-                    logger.error({ err: phoneError, operationId }, 'Error checking phone duplicates');
-                } else if (phoneMatches && phoneMatches.length > 0) {
-                    phoneMatches.forEach(match => {
-                        potentialDuplicates.push({
-                            ...match,
-                            match_type: 'phone_exact',
-                            confidence_score: 0.95
-                        });
-                    });
-                }
-            }
+      // Clear cache
+      this.phoneNumberCache.delete(normalizedPhone);
 
-            // 2. Duplicate hash match (phone + name combination)
-            if (duplicateHash) {
-                const { data: hashMatches, error: hashError } = await this.supabase
-                    .from('leads')
-                    .select('id, phone_number, full_name, primary_source, created_at, duplicate_check_hash')
-                    .eq('duplicate_check_hash', duplicateHash)
-                    .neq('id', newLead.id || '00000000-0000-0000-0000-000000000000');
+      logger.info({ phoneNumber: normalizedPhone, profileData }, 'Lead profile updated globally');
 
-                if (hashError) {
-                    logger.error({ err: hashError, operationId }, 'Error checking hash duplicates');
-                } else if (hashMatches && hashMatches.length > 0) {
-                    hashMatches.forEach(match => {
-                        // Avoid adding the same lead twice if already found by phone
-                        const alreadyFound = potentialDuplicates.find(dup => dup.id === match.id);
-                        if (!alreadyFound) {
-                            potentialDuplicates.push({
-                                ...match,
-                                match_type: 'phone_email_combo',
-                                confidence_score: 0.90
-                            });
-                        }
-                    });
-                }
-            }
+    } catch (error) {
+      logger.error({ err: error, phoneNumber, profileData }, 'Failed to update lead profile');
+      throw error;
+    }
+  }
 
-            // 3. Fuzzy name + phone match (for slight variations in names)
-            if (newLead.full_name && newLead.phone_number) {
-                const nameVariations = this.generateNameVariations(newLead.full_name);
-                
-                for (const nameVariation of nameVariations) {
-                    const { data: fuzzyMatches, error: fuzzyError } = await this.supabase
-                        .from('leads')
-                        .select('id, phone_number, full_name, primary_source, created_at')
-                        .eq('phone_number', newLead.phone_number)
-                        .ilike('full_name', `%${nameVariation}%`)
-                        .neq('id', newLead.id || '00000000-0000-0000-0000-000000000000');
+  /**
+   * Mark lead as converted for a specific agent conversation
+   * @param {string} conversationId - Conversation UUID
+   * @param {Object} conversionData - Conversion details
+   * @returns {Promise<void>}
+   */
+  async markLeadConverted(conversationId, conversionData = {}) {
+    try {
+      const updateData = {
+        conversation_status: 'converted',
+        conversion_score: conversionData.score || 1.0,
+        additional_notes: conversionData.notes,
+        updated_at: new Date().toISOString()
+      };
 
-                    if (fuzzyError) {
-                        logger.error({ err: fuzzyError, operationId }, 'Error checking fuzzy duplicates');
-                    } else if (fuzzyMatches && fuzzyMatches.length > 0) {
-                        fuzzyMatches.forEach(match => {
-                            const alreadyFound = potentialDuplicates.find(dup => dup.id === match.id);
-                            if (!alreadyFound) {
-                                potentialDuplicates.push({
-                                    ...match,
-                                    match_type: 'name_phone_fuzzy',
-                                    confidence_score: 0.75
-                                });
-                            }
-                        });
-                    }
-                }
-            }
+      const { error } = await supabase
+        .from('agent_lead_conversations')
+        .update(updateData)
+        .eq('id', conversationId);
 
-            logger.info({ 
-                operationId, 
-                duplicatesFound: potentialDuplicates.length,
-                phone: newLead.phone_number 
-            }, 'Duplicate check completed');
+      if (error) {
+        throw new ExternalServiceError('Supabase', `Failed to mark lead as converted: ${error.message}`, error);
+      }
 
-            return potentialDuplicates;
+      logger.info({ conversationId, conversionData }, 'Lead marked as converted');
 
-        } catch (error) {
-            logger.error({ err: error, operationId }, 'Error in findPotentialDuplicates');
-            return [];
+    } catch (error) {
+      logger.error({ err: error, conversationId, conversionData }, 'Failed to mark lead as converted');
+      throw error;
+    }
+  }
+
+  /**
+   * Get agent's active conversations
+   * @param {string} agentId - Agent UUID
+   * @param {number} limit - Maximum number of conversations to return
+   * @returns {Promise<Array>} Active conversations
+   */
+  async getAgentActiveConversations(agentId, limit = 50) {
+    try {
+      const { data, error } = await supabase
+        .from('active_agent_conversations')
+        .select('*')
+        .eq('agent_id', agentId)
+        .order('last_interaction', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        throw new ExternalServiceError('Supabase', `Failed to get agent conversations: ${error.message}`, error);
+      }
+
+      return data || [];
+
+    } catch (error) {
+      logger.error({ err: error, agentId }, 'Failed to get agent active conversations');
+      throw error;
+    }
+  }
+
+  /**
+   * Find or create global lead (private method)
+   * @private
+   */
+  async _findOrCreateGlobalLead({ phoneNumber, leadName, source, agentId }) {
+    try {
+      // Check cache first
+      const cacheKey = `global_lead_${phoneNumber}`;
+      const cached = this.phoneNumberCache.get(cacheKey);
+      if (cached && (Date.now() - cached.timestamp) < this.cacheTimeout) {
+        return { ...cached.data, isNew: false };
+      }
+
+      // Try to find existing global lead
+      let { data: existingLead, error: findError } = await supabase
+        .from('global_leads')
+        .select('*')
+        .eq('phone_number', phoneNumber)
+        .single();
+
+      if (findError && findError.code !== 'PGRST116') {
+        throw new ExternalServiceError('Supabase', `Failed to find global lead: ${findError.message}`, findError);
+      }
+
+      let globalLead;
+      let isNew = false;
+
+      if (existingLead) {
+        // Update existing lead if name is provided and current name is null
+        if (leadName && !existingLead.full_name) {
+          const { data: updatedLead, error: updateError } = await supabase
+            .from('global_leads')
+            .update({
+              full_name: leadName,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingLead.id)
+            .select()
+            .single();
+
+          if (updateError) {
+            throw new ExternalServiceError('Supabase', `Failed to update global lead: ${updateError.message}`, updateError);
+          }
+          globalLead = updatedLead;
+        } else {
+          globalLead = existingLead;
         }
-    }
+      } else {
+        // Create new global lead
+        const { data: newLead, error: createError } = await supabase
+          .from('global_leads')
+          .insert({
+            phone_number: phoneNumber,
+            full_name: leadName,
+            first_contact_source: source,
+            first_contact_agent_id: agentId,
+            created_at: new Date().toISOString()
+          })
+          .select()
+          .single();
 
-    /**
-     * Generate name variations for fuzzy matching
-     * @param {string} fullName - Full name to generate variations for
-     * @returns {Array} Array of name variations
-     */
-    generateNameVariations(fullName) {
-        if (!fullName) return [];
-        
-        const variations = [];
-        const cleanName = fullName.toLowerCase().trim();
-        
-        // Add the original name
-        variations.push(cleanName);
-        
-        // Split by spaces and try different combinations
-        const nameParts = cleanName.split(/\s+/);
-        if (nameParts.length > 1) {
-            // First name only
-            variations.push(nameParts[0]);
-            // Last name only
-            variations.push(nameParts[nameParts.length - 1]);
-            // First + Last (skip middle names)
-            if (nameParts.length > 2) {
-                variations.push(`${nameParts[0]} ${nameParts[nameParts.length - 1]}`);
-            }
+        if (createError) {
+          throw new ExternalServiceError('Supabase', `Failed to create global lead: ${createError.message}`, createError);
         }
-        
-        return [...new Set(variations)]; // Remove duplicates
+
+        globalLead = newLead;
+        isNew = true;
+      }
+
+      // Cache the result
+      this.phoneNumberCache.set(cacheKey, {
+        data: globalLead,
+        timestamp: Date.now()
+      });
+
+      return { ...globalLead, isNew };
+
+    } catch (error) {
+      logger.error({ err: error, phoneNumber, leadName }, 'Failed to find or create global lead');
+      throw error;
     }
+  }
 
-    /**
-     * Record a potential duplicate in the deduplication table
-     * @param {string} primaryLeadId - ID of the primary lead
-     * @param {string} duplicateLeadId - ID of the potential duplicate
-     * @param {string} matchType - Type of match found
-     * @param {number} confidenceScore - Confidence score (0-1)
-     * @returns {Object} Created deduplication record
-     */
-    async recordPotentialDuplicate(primaryLeadId, duplicateLeadId, matchType, confidenceScore) {
-        const operationId = `record-duplicate-${Date.now()}`;
-        
-        try {
-            logger.info({ 
-                operationId, 
-                primaryLeadId, 
-                duplicateLeadId, 
-                matchType, 
-                confidenceScore 
-            }, 'Recording potential duplicate');
+  /**
+   * Find or create agent conversation (private method)
+   * @private
+   */
+  async _findOrCreateAgentConversation({ globalLeadId, agentId, source }) {
+    try {
+      // Try to find existing conversation
+      let { data: existingConversation, error: findError } = await supabase
+        .from('agent_lead_conversations')
+        .select('*')
+        .eq('global_lead_id', globalLeadId)
+        .eq('agent_id', agentId)
+        .single();
 
-            // Check if this duplicate pair already exists
-            const { data: existing, error: checkError } = await this.supabase
-                .from('lead_deduplication')
-                .select('id')
-                .or(`and(primary_lead_id.eq.${primaryLeadId},duplicate_lead_id.eq.${duplicateLeadId}),and(primary_lead_id.eq.${duplicateLeadId},duplicate_lead_id.eq.${primaryLeadId})`)
-                .single();
+      if (findError && findError.code !== 'PGRST116') {
+        throw new ExternalServiceError('Supabase', `Failed to find agent conversation: ${findError.message}`, findError);
+      }
 
-            if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = no rows found
-                logger.error({ err: checkError, operationId }, 'Error checking existing duplicates');
-                return null;
-            }
+      let conversation;
+      let isNew = false;
 
-            if (existing) {
-                logger.info({ operationId, existingId: existing.id }, 'Duplicate pair already recorded');
-                return existing;
-            }
+      if (existingConversation) {
+        // Update last interaction time
+        const { data: updatedConversation, error: updateError } = await supabase
+          .from('agent_lead_conversations')
+          .update({
+            last_interaction: new Date().toISOString()
+          })
+          .eq('id', existingConversation.id)
+          .select()
+          .single();
 
-            // Create new deduplication record
-            const { data: newRecord, error: insertError } = await this.supabase
-                .from('lead_deduplication')
-                .insert({
-                    primary_lead_id: primaryLeadId,
-                    duplicate_lead_id: duplicateLeadId,
-                    match_type: matchType,
-                    confidence_score: confidenceScore,
-                    status: 'pending'
-                })
-                .select()
-                .single();
-
-            if (insertError) {
-                logger.error({ err: insertError, operationId }, 'Error recording duplicate');
-                return null;
-            }
-
-            logger.info({ operationId, recordId: newRecord.id }, 'Potential duplicate recorded successfully');
-            return newRecord;
-
-        } catch (error) {
-            logger.error({ err: error, operationId }, 'Error in recordPotentialDuplicate');
-            return null;
+        if (updateError) {
+          throw new ExternalServiceError('Supabase', `Failed to update conversation: ${updateError.message}`, updateError);
         }
-    }
+        conversation = updatedConversation;
+      } else {
+        // Create new conversation
+        const { data: newConversation, error: createError } = await supabase
+          .from('agent_lead_conversations')
+          .insert({
+            global_lead_id: globalLeadId,
+            agent_id: agentId,
+            source,
+            created_at: new Date().toISOString(),
+            last_interaction: new Date().toISOString()
+          })
+          .select()
+          .single();
 
-    /**
-     * Process a new lead for duplicates and record findings
-     * @param {Object} newLead - New lead to process
-     * @returns {Object} Processing results with duplicate information
-     */
-    async processNewLeadForDuplicates(newLead) {
-        const operationId = `process-lead-duplicates-${newLead.id || Date.now()}`;
-        
-        try {
-            logger.info({ operationId, leadId: newLead.id }, 'Processing new lead for duplicates');
-
-            // Find potential duplicates
-            const potentialDuplicates = await this.findPotentialDuplicates(newLead);
-            
-            if (potentialDuplicates.length === 0) {
-                logger.info({ operationId, leadId: newLead.id }, 'No duplicates found');
-                return {
-                    hasDuplicates: false,
-                    duplicateCount: 0,
-                    duplicates: []
-                };
-            }
-
-            // Record each potential duplicate
-            const recordedDuplicates = [];
-            for (const duplicate of potentialDuplicates) {
-                const record = await this.recordPotentialDuplicate(
-                    newLead.id,
-                    duplicate.id,
-                    duplicate.match_type,
-                    duplicate.confidence_score
-                );
-                
-                if (record) {
-                    recordedDuplicates.push({
-                        ...duplicate,
-                        deduplication_record_id: record.id
-                    });
-                }
-            }
-
-            logger.info({ 
-                operationId, 
-                leadId: newLead.id,
-                duplicatesFound: potentialDuplicates.length,
-                duplicatesRecorded: recordedDuplicates.length
-            }, 'Lead duplicate processing completed');
-
-            return {
-                hasDuplicates: recordedDuplicates.length > 0,
-                duplicateCount: recordedDuplicates.length,
-                duplicates: recordedDuplicates
-            };
-
-        } catch (error) {
-            logger.error({ err: error, operationId, leadId: newLead.id }, 'Error processing lead for duplicates');
-            return {
-                hasDuplicates: false,
-                duplicateCount: 0,
-                duplicates: [],
-                error: error.message
-            };
+        if (createError) {
+          throw new ExternalServiceError('Supabase', `Failed to create agent conversation: ${createError.message}`, createError);
         }
+
+        conversation = newConversation;
+        isNew = true;
+      }
+
+      return { ...conversation, isNew };
+
+    } catch (error) {
+      logger.error({ err: error, globalLeadId, agentId }, 'Failed to find or create agent conversation');
+      throw error;
+    }
+  }
+
+  /**
+   * Get cross-agent interaction data (private method)
+   * @private
+   */
+  async _getCrossAgentInteractionData(globalLeadId, currentAgentId) {
+    try {
+      const { data, error } = await supabase
+        .from('agent_lead_conversations')
+        .select(`
+          id,
+          agent_id,
+          conversation_status,
+          source,
+          created_at,
+          last_interaction,
+          agents:agent_id (
+            full_name,
+            waba_phone_number,
+            organization:organizations (
+              name
+            )
+          )
+        `)
+        .eq('global_lead_id', globalLeadId)
+        .neq('agent_id', currentAgentId);
+
+      if (error) {
+        throw new ExternalServiceError('Supabase', `Failed to get cross-agent data: ${error.message}`, error);
+      }
+
+      return {
+        otherConversations: data || [],
+        otherAgentsCount: data ? data.length : 0,
+        hasActiveConversations: data ? data.some(conv => 
+          !['converted', 'lost'].includes(conv.conversation_status)
+        ) : false
+      };
+
+    } catch (error) {
+      logger.error({ err: error, globalLeadId, currentAgentId }, 'Failed to get cross-agent interaction data');
+      throw error;
+    }
+  }
+
+  /**
+   * Normalize phone number format (private method)
+   * @private
+   */
+  _normalizePhoneNumber(phoneNumber) {
+    if (!phoneNumber) {
+      throw new ValidationError('Phone number is required');
     }
 
-    /**
-     * Get pending duplicates for manual review
-     * @param {string} agentId - Optional agent ID to filter by
-     * @returns {Array} Array of pending duplicate records
-     */
-    async getPendingDuplicates(agentId = null) {
-        try {
-            let query = this.supabase
-                .from('lead_deduplication')
-                .select(`
-                    *,
-                    primary_lead:primary_lead_id(id, phone_number, full_name, primary_source, created_at),
-                    duplicate_lead:duplicate_lead_id(id, phone_number, full_name, primary_source, created_at)
-                `)
-                .eq('status', 'pending')
-                .order('confidence_score', { ascending: false });
+    // Remove all non-digit characters
+    let normalized = phoneNumber.replace(/\D/g, '');
 
-            if (agentId) {
-                query = query.or(`primary_lead.assigned_agent_id.eq.${agentId},duplicate_lead.assigned_agent_id.eq.${agentId}`);
-            }
-
-            const { data, error } = await query;
-
-            if (error) {
-                logger.error({ err: error, agentId }, 'Error fetching pending duplicates');
-                return [];
-            }
-
-            return data || [];
-
-        } catch (error) {
-            logger.error({ err: error, agentId }, 'Error in getPendingDuplicates');
-            return [];
-        }
+    // Add country code if missing (assuming Singapore +65)
+    if (normalized.length === 8 && normalized.match(/^[689]/)) {
+      normalized = '65' + normalized;
     }
+
+    // Ensure it starts with country code
+    if (!normalized.startsWith('65') && normalized.length === 8) {
+      normalized = '65' + normalized;
+    }
+
+    // Validate length (should be 10-15 digits)
+    if (normalized.length < 10 || normalized.length > 15) {
+      throw new ValidationError(`Invalid phone number format: ${phoneNumber}`);
+    }
+
+    return '+' + normalized;
+  }
+
+  /**
+   * Clear phone number cache
+   * @param {string} phoneNumber - Optional phone number to clear specific cache
+   */
+  clearCache(phoneNumber = null) {
+    if (phoneNumber) {
+      const normalized = this._normalizePhoneNumber(phoneNumber);
+      this.phoneNumberCache.delete(`global_lead_${normalized}`);
+    } else {
+      this.phoneNumberCache.clear();
+    }
+    logger.info({ phoneNumber }, 'Lead deduplication cache cleared');
+  }
 }
 
 module.exports = new LeadDeduplicationService();

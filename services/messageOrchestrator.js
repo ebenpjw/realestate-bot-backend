@@ -47,9 +47,10 @@ class MessageOrchestrator {
 
   /**
    * Main entry point - processes messages through multi-layer AI pipeline
+   * Enhanced for multi-tenant support with agent context
    * Implements intelligent message batching with 5-8 second delay and anti-spam protection
    */
-  async processMessage({ senderWaId, userText, senderName }) {
+  async processMessage({ senderWaId, userText, senderName, agentId = null }) {
     const operationId = `orchestrator-${senderWaId}-${Date.now()}`;
     const timestamp = Date.now();
 
@@ -57,6 +58,7 @@ class MessageOrchestrator {
       logger.info({
         operationId,
         senderWaId,
+        agentId,
         messageLength: userText?.length,
         currentQueueSize: this.messageQueues.get(senderWaId)?.messages?.length || 0
       }, `[ORCHESTRATOR] Processing message: "${userText?.substring(0, 50)}${userText?.length > 50 ? '...' : ''}"`);
@@ -90,13 +92,15 @@ class MessageOrchestrator {
           userText,
           senderName,
           timestamp,
-          spamCheck
+          spamCheck,
+          agentId
         });
         this.metrics.spamPrevented++;
 
         logger.info({
           operationId,
           senderWaId,
+          agentId,
           queueSize: this.messageQueues.get(senderWaId)?.messages?.length,
           spamPrevented: this.metrics.spamPrevented,
           flagged: spamCheck.flagged
@@ -110,7 +114,8 @@ class MessageOrchestrator {
         userText,
         senderName,
         timestamp,
-        spamCheck
+        spamCheck,
+        agentId
       });
 
     } catch (error) {
@@ -167,28 +172,30 @@ class MessageOrchestrator {
   }
 
   /**
-   * Start new message queue for lead
+   * Start new message queue for lead with multi-tenant support
    * @private
    */
   async _startNewQueue(senderWaId, messageData) {
     // Mark as processing
     this.processingState.set(senderWaId, true);
-    
-    // Create new queue
+
+    // Create new queue with agent context
     const queue = {
       messages: [messageData],
       created: Date.now(),
       lastUpdated: Date.now(),
-      leadId: senderWaId
+      leadId: senderWaId,
+      agentId: messageData.agentId // Store agent context for multi-tenant processing
     };
-    
+
     this.messageQueues.set(senderWaId, queue);
-    
+
     // Start batch timer
     this._startBatchTimer(senderWaId);
-    
+
     logger.info({
       senderWaId,
+      agentId: messageData.agentId,
       batchTimeout: this.config.batchTimeoutMs,
       queueCreated: true
     }, '[ORCHESTRATOR] New message queue created, batch timer started');
@@ -262,8 +269,8 @@ class MessageOrchestrator {
         queueAge: Date.now() - queue.created
       }, '[ORCHESTRATOR] Starting batch processing');
 
-      // Process batch through enhanced pipeline
-      const result = await this._processBatchedMessages(senderWaId, queue.messages);
+      // Process batch through enhanced pipeline with agent context
+      const result = await this._processBatchedMessages(senderWaId, queue.messages, queue.agentId);
 
       const endTime = Date.now();
       const processingTime = endTime - startTime;
@@ -337,33 +344,59 @@ class MessageOrchestrator {
 
   /**
    * Process batched messages through enhanced multi-layer AI pipeline
+   * Enhanced for multi-tenant support
    * @private
    */
-  async _processBatchedMessages(senderWaId, messages) {
-    // Use new Multi-Layer AI Integration Service
-    const multiLayerIntegration = require('./multiLayerIntegration');
-
+  async _processBatchedMessages(senderWaId, messages, agentId = null) {
     try {
       logger.info({
         senderWaId,
+        agentId,
         batchSize: messages.length,
-        processingMethod: 'multilayer_ai_pipeline'
-      }, '[ORCHESTRATOR] Processing batch through multi-layer AI pipeline');
+        processingMethod: agentId ? 'multi_tenant_bot_service' : 'multilayer_ai_pipeline'
+      }, '[ORCHESTRATOR] Processing batch through AI pipeline');
 
-      // Get lead data for processing
-      const leadData = await this._getLeadData(senderWaId);
+      if (agentId) {
+        // Multi-tenant mode: use bot service directly with agent context
+        const botService = require('./botService');
 
-      // Get conversation history
-      const conversationHistory = await this._getConversationHistory(leadData.id);
+        // Process the most recent message with full context
+        const latestMessage = messages[messages.length - 1];
 
-      // Process through multi-layer AI pipeline with fact-checking
-      const result = await multiLayerIntegration.processBatchedMessages({
-        leadId: leadData.id,
-        senderWaId,
-        batchedMessages: messages,
-        leadData,
-        conversationHistory
-      });
+        const result = await botService.processMessage({
+          senderWaId,
+          userText: latestMessage.userText,
+          senderName: latestMessage.senderName,
+          agentId
+        });
+
+        return {
+          success: true,
+          response: 'Message processed through multi-tenant bot service',
+          synthesized: true,
+          metrics: { qualityScore: 1.0 }
+        };
+      } else {
+        // Legacy mode: use Multi-Layer AI Integration Service
+        const multiLayerIntegration = require('./multiLayerIntegration');
+
+        // Get lead data for processing
+        const leadData = await this._getLeadData(senderWaId);
+
+        // Get conversation history
+        const conversationHistory = await this._getConversationHistory(leadData.id);
+
+        // Process through multi-layer AI pipeline with fact-checking
+        const result = await multiLayerIntegration.processBatchedMessages({
+          leadId: leadData.id,
+          senderWaId,
+          batchedMessages: messages,
+          leadData,
+          conversationHistory
+        });
+
+        return result;
+      }
 
       if (!result.success) {
         throw new Error(`Multi-layer processing failed: ${result.error}`);

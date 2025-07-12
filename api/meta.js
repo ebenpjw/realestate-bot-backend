@@ -6,146 +6,21 @@ const crypto = require('crypto');
 const config = require('../config');
 const logger = require('../logger');
 
-const facebookLeadService = require('../services/facebookLeadService');
-
-// Enhanced Meta lead processing with full Facebook/Instagram integration
+// This is the background processing function for Meta leads
+// NOTE: Currently disabled as pages table was removed during database cleanup
+// Re-enable when Facebook Lead Ads integration is needed
 async function processMetaLead(changeValue) {
-    const operationId = `meta-lead-${changeValue.leadgen_id}-${Date.now()}`;
-
     try {
-        const { leadgen_id, form_id, page_id, ad_id, campaign_id, adset_id } = changeValue;
+        const { leadgen_id, form_id, page_id } = changeValue;
+        logger.info({ leadgen_id, form_id, page_id }, 'New lead from Meta - currently disabled');
 
-        logger.info({
-            operationId,
-            leadgen_id,
-            form_id,
-            page_id,
-            ad_id,
-            campaign_id
-        }, 'Processing new lead from Meta');
-
-        // Determine source type (Facebook vs Instagram)
-        const sourceType = changeValue.source_type || 'facebook'; // Default to facebook if not specified
-
-        // Prepare webhook data for processing
-        const webhookData = {
-            leadgen_id,
-            form_id,
-            page_id,
-            ad_id,
-            campaign_id,
-            adset_id,
-            source_type: sourceType,
-            campaign_data: {
-                ad_id,
-                campaign_id,
-                adset_id,
-                form_id
-            }
-        };
-
-        // TODO: Fetch actual lead data from Facebook API using leadgen_id
-        // For now, we'll need to make an API call to Facebook to get the lead details
-        // This requires the page access token and the leadgen_id
-
-        // Get page access token
-        const accessToken = await facebookLeadService.getPageAccessToken(page_id);
-        if (!accessToken) {
-            logger.error({ operationId, page_id }, 'No access token found for Facebook page');
-            return;
-        }
-
-        // Fetch lead data from Facebook API
-        const leadData = await fetchFacebookLeadData(leadgen_id, accessToken, operationId);
-        if (!leadData) {
-            logger.error({ operationId, leadgen_id }, 'Failed to fetch lead data from Facebook');
-            return;
-        }
-
-        // Add lead data to webhook data
-        webhookData.phone_number = leadData.phone_number;
-        webhookData.full_name = leadData.full_name;
-        webhookData.email = leadData.email;
-
-        // Process the lead through our service
-        const result = await facebookLeadService.processFacebookLead(webhookData);
-
-        if (result.success) {
-            logger.info({
-                operationId,
-                leadId: result.leadId,
-                agentId: result.agentId,
-                isNewLead: result.isNewLead,
-                hasDuplicates: result.duplicateInfo?.hasDuplicates
-            }, 'Meta lead processed successfully');
-
-            // TODO: Trigger WhatsApp conversation initiation if this is a new lead
-            // This would integrate with your existing bot service
-            if (result.isNewLead && result.leadId) {
-                logger.info({ operationId, leadId: result.leadId }, 'New Facebook lead - ready for WhatsApp initiation');
-                // await initiateWhatsAppConversation(result.leadId);
-            }
-
-        } else {
-            logger.error({
-                operationId,
-                error: result.error
-            }, 'Failed to process Meta lead');
-        }
+        // TODO: Re-implement when Facebook Lead Ads integration is needed
+        // Will need to recreate pages table and configure page access tokens
+        logger.warn('Meta lead processing is currently disabled - pages table removed during cleanup');
+        return;
 
     } catch (error) {
-        logger.error({ err: error, operationId }, 'Meta webhook processing error');
-    }
-}
-
-// Helper function to fetch lead data from Facebook API
-async function fetchFacebookLeadData(leadgenId, accessToken, operationId) {
-    try {
-        const axios = require('axios');
-
-        const response = await axios.get(`https://graph.facebook.com/v18.0/${leadgenId}`, {
-            params: {
-                access_token: accessToken,
-                fields: 'field_data'
-            },
-            timeout: 10000
-        });
-
-        if (!response.data || !response.data.field_data) {
-            logger.error({ operationId, leadgenId }, 'Invalid response from Facebook API');
-            return null;
-        }
-
-        // Parse field data into structured format
-        const fieldData = response.data.field_data;
-        const leadData = {};
-
-        fieldData.forEach(field => {
-            const fieldName = field.name.toLowerCase();
-            const fieldValue = field.values && field.values[0];
-
-            if (fieldName.includes('phone') || fieldName.includes('mobile')) {
-                leadData.phone_number = fieldValue;
-            } else if (fieldName.includes('name') || fieldName === 'full_name') {
-                leadData.full_name = fieldValue;
-            } else if (fieldName.includes('email')) {
-                leadData.email = fieldValue;
-            }
-        });
-
-        logger.info({
-            operationId,
-            leadgenId,
-            hasPhone: !!leadData.phone_number,
-            hasName: !!leadData.full_name,
-            hasEmail: !!leadData.email
-        }, 'Facebook lead data fetched successfully');
-
-        return leadData;
-
-    } catch (error) {
-        logger.error({ err: error, operationId, leadgenId }, 'Error fetching Facebook lead data');
-        return null;
+        logger.error({ err: error }, 'Meta webhook processing error.');
     }
 }
 

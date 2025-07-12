@@ -10,8 +10,7 @@
 -- 1. Core Business Tables (leads, agents, appointments, messages)
 -- 2. Property Data Tables (property_projects, property_unit_mix, visual_assets, ai_visual_analysis)
 -- 3. Compliance & Logging Tables (template_usage_log, conversation_memory)
--- 4. Facebook/Instagram Integration Tables
--- 5. Views & Functions for bot operations
+-- 4. Views & Functions for bot operations
 -- ============================================================================
 
 -- Enable UUID extension
@@ -62,22 +61,8 @@ CREATE TABLE IF NOT EXISTS leads (
     booking_alternatives JSONB,
     tentative_booking_time TIMESTAMP WITH TIME ZONE,
     
-    -- Lead Attribution & Source Tracking
-    primary_source VARCHAR(100) DEFAULT 'whatsapp_direct',
-    source_details JSONB DEFAULT '{}'::jsonb,
-    lead_quality_score INTEGER DEFAULT 0,
-
-    -- Lead Lifecycle Management
-    first_contact_method VARCHAR(50), -- 'whatsapp', 'facebook_messenger', 'instagram_dm'
-    lead_temperature VARCHAR(20) DEFAULT 'warm' CHECK (lead_temperature IN ('hot', 'warm', 'cold')),
-    conversion_probability DECIMAL(3,2) DEFAULT 0.50,
-
-    -- Deduplication & Merge Tracking
-    is_merged BOOLEAN DEFAULT false,
-    merged_from_lead_ids JSONB DEFAULT '[]'::jsonb,
-    duplicate_check_hash VARCHAR(64), -- For efficient duplicate detection
-
     -- Metadata
+    source VARCHAR(100) DEFAULT 'WA Direct',
     additional_notes TEXT,
     last_interaction TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -270,105 +255,13 @@ CREATE TABLE IF NOT EXISTS conversation_memory (
 );
 
 -- ============================================================================
--- 4. FACEBOOK/INSTAGRAM INTEGRATION TABLES
--- ============================================================================
-
--- 4.1 FACEBOOK_PAGES TABLE - Agent Facebook page connections
-CREATE TABLE IF NOT EXISTS facebook_pages (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    agent_id UUID REFERENCES agents(id) ON DELETE CASCADE,
-
-    -- Facebook Page Information
-    page_id VARCHAR(255) NOT NULL UNIQUE,
-    page_name VARCHAR(255),
-    page_category VARCHAR(100),
-    page_access_token_encrypted TEXT,
-    page_access_token_iv VARCHAR(255),
-    page_access_token_tag VARCHAR(255),
-
-    -- Integration Status
-    webhook_subscribed BOOLEAN DEFAULT false,
-    webhook_subscription_id VARCHAR(255),
-    status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'error')),
-
-    -- Permissions & Capabilities
-    permissions JSONB DEFAULT '[]'::jsonb,
-    lead_ads_enabled BOOLEAN DEFAULT false,
-    instagram_connected BOOLEAN DEFAULT false,
-    instagram_account_id VARCHAR(255),
-
-    -- Metadata
-    last_token_refresh TIMESTAMP WITH TIME ZONE,
-    token_expires_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- 4.2 LEAD_SOURCES TABLE - Track lead origins and attribution
-CREATE TABLE IF NOT EXISTS lead_sources (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    lead_id UUID REFERENCES leads(id) ON DELETE CASCADE,
-
-    -- Source Information
-    source_type VARCHAR(50) NOT NULL CHECK (source_type IN ('facebook', 'instagram', 'whatsapp_direct', 'referral', 'website')),
-    source_platform VARCHAR(50), -- 'facebook_lead_ads', 'instagram_lead_ads', 'whatsapp_business'
-
-    -- Facebook/Instagram Specific Data
-    page_id VARCHAR(255),
-    form_id VARCHAR(255),
-    ad_id VARCHAR(255),
-    campaign_id VARCHAR(255),
-    adset_id VARCHAR(255),
-    leadgen_id VARCHAR(255), -- Facebook's unique lead ID
-
-    -- Campaign Attribution Data
-    campaign_data JSONB DEFAULT '{}'::jsonb,
-    utm_parameters JSONB DEFAULT '{}'::jsonb,
-
-    -- Lead Quality Metrics
-    lead_score INTEGER DEFAULT 0,
-    source_quality VARCHAR(20) DEFAULT 'unknown' CHECK (source_quality IN ('high', 'medium', 'low', 'unknown')),
-
-    -- Metadata
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- 4.3 LEAD_DEDUPLICATION TABLE - Track potential duplicate leads
-CREATE TABLE IF NOT EXISTS lead_deduplication (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-
-    -- Lead Identification
-    primary_lead_id UUID REFERENCES leads(id) ON DELETE CASCADE,
-    duplicate_lead_id UUID REFERENCES leads(id) ON DELETE CASCADE,
-
-    -- Deduplication Logic
-    match_type VARCHAR(50) NOT NULL CHECK (match_type IN ('phone_exact', 'email_exact', 'phone_email_combo', 'name_phone_fuzzy')),
-    confidence_score DECIMAL(3,2) DEFAULT 0.00 CHECK (confidence_score >= 0.00 AND confidence_score <= 1.00),
-
-    -- Resolution Status
-    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'merged', 'ignored', 'false_positive')),
-    resolved_by VARCHAR(50), -- 'system', 'manual', 'agent'
-    resolution_notes TEXT,
-
-    -- Metadata
-    detected_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    resolved_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- ============================================================================
--- 5. PERFORMANCE INDEXES
+-- 4. PERFORMANCE INDEXES
 -- ============================================================================
 
 -- Core business indexes
 CREATE INDEX IF NOT EXISTS idx_leads_phone_number ON leads(phone_number);
 CREATE INDEX IF NOT EXISTS idx_leads_assigned_agent ON leads(assigned_agent_id);
 CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
-CREATE INDEX IF NOT EXISTS idx_leads_primary_source ON leads(primary_source);
-CREATE INDEX IF NOT EXISTS idx_leads_lead_temperature ON leads(lead_temperature);
-CREATE INDEX IF NOT EXISTS idx_leads_duplicate_check_hash ON leads(duplicate_check_hash);
-CREATE INDEX IF NOT EXISTS idx_leads_is_merged ON leads(is_merged);
 CREATE INDEX IF NOT EXISTS idx_messages_lead_id ON messages(lead_id);
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_appointments_lead_id ON appointments(lead_id);
@@ -386,23 +279,6 @@ CREATE INDEX IF NOT EXISTS idx_ai_visual_analysis_asset_id ON ai_visual_analysis
 CREATE INDEX IF NOT EXISTS idx_template_usage_phone ON template_usage_log(phone_number);
 CREATE INDEX IF NOT EXISTS idx_conversation_memory_lead_id ON conversation_memory(lead_id);
 
--- Facebook integration indexes
-CREATE INDEX IF NOT EXISTS idx_facebook_pages_agent_id ON facebook_pages(agent_id);
-CREATE INDEX IF NOT EXISTS idx_facebook_pages_page_id ON facebook_pages(page_id);
-CREATE INDEX IF NOT EXISTS idx_facebook_pages_status ON facebook_pages(status);
-CREATE INDEX IF NOT EXISTS idx_lead_sources_lead_id ON lead_sources(lead_id);
-CREATE INDEX IF NOT EXISTS idx_lead_sources_source_type ON lead_sources(source_type);
-CREATE INDEX IF NOT EXISTS idx_lead_sources_page_id ON lead_sources(page_id);
-CREATE INDEX IF NOT EXISTS idx_lead_sources_leadgen_id ON lead_sources(leadgen_id);
-CREATE INDEX IF NOT EXISTS idx_lead_deduplication_primary_lead ON lead_deduplication(primary_lead_id);
-CREATE INDEX IF NOT EXISTS idx_lead_deduplication_duplicate_lead ON lead_deduplication(duplicate_lead_id);
-CREATE INDEX IF NOT EXISTS idx_lead_deduplication_status ON lead_deduplication(status);
-
 -- JSONB indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_leads_booking_alternatives_gin ON leads USING GIN (booking_alternatives);
-CREATE INDEX IF NOT EXISTS idx_leads_source_details_gin ON leads USING GIN (source_details);
-CREATE INDEX IF NOT EXISTS idx_leads_merged_from_lead_ids_gin ON leads USING GIN (merged_from_lead_ids);
 CREATE INDEX IF NOT EXISTS idx_agents_working_hours_gin ON agents USING GIN (working_hours);
-CREATE INDEX IF NOT EXISTS idx_facebook_pages_permissions_gin ON facebook_pages USING GIN (permissions);
-CREATE INDEX IF NOT EXISTS idx_lead_sources_campaign_data_gin ON lead_sources USING GIN (campaign_data);
-CREATE INDEX IF NOT EXISTS idx_lead_sources_utm_parameters_gin ON lead_sources USING GIN (utm_parameters);
