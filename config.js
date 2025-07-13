@@ -48,6 +48,7 @@ const config = {
   ENABLE_META_INTEGRATION: parseBoolean(process.env.ENABLE_META_INTEGRATION, false),
   ENABLE_CONVERSATION_MEMORY: parseBoolean(process.env.ENABLE_CONVERSATION_MEMORY, true),
   ENABLE_BOOKING_SYSTEM: parseBoolean(process.env.ENABLE_BOOKING_SYSTEM, true),
+  ENABLE_FOLLOW_UP_SYSTEM: parseBoolean(process.env.ENABLE_FOLLOW_UP_SYSTEM, false), // Disabled until Gupshup Partner API approved
 
   // SAFETY FLAGS - Prevent real messages during testing/development
   // DEFAULT TO SAFE MODE IN DEVELOPMENT
@@ -59,6 +60,10 @@ const config = {
   ENABLE_GOOGLE_SEARCH: parseBoolean(process.env.ENABLE_GOOGLE_SEARCH, true),
   ENABLE_AI_INSIGHTS: parseBoolean(process.env.ENABLE_AI_INSIGHTS, true),
 
+  // Authentication Configuration
+  JWT_SECRET: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
+  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '24h',
+
   // Supabase Configuration
   SUPABASE_URL: process.env.SUPABASE_URL,
   SUPABASE_KEY: process.env.SUPABASE_KEY,
@@ -69,6 +74,11 @@ const config = {
   GUPSHUP_API_KEY: process.env.GUPSHUP_API_KEY,
   GUPSHUP_API_SECRET: process.env.GUPSHUP_API_SECRET,
   GUPSHUP_TIMEOUT: parseInteger(process.env.GUPSHUP_TIMEOUT, 10000),
+
+  // Gupshup Partner API Configuration (for template management)
+  GUPSHUP_PARTNER_EMAIL: process.env.GUPSHUP_PARTNER_EMAIL,
+  GUPSHUP_PARTNER_PASSWORD: process.env.GUPSHUP_PARTNER_PASSWORD,
+  GUPSHUP_APP_ID: process.env.GUPSHUP_APP_ID, // Default app ID for single-tenant mode
 
   // Meta (Facebook) Configuration
   META_VERIFY_TOKEN: process.env.META_VERIFY_TOKEN,

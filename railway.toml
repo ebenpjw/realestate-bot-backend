@@ -1,0 +1,31 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[env]
+NODE_ENV = "production"
+PORT = { default = "8080" }
+
+[[services]]
+name = "realestate-bot-backend"
+
+[services.build]
+buildCommand = "npm run railway:build"
+startCommand = "npm run railway:start"
+
+[services.healthcheck]
+path = "/health"
+timeout = 30
+
+[services.variables]
+# These will be set in Railway dashboard
+# SUPABASE_URL = ""
+# SUPABASE_KEY = ""
+# DATABASE_URL = ""
+# GUPSHUP_API_KEY = ""
+# OPENAI_API_KEY = ""

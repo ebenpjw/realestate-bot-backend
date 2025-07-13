@@ -1,0 +1,58 @@
+{
+  "recommendations": [
+    // Essential for React/Next.js development
+    "bradlc.vscode-tailwindcss",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "ms-vscode.vscode-typescript-next",
+    
+    // React and JSX support
+    "ms-vscode.vscode-react-javascript-snippets",
+    "formulahendry.auto-rename-tag",
+    "bradlc.vscode-tailwindcss",
+    
+    // Git and version control
+    "eamodio.gitlens",
+    "github.vscode-pull-request-github",
+    
+    // Code quality and productivity
+    "streetsidesoftware.code-spell-checker",
+    "usernamehw.errorlens",
+    "christian-kohler.path-intellisense",
+    "christian-kohler.npm-intellisense",
+    
+    // File and project management
+    "ms-vscode.vscode-json",
+    "redhat.vscode-yaml",
+    "ms-vscode.vscode-markdown",
+    
+    // Testing
+    "vitest.explorer",
+    "ms-playwright.playwright",
+    
+    // API development
+    "humao.rest-client",
+    "rangav.vscode-thunder-client",
+    
+    // Theme and UI
+    "pkief.material-icon-theme",
+    "github.github-vscode-theme",
+    
+    // Additional productivity tools
+    "gruntfuggly.todo-tree",
+    "alefragnani.bookmarks",
+    "ms-vscode.vscode-todo-highlight",
+    
+    // Docker (if using containerization)
+    "ms-azuretools.vscode-docker",
+    
+    // Environment files
+    "mikestead.dotenv"
+  ],
+  "unwantedRecommendations": [
+    // Extensions that might conflict or are not needed
+    "ms-vscode.vscode-typescript",
+    "hookyqr.beautify",
+    "ms-vscode.vscode-css"
+  ]
+}

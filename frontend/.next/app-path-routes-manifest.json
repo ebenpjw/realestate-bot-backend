@@ -1,0 +1,16 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/auth/login/page": "/auth/login",
+  "/page": "/",
+  "/admin/waba/page": "/admin/waba",
+  "/admin/agents/page": "/admin/agents",
+  "/agent/analytics/page": "/agent/analytics",
+  "/admin/dashboard/page": "/admin/dashboard",
+  "/admin/costs/page": "/admin/costs",
+  "/agent/conversations/page": "/agent/conversations",
+  "/agent/leads/page": "/agent/leads",
+  "/agent/dashboard/page": "/agent/dashboard",
+  "/agent/settings/page": "/agent/settings",
+  "/agent/integrations/page": "/agent/integrations",
+  "/agent/testing/page": "/agent/testing"
+}

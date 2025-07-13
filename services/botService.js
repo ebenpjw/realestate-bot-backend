@@ -8,6 +8,8 @@ const databaseService = require('./databaseService');
 const aiLearningService = require('./aiLearningService');
 const multiTenantConfigService = require('./multiTenantConfigService');
 const leadDeduplicationService = require('./leadDeduplicationService');
+const intelligentFollowUpService = require('./intelligentFollowUpService');
+const pdpaComplianceService = require('./pdpaComplianceService');
 const { AI } = require('../constants');
 
 const { toSgTime, formatForDisplay } = require('../utils/timezoneUtils');
@@ -122,6 +124,9 @@ class BotService {
         sender: 'lead',
         message: userText
       });
+
+      // Handle lead response for follow-up system (reset sequences if active)
+      await this._handleLeadResponseForFollowUp(lead, userText, conversation.conversation.id);
 
       if (messageError) {
         logger.error({
@@ -240,6 +245,9 @@ class BotService {
         action: response.action,
         approach: 'strategic'
       }, 'Message processed successfully');
+
+      // Initialize intelligent follow-up system after successful conversation
+      await this._initializeFollowUpIfNeeded(lead, conversation, response, agentId);
 
     } catch (err) {
       logger.error({ err, senderWaId }, 'Error processing message - attempting emergency AI response');
@@ -5460,8 +5468,150 @@ FOCUS ON STRATEGIC IMPACT, NOT CHARACTER COUNTS!
     ];
   }
 
+  /**
+   * Initialize follow-up system if conversation indicates it's needed
+   * @private
+   */
+  async _initializeFollowUpIfNeeded(lead, conversation, response, agentId) {
+    try {
+      // Don't initialize follow-ups if:
+      // 1. Lead already booked an appointment
+      // 2. Lead was marked as lost/uninterested
+      // 3. Conversation is still very active (less than 5 messages)
+      if (lead.status === 'booked' || lead.status === 'lost') {
+        logger.debug({ leadId: lead.id, status: lead.status }, 'Skipping follow-up initialization - lead status excludes follow-ups');
+        return;
+      }
 
+      // Get conversation history to analyze
+      const { data: conversationHistory } = await this.supabase
+        .from('messages')
+        .select('sender, message, created_at')
+        .eq('conversation_id', conversation.conversation.id)
+        .order('created_at', { ascending: true });
 
+      if (!conversationHistory || conversationHistory.length < 3) {
+        logger.debug({ leadId: lead.id }, 'Skipping follow-up initialization - conversation too short');
+        return;
+      }
+
+      // Check if this appears to be a natural conversation ending point
+      const isConversationEndingPoint = this._detectConversationEndingPoint(response, conversationHistory);
+
+      if (!isConversationEndingPoint) {
+        logger.debug({ leadId: lead.id }, 'Skipping follow-up initialization - conversation still active');
+        return;
+      }
+
+      // Initialize intelligent follow-up
+      const conversationContext = {
+        leadData: {
+          intent: lead.intent,
+          budget: lead.budget,
+          location_preference: lead.location_preference,
+          property_type: lead.property_type,
+          timeline: lead.timeline
+        },
+        conversationFlow: response.action,
+        lastBotAction: response.action,
+        messageCount: conversationHistory.length
+      };
+
+      const followUpResult = await intelligentFollowUpService.initializeFollowUp(
+        lead.id,
+        conversationHistory,
+        conversationContext,
+        agentId,
+        conversation.conversation.id
+      );
+
+      if (followUpResult.success) {
+        logger.info({
+          leadId: lead.id,
+          leadState: followUpResult.leadState?.current_state,
+          firstFollowUp: followUpResult.followUpSequence?.scheduled_time
+        }, 'Intelligent follow-up initialized successfully');
+      } else {
+        logger.warn({
+          leadId: lead.id,
+          reason: followUpResult.reason
+        }, 'Follow-up initialization skipped');
+      }
+
+    } catch (error) {
+      logger.error({ err: error, leadId: lead.id }, 'Error initializing follow-up system');
+    }
+  }
+
+  /**
+   * Handle lead response for follow-up system
+   * @private
+   */
+  async _handleLeadResponseForFollowUp(lead, userMessage, conversationId) {
+    try {
+      // Check for opt-out requests first
+      const optOutCheck = await pdpaComplianceService.checkForOptOut(userMessage, lead.id);
+      if (optOutCheck.isOptOut) {
+        logger.info({
+          leadId: lead.id,
+          confidence: optOutCheck.confidence
+        }, 'Opt-out detected in lead response');
+        return;
+      }
+
+      // Reset any active follow-up sequences since lead responded
+      await intelligentFollowUpService.handleLeadResponse(lead.id, userMessage, conversationId);
+
+    } catch (error) {
+      logger.error({ err: error, leadId: lead.id }, 'Error handling lead response for follow-up');
+    }
+  }
+
+  /**
+   * Detect if this is a natural conversation ending point
+   * @private
+   */
+  _detectConversationEndingPoint(response, conversationHistory) {
+    // Conversation ending indicators:
+    // 1. Bot provided comprehensive information without follow-up questions
+    // 2. Lead expressed they need time to think/discuss
+    // 3. Bot offered next steps but didn't get immediate engagement
+    // 4. Conversation has been going for a while (10+ messages)
+
+    const lastFewMessages = conversationHistory.slice(-5);
+    const leadMessages = lastFewMessages.filter(msg => msg.sender === 'lead');
+    const lastLeadMessage = leadMessages[leadMessages.length - 1]?.message?.toLowerCase() || '';
+
+    // Check for "need time" indicators
+    const needTimeIndicators = [
+      'think about', 'discuss with', 'talk to', 'check with', 'consider',
+      'maybe later', 'not sure', 'need time', 'get back to you'
+    ];
+
+    const hasNeedTimeIndicator = needTimeIndicators.some(indicator =>
+      lastLeadMessage.includes(indicator)
+    );
+
+    // Check if bot provided substantial information
+    const botMessages = lastFewMessages.filter(msg => msg.sender === 'bot');
+    const lastBotMessage = botMessages[botMessages.length - 1]?.message || '';
+    const providedSubstantialInfo = lastBotMessage.length > 200; // Long informative response
+
+    // Check conversation length
+    const conversationLength = conversationHistory.length;
+    const isLongConversation = conversationLength >= 10;
+
+    // Check if response action suggests conversation completion
+    const completionActions = [
+      'information_provided', 'consultation_offered', 'next_steps_outlined',
+      'property_recommendations_given', 'market_insights_shared'
+    ];
+    const isCompletionAction = completionActions.includes(response.action);
+
+    return hasNeedTimeIndicator ||
+           (providedSubstantialInfo && isLongConversation) ||
+           (isCompletionAction && conversationLength >= 6);
+  }
 
 }
 

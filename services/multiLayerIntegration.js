@@ -51,7 +51,8 @@ class MultiLayerIntegration {
     senderWaId,
     batchedMessages,
     leadData,
-    conversationHistory
+    conversationHistory,
+    agentId = null
   }) {
     const operationId = `multilayer-integration-${leadId}-${Date.now()}`;
     const startTime = Date.now();
@@ -62,23 +63,25 @@ class MultiLayerIntegration {
       logger.info({
         operationId,
         leadId,
+        agentId,
         batchSize: batchedMessages.length,
         enableMultiLayer: this.config.enableMultiLayer
-      }, '[INTEGRATION] Starting multi-layer processing');
+      }, '[INTEGRATION] Starting multi-layer processing with agent context');
 
       // Extract latest message for processing
       const latestMessage = batchedMessages[batchedMessages.length - 1];
       const userText = latestMessage.userText;
       const senderName = latestMessage.senderName;
 
-      // Process through multi-layer AI system
+      // Process through multi-layer AI system with agent context
       const multiLayerResult = await this.multiLayerAI.processMessage({
         leadId,
         senderWaId,
         userText,
         senderName,
         conversationHistory,
-        leadData
+        leadData,
+        agentId
       });
 
       if (!multiLayerResult.success) {

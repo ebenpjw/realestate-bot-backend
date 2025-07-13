@@ -402,7 +402,7 @@ class MessageOrchestrator {
 
   /**
    * Process batched messages through enhanced multi-layer AI pipeline
-   * Enhanced for multi-tenant support
+   * UNIFIED ARCHITECTURE: All traffic now uses superior multiLayerAI.js system
    * @private
    */
   async _processBatchedMessages(senderWaId, messages, agentId = null) {
@@ -411,52 +411,60 @@ class MessageOrchestrator {
         senderWaId,
         agentId,
         batchSize: messages.length,
-        processingMethod: agentId ? 'multi_tenant_bot_service' : 'multilayer_ai_pipeline'
-      }, '[ORCHESTRATOR] Processing batch through AI pipeline');
+        processingMethod: 'unified_multilayer_ai_pipeline'
+      }, '[ORCHESTRATOR] Processing batch through UNIFIED multi-layer AI pipeline');
 
-      if (agentId) {
-        // Multi-tenant mode: use bot service directly with agent context
-        // Note: botService.processMessage() handles sending the WhatsApp message internally
-        const botService = require('./botService');
+      // UNIFIED PROCESSING: All traffic uses Multi-Layer AI Integration Service
+      const multiLayerIntegration = require('./multiLayerIntegration');
 
-        // Process the most recent message with full context
-        const latestMessage = messages[messages.length - 1];
+      // Get lead data for processing
+      const leadData = await this._getLeadData(senderWaId, agentId);
 
-        const result = await botService.processMessage({
-          senderWaId,
-          userText: latestMessage.userText,
-          senderName: latestMessage.senderName,
-          agentId
-        });
+      // Get conversation history
+      const conversationHistory = await this._getConversationHistory(leadData.id);
 
-        // Return success without response since botService already sent the message
-        return {
-          success: true,
-          response: null, // No response needed - already sent by botService
-          synthesized: true,
-          metrics: { qualityScore: 1.0 },
-          alreadySent: true // Flag to indicate message was already sent
-        };
-      } else {
-        // Legacy mode: use Multi-Layer AI Integration Service
-        const multiLayerIntegration = require('./multiLayerIntegration');
+      // Process through multi-layer AI pipeline with agent context
+      const result = await multiLayerIntegration.processBatchedMessages({
+        leadId: leadData.id,
+        senderWaId,
+        batchedMessages: messages,
+        leadData,
+        conversationHistory,
+        agentId // Pass agent context to multi-layer system
+      });
 
-        // Get lead data for processing
-        const leadData = await this._getLeadData(senderWaId);
+      // Handle message sending based on agent configuration
+      if (result.success && result.response && !result.alreadySent) {
+        try {
+          // Get appropriate WhatsApp service for agent
+          const whatsappService = agentId
+            ? await this._getAgentWhatsAppService(agentId)
+            : require('./whatsappService');
 
-        // Get conversation history
-        const conversationHistory = await this._getConversationHistory(leadData.id);
+          await whatsappService.sendMessage({
+            to: senderWaId,
+            message: result.response
+          });
 
-        // Process through multi-layer AI pipeline with fact-checking
-        const result = await multiLayerIntegration.processBatchedMessages({
-          leadId: leadData.id,
-          senderWaId,
-          batchedMessages: messages,
-          leadData,
-          conversationHistory
-        });
+          logger.info({
+            senderWaId,
+            agentId,
+            responseLength: result.response.length
+          }, '[ORCHESTRATOR] Multi-layer AI response sent successfully');
 
-        return result;
+          // Mark as sent to prevent duplicate sending
+          result.alreadySent = true;
+
+        } catch (sendError) {
+          logger.error({
+            err: sendError,
+            senderWaId,
+            agentId
+          }, '[ORCHESTRATOR] Failed to send multi-layer AI response');
+
+          // Don't throw - return partial success
+          result.sendError = sendError.message;
+        }
       }
 
       if (!result.success) {
@@ -465,6 +473,7 @@ class MessageOrchestrator {
 
       logger.info({
         senderWaId,
+        agentId,
         batchSize: messages.length,
         responseLength: result.response?.length,
         synthesized: result.synthesized,
@@ -473,7 +482,7 @@ class MessageOrchestrator {
         floorPlansDelivered: result.postProcessing?.floorPlansDelivered || 0,
         appointmentBooked: result.postProcessing?.appointmentBooked || false,
         processingTime: result.metrics?.processingTime
-      }, '[ORCHESTRATOR] Multi-layer AI processing completed successfully');
+      }, '[ORCHESTRATOR] Unified multi-layer AI processing completed successfully');
 
       return result;
 
@@ -481,18 +490,99 @@ class MessageOrchestrator {
       logger.error({
         err: error,
         senderWaId,
+        agentId,
         batchSize: messages.length
       }, '[ORCHESTRATOR] Error in unified processing - unable to process batch');
 
       // Log the failure and increment error metrics
       this.metrics.processingErrors++;
 
-      // Send error response to user
-      const whatsappService = require('./whatsappService');
-      await whatsappService.sendMessage(senderWaId,
-        "Sorry, I'm having technical difficulties. Please try again in a moment.");
+      // Emergency fallback with agent context
+      return await this._emergencyFallback(senderWaId, agentId);
+    }
+  }
 
+  /**
+   * Get agent-specific WhatsApp service
+   * @private
+   */
+  async _getAgentWhatsAppService(agentId) {
+    try {
+      const multiTenantConfigService = require('./multiTenantConfigService');
+      const agentConfig = await multiTenantConfigService.getAgentConfig(agentId);
+
+      const WhatsAppService = require('./whatsappService');
+      return new WhatsAppService(agentConfig);
+
+    } catch (error) {
+      logger.warn({ err: error, agentId }, 'Failed to get agent WhatsApp service, using default');
+      return require('./whatsappService');
+    }
+  }
+
+  /**
+   * Get lead data with agent context
+   * @private
+   */
+  async _getLeadData(senderWaId, agentId = null) {
+    try {
+      if (agentId) {
+        // Multi-tenant: use lead deduplication service
+        const leadDeduplicationService = require('./leadDeduplicationService');
+        const result = await leadDeduplicationService.findOrCreateLeadConversation({
+          phoneNumber: senderWaId,
+          fullName: 'WhatsApp User',
+          source: 'WhatsApp',
+          agentId
+        });
+        return result.lead;
+      } else {
+        // Legacy: use database service
+        const databaseService = require('./databaseService');
+        return await databaseService.findOrCreateLead({
+          phoneNumber: senderWaId,
+          fullName: 'WhatsApp User',
+          source: 'WhatsApp'
+        });
+      }
+    } catch (error) {
+      logger.error({ err: error, senderWaId, agentId }, 'Failed to get lead data');
       throw error;
+    }
+  }
+
+  /**
+   * Emergency fallback with agent support
+   * @private
+   */
+  async _emergencyFallback(senderWaId, agentId = null) {
+    try {
+      const fallbackMessage = "I'm experiencing technical difficulties. Let me connect you with our team shortly.";
+
+      // Get appropriate WhatsApp service
+      const whatsappService = agentId
+        ? await this._getAgentWhatsAppService(agentId)
+        : require('./whatsappService');
+
+      await whatsappService.sendMessage({
+        to: senderWaId,
+        message: fallbackMessage
+      });
+
+      return {
+        success: true,
+        response: fallbackMessage,
+        fallback: true,
+        agentId
+      };
+
+    } catch (fallbackError) {
+      logger.error({ err: fallbackError, senderWaId, agentId }, 'Emergency fallback failed');
+      return {
+        success: false,
+        error: 'Complete system failure',
+        agentId
+      };
     }
   }
 

@@ -1,5 +1,6 @@
 // index.js
 const express = require('express');
+const cors = require('cors');
 const pinoHttp = require('pino-http');
 
 // Import configuration and utilities
@@ -25,6 +26,9 @@ const authRouter = require('./api/auth');
 const testCalendarRouter = require('./api/testCalendar');
 const aiLearningRouter = require('./api/aiLearning');
 const orchestratorRouter = require('./api/orchestrator');
+const followUpRouter = require('./routes/followUpRoutes');
+const frontendAuthRouter = require('./api/frontendAuth');
+const dashboardRouter = require('./api/dashboard');
 
 
 // Initialize Express app
@@ -40,6 +44,20 @@ app.set('trust proxy', 1);
 
 // Apply security middleware first
 app.use(createSecurityMiddleware());
+
+// CORS configuration for frontend integration
+app.use(cors({
+  origin: [
+    'http://localhost:3000',  // Frontend development server
+    'http://127.0.0.1:3000',  // Alternative localhost
+    /^https?:\/\/.*\.netlify\.app$/,  // Netlify deployments
+    /^https?:\/\/.*\.vercel\.app$/    // Vercel deployments
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['X-Total-Count', 'X-Page-Count']
+}));
 
 // Simple ping endpoint for basic connectivity test
 app.get('/ping', (_req, res) => {
@@ -219,6 +237,10 @@ app.use('/api/auth', authRouter);
 app.use('/api/test-calendar', testCalendarRouter);
 app.use('/api/ai-learning', aiLearningRouter);
 app.use('/api/orchestrator', orchestratorRouter);
+app.use('/api/follow-up', followUpRouter);
+app.use('/api/frontend-auth', frontendAuthRouter);
+app.use('/api/dashboard', dashboardRouter);
+app.use('/api/leads', require('./api/leads'));
 // Visual property API (optional - may not work if dependencies missing)
 try {
   app.use('/api/visual-property', require('./api/visualPropertyData'));
