@@ -35,15 +35,8 @@
   compress = true
 
 # Redirects and rewrites for SPA routing
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# Redirects handled by public/_redirects file
+# Next.js plugin handles routing automatically
 
 # Headers for security and performance
 [[headers]]

@@ -9,19 +9,26 @@ const nextConfig = {
     // Skip ESLint during build for faster deployment
     ignoreDuringBuilds: true,
   },
-  // Server-side rendering for Vercel deployment
+  // Skip error page generation to avoid Html import issues
+  generateBuildId: async () => {
+    return 'build-' + Date.now()
+  },
+  // Handle build errors gracefully
+  onDemandEntries: {
+    maxInactiveAge: 25 * 1000,
+    pagesBufferLength: 2,
+  },
+  // Server-side rendering for full functionality
   // output: 'export',
   trailingSlash: true,
   images: {
     unoptimized: false,
   },
   experimental: {
-    // Disable static optimization for pages with authentication
-    isrMemoryCacheSize: 0,
-  },
-  experimental: {
     serverComponentsExternalPackages: ['@supabase/supabase-js', 'socket.io-client'],
   },
+  // Skip trailing slash redirect
+  skipTrailingSlashRedirect: true,
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080',
     NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080',

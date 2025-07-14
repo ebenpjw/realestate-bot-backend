@@ -1,0 +1,5 @@
+# API redirects to backend
+/api/* https://realestate-bot-backend-production.up.railway.app/api/:splat 200
+
+# Next.js app routes - let the Next.js runtime handle them
+/* /.netlify/functions/___netlify-server-handler 200
