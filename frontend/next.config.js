@@ -31,20 +31,6 @@ const nextConfig = {
   },
   // Force all pages to be server-side rendered
   poweredByHeader: false,
-  // Force all pages to be dynamic to prevent Context issues
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'no-cache, no-store, must-revalidate',
-          },
-        ],
-      },
-    ]
-  },
   env: {
     // In unified deployment, API is on same domain
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || (
@@ -97,6 +83,10 @@ const nextConfig = {
         source: '/(.*)',
         headers: [
           {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+          {
             key: 'X-Frame-Options',
             value: 'DENY',
           },
@@ -120,7 +110,6 @@ const nextConfig = {
       },
     ]
   },
-  poweredByHeader: false,
   compress: true,
   generateEtags: true,
   onDemandEntries: {

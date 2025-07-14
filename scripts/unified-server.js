@@ -121,7 +121,7 @@ if (NODE_ENV === 'production') {
     }
 
     // Simple fallback for SPA routing - serve index.html for non-API routes
-    app.get('*', (req, res, next) => {
+    app.get('/*', (req, res, next) => {
       // Skip API routes
       if (req.path.startsWith('/api/')) {
         return next();
