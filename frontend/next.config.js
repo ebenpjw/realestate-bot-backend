@@ -9,10 +9,11 @@ const nextConfig = {
     // Skip ESLint during build for faster deployment
     ignoreDuringBuilds: true,
   },
-  output: 'export',
+  // Server-side rendering for Vercel deployment
+  // output: 'export',
   trailingSlash: true,
   images: {
-    unoptimized: true,
+    unoptimized: false,
   },
   experimental: {
     // Disable static optimization for pages with authentication

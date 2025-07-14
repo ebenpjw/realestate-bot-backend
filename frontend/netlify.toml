@@ -3,12 +3,14 @@
 [build]
   # Build command
   command = "npm run build"
-  
-  # Directory to publish
-  publish = "out"
-  
+
+  # Directory to publish (Next.js with plugin)
+  publish = ".next"
+
   # Environment variables for build
-  environment = { NODE_ENV = "production", NEXT_TELEMETRY_DISABLED = "1" }
+  [build.environment]
+    NODE_ENV = "production"
+    NEXT_TELEMETRY_DISABLED = "1"
 
 [build.processing]
   # Skip Netlify's processing for better performance
@@ -96,44 +98,42 @@
 # Environment-specific settings
 [context.production]
   command = "npm run build"
-  environment = { 
-    NODE_ENV = "production",
-    NEXT_TELEMETRY_DISABLED = "1",
+  [context.production.environment]
+    NODE_ENV = "production"
+    NEXT_TELEMETRY_DISABLED = "1"
     ANALYZE = "false"
-  }
 
 [context.deploy-preview]
   command = "npm run build"
-  environment = { 
-    NODE_ENV = "production",
+  [context.deploy-preview.environment]
+    NODE_ENV = "production"
     NEXT_TELEMETRY_DISABLED = "1"
-  }
 
 [context.branch-deploy]
   command = "npm run build"
-  environment = { 
-    NODE_ENV = "production",
+  [context.branch-deploy.environment]
+    NODE_ENV = "production"
     NEXT_TELEMETRY_DISABLED = "1"
-  }
 
 # Functions configuration (if using Netlify Functions)
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
-# Plugin configuration
+# Plugin configuration for Next.js support
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-[[plugins]]
-  package = "netlify-plugin-lighthouse"
-  
-  [plugins.inputs]
-    # Lighthouse configuration
-    performance_budget = 90
-    accessibility_budget = 95
-    best_practices_budget = 90
-    seo_budget = 90
+# Lighthouse plugin disabled for initial deployment
+# [[plugins]]
+#   package = "netlify-plugin-lighthouse"
+#
+#   [plugins.inputs]
+#     # Lighthouse configuration
+#     performance_budget = 90
+#     accessibility_budget = 95
+#     best_practices_budget = 90
+#     seo_budget = 90
 
 # Form handling (if needed)
 [forms]
