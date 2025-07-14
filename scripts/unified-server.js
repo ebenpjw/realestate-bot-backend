@@ -105,14 +105,6 @@ try {
 // The Next.js frontend runs separately and proxies API requests here
 logger.info('🔌 API-only mode: Serving backend API endpoints only');
 logger.info('📱 Frontend will be served by separate Next.js process');
-  
-  app.use('/', createProxyMiddleware({
-    target: 'http://localhost:3000',
-    changeOrigin: true,
-    ws: true, // Enable WebSocket proxying
-    logLevel: 'silent'
-  }));
-}
 
 // Error handling
 app.use((err, req, res, next) => {

@@ -36,17 +36,24 @@ apiServer.on('error', (err) => {
 
 // Wait a moment for API server to start
 setTimeout(() => {
-  // Start Next.js server
+  // Start Next.js standalone server
   console.log('📱 Starting Next.js frontend...');
-  
-  const frontendDir = path.join(__dirname, '../frontend');
-  const nextServer = spawn('npx', ['next', 'start', '-p', PORT], {
+
+  const standaloneServerPath = path.join(__dirname, '../frontend/.next/standalone/server.js');
+
+  // Check if standalone server exists
+  if (!fs.existsSync(standaloneServerPath)) {
+    console.error('❌ Standalone server not found. Please run "npm run build" in the frontend directory first.');
+    process.exit(1);
+  }
+
+  const nextServer = spawn('node', [standaloneServerPath], {
     stdio: 'inherit',
-    cwd: frontendDir,
     env: {
       ...process.env,
       PORT: PORT,
       NODE_ENV: NODE_ENV,
+      HOSTNAME: '0.0.0.0',
       NEXT_PUBLIC_API_URL: `http://localhost:${API_PORT}`,
       API_URL: `http://localhost:${API_PORT}`
     }

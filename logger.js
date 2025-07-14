@@ -8,17 +8,29 @@
 const pino = require('pino');
 const config = require('./config');
 
-const logger = pino({
+// Create logger with fallback for missing pino-pretty
+let loggerConfig = {
   level: config.NODE_ENV === 'production' ? 'info' : 'debug',
-  // Pretty print for development for better readability
-  transport: config.NODE_ENV !== 'production' ? {
-    target: 'pino-pretty',
-    options: {
-      colorize: true,
-      translateTime: 'SYS:dd-mm-yyyy HH:MM:ss',
-      ignore: 'pid,hostname',
-    },
-  } : undefined,
-});
+};
+
+// Try to use pino-pretty in development, fallback to basic logging if not available
+if (config.NODE_ENV !== 'production') {
+  try {
+    require.resolve('pino-pretty');
+    loggerConfig.transport = {
+      target: 'pino-pretty',
+      options: {
+        colorize: true,
+        translateTime: 'SYS:dd-mm-yyyy HH:MM:ss',
+        ignore: 'pid,hostname',
+      },
+    };
+  } catch (error) {
+    // pino-pretty not available, use basic formatting
+    console.warn('pino-pretty not available, using basic logging');
+  }
+}
+
+const logger = pino(loggerConfig);
 
 module.exports = logger;

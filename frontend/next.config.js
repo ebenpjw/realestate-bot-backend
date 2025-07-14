@@ -20,6 +20,7 @@ const nextConfig = {
   },
   // Enable SSR for dynamic features
   // output: 'export', // Disabled - pages use dynamic features
+  output: 'standalone', // Enable standalone build for Railway deployment
   trailingSlash: true,
   // Configure for static export
   experimental: {

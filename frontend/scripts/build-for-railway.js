@@ -38,6 +38,7 @@ const nextConfig = {
   generateBuildId: async () => {
     return 'railway-' + Date.now()
   },
+  output: 'standalone', // Enable standalone build for Railway deployment
   trailingSlash: true,
   experimental: {
     serverComponentsExternalPackages: ['@supabase/supabase-js', 'socket.io-client'],
