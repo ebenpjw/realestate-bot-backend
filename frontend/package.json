@@ -26,9 +26,7 @@
     "deploy:build-only": "chmod +x scripts/deploy.sh && ./scripts/deploy.sh build-only",
     "lighthouse": "lighthouse-ci autorun",
     "version": "echo $npm_package_version",
-    "verify-setup": "node scripts/verify-setup.js",
-    "postinstall": "husky install",
-    "prepare": "husky install"
+    "verify-setup": "node scripts/verify-setup.js"
   },
   "dependencies": {
     "@headlessui/react": "^2.1.0",

@@ -10,14 +10,14 @@ COPY frontend/package*.json ./frontend/
 
 # Clean npm cache and install backend dependencies
 RUN npm cache clean --force && \
-    npm install --production --no-optional --no-audit --no-fund
+    npm install --omit=dev --no-optional --no-audit --no-fund
 
 # Copy application code (needed for frontend build)
 COPY . .
 
 # Install frontend dependencies and build
 RUN cd frontend && \
-    npm install --production --no-optional --no-audit --no-fund && \
+    npm install --omit=dev --no-optional --no-audit --no-fund && \
     npm run build
 
 # Set environment variables
