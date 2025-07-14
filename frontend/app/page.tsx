@@ -1,6 +1,7 @@
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
+// Force dynamic rendering to prevent Context issues during build
+export const dynamic = 'force-dynamic'
 
+// Simple static home page without Context dependencies
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -25,17 +26,13 @@ export default function HomePage() {
           </div>
 
           <div className="space-y-3">
-            <Link href="/auth/login" className="block">
-              <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                Agent Login
-              </Button>
-            </Link>
+            <a href="/auth/login" className="block w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg transition-colors">
+              Agent Login
+            </a>
 
-            <Link href="/admin/dashboard" className="block">
-              <Button variant="outline" className="w-full">
-                Admin Dashboard
-              </Button>
-            </Link>
+            <a href="/admin/dashboard" className="block w-full border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white py-3 px-6 rounded-lg transition-colors">
+              Admin Dashboard
+            </a>
           </div>
 
           <div className="mt-6 pt-6 border-t border-gray-200">

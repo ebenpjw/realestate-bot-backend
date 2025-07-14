@@ -45,13 +45,14 @@ app.set('trust proxy', 1);
 // Apply security middleware first
 app.use(createSecurityMiddleware());
 
-// CORS configuration for frontend integration
+// CORS configuration for unified deployment
 app.use(cors({
   origin: [
     'http://localhost:3000',  // Frontend development server
     'http://127.0.0.1:3000',  // Alternative localhost
-    /^https?:\/\/.*\.netlify\.app$/,  // Netlify deployments
-    /^https?:\/\/.*\.vercel\.app$/    // Vercel deployments
+    /^https?:\/\/.*\.railway\.app$/,  // Railway deployments
+    /^https?:\/\/.*\.netlify\.app$/,  // Netlify deployments (legacy)
+    /^https?:\/\/.*\.vercel\.app$/    // Vercel deployments (legacy)
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

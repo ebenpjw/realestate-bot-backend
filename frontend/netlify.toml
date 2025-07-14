@@ -4,8 +4,8 @@
   # Build command
   command = "npm run build"
 
-  # Directory to publish (Next.js with plugin)
-  publish = ".next"
+  # Directory to publish (static export)
+  publish = "out"
 
   # Environment variables for build
   [build.environment]
@@ -113,9 +113,9 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
-# Plugin configuration for Next.js support
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
+# Plugin configuration disabled for static export
+# [[plugins]]
+#   package = "@netlify/plugin-nextjs"
 
 # Lighthouse plugin disabled for initial deployment
 # [[plugins]]

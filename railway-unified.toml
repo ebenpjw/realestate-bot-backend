@@ -1,0 +1,52 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[env]
+NODE_ENV = "production"
+PORT = { default = "8080" }
+NEXT_TELEMETRY_DISABLED = "1"
+
+[[services]]
+name = "realestate-bot-fullstack"
+
+[services.build]
+buildCommand = "npm run build:unified"
+startCommand = "npm run start:unified"
+
+[services.healthcheck]
+path = "/health"
+timeout = 30
+
+[services.variables]
+# Backend Environment Variables
+# SUPABASE_URL = ""
+# SUPABASE_KEY = ""
+# DATABASE_URL = ""
+# GUPSHUP_API_KEY = ""
+# OPENAI_API_KEY = ""
+# JWT_SECRET = ""
+
+# Frontend Environment Variables  
+# NEXT_PUBLIC_API_URL = "https://your-app.railway.app"
+# NEXT_PUBLIC_WS_URL = "wss://your-app.railway.app"
+
+# Optional Variables
+# GOOGLE_SEARCH_API_KEY = ""
+# GOOGLE_SEARCH_ENGINE_ID = ""
+# GOOGLE_CLIENT_ID = ""
+# GOOGLE_CLIENT_SECRET = ""
+# ZOOM_ACCOUNT_ID = ""
+# ZOOM_CLIENT_ID = ""
+# ZOOM_CLIENT_SECRET = ""
+# META_VERIFY_TOKEN = ""
+# META_APP_SECRET = ""
+
+[services.networking]
+# Allow both HTTP and WebSocket connections
+allowedPorts = [8080, 3000]

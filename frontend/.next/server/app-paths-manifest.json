@@ -1,16 +1,16 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
   "/auth/login/page": "app/auth/login/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
   "/page": "app/page.js",
   "/admin/dashboard/page": "app/admin/dashboard/page.js",
-  "/agent/analytics/page": "app/agent/analytics/page.js",
+  "/admin/agents/page": "app/admin/agents/page.js",
+  "/admin/costs/page": "app/admin/costs/page.js",
   "/agent/conversations/page": "app/agent/conversations/page.js",
   "/admin/waba/page": "app/admin/waba/page.js",
-  "/agent/settings/page": "app/agent/settings/page.js",
-  "/admin/costs/page": "app/admin/costs/page.js",
-  "/agent/dashboard/page": "app/agent/dashboard/page.js",
-  "/admin/agents/page": "app/admin/agents/page.js",
   "/agent/integrations/page": "app/agent/integrations/page.js",
   "/agent/leads/page": "app/agent/leads/page.js",
+  "/agent/settings/page": "app/agent/settings/page.js",
+  "/agent/analytics/page": "app/agent/analytics/page.js",
+  "/agent/dashboard/page": "app/agent/dashboard/page.js",
   "/agent/testing/page": "app/agent/testing/page.js"
 }

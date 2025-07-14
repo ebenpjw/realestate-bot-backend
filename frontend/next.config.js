@@ -9,7 +9,7 @@ const nextConfig = {
     // Skip ESLint during build for faster deployment
     ignoreDuringBuilds: true,
   },
-  // Skip error page generation to avoid Html import issues
+  // Generate unique build ID for Railway deployments
   generateBuildId: async () => {
     return 'build-' + Date.now()
   },
@@ -18,43 +18,76 @@ const nextConfig = {
     maxInactiveAge: 25 * 1000,
     pagesBufferLength: 2,
   },
-  // Server-side rendering for full functionality
-  // output: 'export',
+  // Enable SSR for React Context compatibility - REMOVED static export
+  // output: 'export', // REMOVED - this was causing Context issues
   trailingSlash: true,
-  images: {
-    unoptimized: false,
-  },
+  // Disable static optimization to prevent Context issues
   experimental: {
     serverComponentsExternalPackages: ['@supabase/supabase-js', 'socket.io-client'],
+    // Force dynamic rendering for all pages
+    isrMemoryCacheSize: 0,
+    // Disable static generation completely
+    staticPageGenerationTimeout: 0,
   },
-  // Skip trailing slash redirect
-  skipTrailingSlashRedirect: true,
-  env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080',
-    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080',
-  },
-  async rewrites() {
+  // Force all pages to be server-side rendered
+  poweredByHeader: false,
+  // Force all pages to be dynamic to prevent Context issues
+  async headers() {
     return [
       {
-        source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/:path*`,
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+        ],
       },
-    ];
+    ]
   },
+  env: {
+    // In unified deployment, API is on same domain
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || (
+      process.env.NODE_ENV === 'production'
+        ? '' // Same domain in production
+        : 'http://localhost:8080'
+    ),
+    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || (
+      process.env.NODE_ENV === 'production'
+        ? 'wss://' + (process.env.RAILWAY_PUBLIC_DOMAIN || 'localhost:8080')
+        : 'ws://localhost:8080'
+    ),
+  },
+  // No rewrites needed for unified deployment - API is on same server
+  async rewrites() {
+    return [];
+  },
+  // Image optimization configuration for Railway deployment
   images: {
     formats: ['image/avif', 'image/webp'],
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // Enable optimization for Railway deployment
+    unoptimized: process.env.NODE_ENV === 'development',
     remotePatterns: [
       {
         protocol: 'https',
         hostname: '*.supabase.co',
       },
       {
+        protocol: 'https',
+        hostname: '*.railway.app',
+      },
+      {
         protocol: 'http',
         hostname: 'localhost',
         port: '8080',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '3000',
       },
     ],
   },

@@ -20,6 +20,18 @@
     "db:migrate": "echo 'Run Supabase migrations manually'",
     "deploy-check": "node scripts/railway-deploy.js",
     "preinstall": "npm cache clean --force || true",
+
+    "build:unified": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd frontend && npm install && npm run build",
+    "build:backend": "npm run build",
+    "start:unified": "npm run start:production",
+    "start:production": "NODE_ENV=production node scripts/unified-server.js",
+    "dev:unified": "concurrently \"npm run dev\" \"cd frontend && npm run dev\"",
+
+    "railway:deploy": "node scripts/railway-unified-deploy.js deploy",
+    "railway:health": "node scripts/railway-unified-deploy.js health",
+    "railway:unified:build": "npm run railway:deploy",
+    "railway:unified:start": "npm run start:unified",
     "postinstall": "npm rebuild sharp --platform=linux --arch=x64 || echo 'Sharp rebuild failed, continuing...' && echo 'Installation complete - Ready for Railway deployment'",
     "test": "node tests/test_master_runner.js",
     "test:quick": "node tests/test_master_runner.js --quick",
@@ -48,6 +60,7 @@
     "express-validator": "^7.2.1",
     "googleapis": "^150.0.1",
     "helmet": "^7.2.0",
+    "http-proxy-middleware": "^3.0.3",
     "jsonwebtoken": "^9.0.2",
     "moment-timezone": "^0.6.0",
     "multer": "^2.0.1",
@@ -60,6 +73,7 @@
     "uuid": "^11.1.0"
   },
   "devDependencies": {
+    "concurrently": "^9.1.0",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-node": "^11.1.0",

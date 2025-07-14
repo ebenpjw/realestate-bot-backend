@@ -6,7 +6,7 @@ import { Toaster } from 'sonner'
 import { cn } from '@/lib/utils'
 import { PWAInstallPrompt, OfflineIndicator } from '@/components/ui/PWAInstallPrompt'
 
-// Force dynamic rendering for full functionality
+// Force dynamic rendering to prevent Context issues during build
 export const dynamic = 'force-dynamic'
 
 const fontSans = Inter({

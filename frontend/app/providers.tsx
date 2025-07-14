@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { ThemeProvider as NextThemesProvider } from 'next-themes'
 import { TooltipProvider } from '@radix-ui/react-tooltip'
+import dynamic from 'next/dynamic'
 
 // Create a client with modern React Query v5 configuration
 const queryClient = new QueryClient({
@@ -50,8 +51,10 @@ export function useTheme() {
 
 function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     // Check for saved theme preference or default to light
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null
     if (savedTheme) {
@@ -62,16 +65,22 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
+    if (!mounted) return
     localStorage.setItem('theme', theme)
     if (theme === 'dark') {
       document.documentElement.classList.add('dark')
     } else {
       document.documentElement.classList.remove('dark')
     }
-  }, [theme])
+  }, [theme, mounted])
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light')
+  }
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return <div style={{ visibility: 'hidden' }}>{children}</div>
   }
 
   return (
@@ -81,7 +90,26 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
+// Dynamic import for ReactQueryDevtools to prevent SSR issues
+const ReactQueryDevtoolsProduction = dynamic(
+  () =>
+    import('@tanstack/react-query-devtools/build/modern/production.js').then(
+      (d) => ({
+        default: d.ReactQueryDevtools,
+      }),
+    ),
+  {
+    ssr: false,
+  },
+)
+
 export function Providers({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   return (
     <QueryClientProvider client={queryClient}>
       <NextThemesProvider
@@ -96,11 +124,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
               <WABAProvider>
                 <SocketProvider>
                   {children}
-                  <ReactQueryDevtools
-                    initialIsOpen={false}
-                    buttonPosition="bottom-left"
-                    position="bottom"
-                  />
+                  {mounted && process.env.NODE_ENV === 'development' && (
+                    <ReactQueryDevtools
+                      initialIsOpen={false}
+                      buttonPosition="bottom-left"
+                      position="bottom"
+                    />
+                  )}
                 </SocketProvider>
               </WABAProvider>
             </AgentProvider>

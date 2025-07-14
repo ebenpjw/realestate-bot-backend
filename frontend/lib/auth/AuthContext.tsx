@@ -65,6 +65,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const checkAuthStatus = async () => {
     try {
+      // Check if we're on the client side
+      if (typeof window === 'undefined') {
+        setLoading(false)
+        return
+      }
+
       const token = localStorage.getItem('auth_token')
       if (!token) {
         setLoading(false)

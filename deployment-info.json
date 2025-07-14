@@ -1,0 +1,12 @@
+{
+  "timestamp": "2025-07-14T04:46:20.414Z",
+  "environment": "production",
+  "platform": "Railway",
+  "services": {
+    "frontend": "Next.js 14",
+    "backend": "Express.js",
+    "database": "Supabase"
+  },
+  "buildId": "railway-1752468380414",
+  "nodeVersion": "v22.16.0"
+}

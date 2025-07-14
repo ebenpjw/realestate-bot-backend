@@ -30,9 +30,17 @@ interface SocketProviderProps {
 export function SocketProvider({ children }: SocketProviderProps) {
   const [socket, setSocket] = useState<Socket | null>(null)
   const [connected, setConnected] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const { user, isAuthenticated } = useAuth()
 
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    // Only initialize socket on client side
+    if (!mounted || typeof window === 'undefined') return
+
     if (!isAuthenticated || !user) {
       if (socket) {
         socket.disconnect()

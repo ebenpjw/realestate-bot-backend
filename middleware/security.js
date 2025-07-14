@@ -42,14 +42,18 @@ const rateLimits = {
   // )
 };
 
-// CORS configuration
+// CORS configuration for unified deployment
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production'
-    ? (process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim()) : false)
-    : ['http://localhost:3000', 'http://localhost:3001'],
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-hub-signature-256', 'x-hub-signature'],
-  credentials: false,
+    ? (process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map(origin => origin.trim()) : [
+        /^https?:\/\/.*\.railway\.app$/,  // Railway deployments
+        /^https?:\/\/.*\.netlify\.app$/,  // Netlify deployments (legacy)
+        /^https?:\/\/.*\.vercel\.app$/    // Vercel deployments (legacy)
+      ])
+    : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:8080'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-hub-signature-256', 'x-hub-signature', 'X-Requested-With'],
+  credentials: true, // Enable credentials for unified deployment
   maxAge: 86400, // 24 hours
   optionsSuccessStatus: 200 // For legacy browser support
 };
@@ -71,7 +75,9 @@ const helmetConfig = {
         "https://accounts.google.com",
         "https://oauth2.googleapis.com",
         "https://www.googleapis.com",
-        "https://graph.facebook.com"
+        "https://graph.facebook.com",
+        "https://*.railway.app",
+        "wss://*.railway.app"
       ],
       fontSrc: ["'self'", "https:", "data:"],
       objectSrc: ["'none'"],

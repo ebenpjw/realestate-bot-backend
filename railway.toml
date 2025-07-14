@@ -15,8 +15,8 @@ PORT = { default = "8080" }
 name = "realestate-bot-backend"
 
 [services.build]
-buildCommand = "npm run railway:build"
-startCommand = "npm run railway:start"
+buildCommand = "npm run railway:unified:build"
+startCommand = "npm run railway:unified:start"
 
 [services.healthcheck]
 path = "/health"

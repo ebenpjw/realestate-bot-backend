@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PropertyHub Command - Test Page</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        h1 {
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+        p {
+            color: #6b7280;
+            margin-bottom: 1.5rem;
+        }
+        .success {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid #a7f3d0;
+        }
+        .button {
+            background: #3b82f6;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 0.5rem;
+            text-decoration: none;
+            display: inline-block;
+            margin: 0.25rem;
+            transition: background-color 0.2s;
+        }
+        .button:hover {
+            background: #2563eb;
+        }
+        .button-outline {
+            background: transparent;
+            color: #3b82f6;
+            border: 1px solid #3b82f6;
+        }
+        .button-outline:hover {
+            background: #3b82f6;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PropertyHub Command</h1>
+        <p>Real Estate Bot Management System</p>
+        
+        <div class="success">
+            <strong>🎉 Deployment Test Successful!</strong><br>
+            Static files are working correctly.
+        </div>
+        
+        <div>
+            <a href="/auth/login" class="button">Agent Login</a>
+            <a href="/admin/dashboard" class="button button-outline">Admin Dashboard</a>
+        </div>
+        
+        <p style="margin-top: 1.5rem; font-size: 0.875rem; color: #9ca3af;">
+            Multi-tenant WABA • AI Learning System • Property Intelligence
+        </p>
+    </div>
+</body>
+</html>

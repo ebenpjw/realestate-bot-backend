@@ -1,5 +1,8 @@
 'use client'
 
+// Force dynamic rendering to prevent Context issues during build
+export const dynamic = 'force-dynamic'
+
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth/AuthContext'
 import { useRealTimeNotifications } from '@/lib/hooks/useRealTimeNotifications'

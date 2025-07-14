@@ -1,10 +1,22 @@
 {
+  "app\\providers.tsx -> @tanstack/react-query-devtools/build/modern/production.js": {
+    "id": 89726,
+    "files": [
+      "static/chunks/726.9d055d0998a74cfe.js"
+    ]
+  },
   "node_modules\\@tanstack\\query-devtools\\build\\index.js -> ./DevtoolsComponent/I3HPI4QX.js": {
-    "id": null,
-    "files": []
+    "id": 65772,
+    "files": [
+      "static/chunks/68f4eb89.0be23586cb0d4c54.js",
+      "static/chunks/772.e8173573c7d7ffbf.js"
+    ]
   },
   "node_modules\\@tanstack\\query-devtools\\build\\index.js -> ./DevtoolsPanelComponent/CXEL7IU7.js": {
-    "id": null,
-    "files": []
+    "id": 30797,
+    "files": [
+      "static/chunks/68f4eb89.0be23586cb0d4c54.js",
+      "static/chunks/797.4f20b87800932048.js"
+    ]
   }
 }
