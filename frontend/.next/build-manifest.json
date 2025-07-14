@@ -5,8 +5,8 @@
   "devFiles": [],
   "ampDevFiles": [],
   "lowPriorityFiles": [
-    "static/railway-1752468363301/_buildManifest.js",
-    "static/railway-1752468363301/_ssgManifest.js"
+    "static/railway-1752474360395/_buildManifest.js",
+    "static/railway-1752474360395/_ssgManifest.js"
   ],
   "rootMainFiles": [
     "static/chunks/webpack-0f23eaed004477c1.js",

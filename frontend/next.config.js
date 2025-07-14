@@ -18,18 +18,13 @@ const nextConfig = {
     maxInactiveAge: 25 * 1000,
     pagesBufferLength: 2,
   },
-  // Enable SSR for React Context compatibility - REMOVED static export
-  // output: 'export', // REMOVED - this was causing Context issues
+  // Enable SSR for dynamic features
+  // output: 'export', // Disabled - pages use dynamic features
   trailingSlash: true,
-  // Disable static optimization to prevent Context issues
+  // Configure for static export
   experimental: {
     serverComponentsExternalPackages: ['@supabase/supabase-js', 'socket.io-client'],
-    // Force dynamic rendering for all pages
-    isrMemoryCacheSize: 0,
-    // Disable static generation completely
-    staticPageGenerationTimeout: 0,
   },
-  // Force all pages to be server-side rendered
   poweredByHeader: false,
   env: {
     // In unified deployment, API is on same domain

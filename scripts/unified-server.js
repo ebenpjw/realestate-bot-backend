@@ -120,102 +120,68 @@ if (NODE_ENV === 'production') {
       app.use(express.static(publicPath));
     }
 
-    // Use Next.js server for proper SSR/SSG handling
-    try {
-      const next = require('next');
-      const nextApp = next({
-        dev: false,
-        dir: path.join(__dirname, '../frontend'),
-        conf: {
-          distDir: '.next'
-        }
-      });
+    // Simple fallback for SPA routing - serve a basic page that loads the app
+    app.get('/*', (req, res, next) => {
+      // Skip API routes
+      if (req.path.startsWith('/api/')) {
+        return next();
+      }
 
-      const handle = nextApp.getRequestHandler();
-
-      nextApp.prepare().then(() => {
-        logger.info('✅ Next.js app prepared successfully');
-
-        // Handle all non-API routes with Next.js
-        app.get('/*', (req, res, next) => {
-          // Skip API routes
-          if (req.path.startsWith('/api/')) {
-            return next();
-          }
-
-          // Let Next.js handle the request
-          return handle(req, res);
-        });
-      }).catch(err => {
-        logger.error('❌ Failed to prepare Next.js app:', err);
-        // Fallback to simple HTML
-        app.get('/*', (req, res, next) => {
-          if (req.path.startsWith('/api/')) {
-            return next();
-          }
-
-          res.send(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <title>PropertyHub Command</title>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1">
-              <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 40px; background: #f5f5f5; }
-                .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-                h1 { color: #333; margin-bottom: 20px; }
-                .status { color: #dc3545; font-weight: bold; }
-                .info { color: #666; margin-top: 20px; }
-                .button { display: inline-block; padding: 12px 24px; background: #007bff; color: white; text-decoration: none; border-radius: 6px; margin: 10px 0; }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <h1>🏠 PropertyHub Command</h1>
-                <p class="status">⚠️ Frontend loading issue</p>
-                <p>The Next.js frontend is having trouble loading. Please try refreshing the page.</p>
-                <div class="info">
-                  <p><strong>Backend:</strong> Running successfully</p>
-                  <p><strong>Database:</strong> Connected to Supabase</p>
-                  <p><strong>Environment:</strong> ${NODE_ENV}</p>
-                </div>
-                <p>
-                  <a href="/health" class="button">Health Check</a>
-                  <a href="/api/test/health" class="button">API Test</a>
-                </p>
-              </div>
-            </body>
-            </html>
-          `);
-        });
-      });
-
-    } catch (error) {
-      logger.error('❌ Failed to initialize Next.js server:', error);
-      // Fallback to static serving
-      app.get('/*', (req, res, next) => {
-        if (req.path.startsWith('/api/')) {
-          return next();
-        }
-
-        res.send(`
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>PropertyHub Command</title>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-          </head>
-          <body style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 40px; text-align: center;">
-            <h1>🏠 PropertyHub Command</h1>
-            <p>Backend is running. Frontend initialization failed.</p>
-            <a href="/health">Health Check</a> | <a href="/api/test/health">API Test</a>
-          </body>
-          </html>
-        `);
-      });
-    }
+      // Serve a simple HTML page that will bootstrap the React app
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>PropertyHub Command</title>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+              margin: 0;
+              padding: 0;
+              background: #f5f5f5;
+            }
+            .loading {
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              height: 100vh;
+              flex-direction: column;
+            }
+            .spinner {
+              border: 3px solid #f3f3f3;
+              border-top: 3px solid #007bff;
+              border-radius: 50%;
+              width: 40px;
+              height: 40px;
+              animation: spin 1s linear infinite;
+              margin-bottom: 20px;
+            }
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          </style>
+        </head>
+        <body>
+          <div id="__next">
+            <div class="loading">
+              <div class="spinner"></div>
+              <h2>🏠 PropertyHub Command</h2>
+              <p>Loading your real estate management system...</p>
+            </div>
+          </div>
+          <script>
+            // Redirect to the actual Next.js app
+            setTimeout(() => {
+              window.location.href = '/auth/login';
+            }, 2000);
+          </script>
+        </body>
+        </html>
+      `);
+    });
   } else {
     logger.warn('⚠️ Next.js build not found, serving backend only');
     
