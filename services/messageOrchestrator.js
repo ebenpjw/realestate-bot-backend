@@ -653,14 +653,6 @@ class MessageOrchestrator {
 
       // First try to get existing leads
       const leads = await databaseService.getLeads({ phone_number: senderWaId });
-        .from('leads')
-        .select('*')
-        .eq('phone_number', senderWaId)
-        .order('created_at', { ascending: false });
-
-      if (selectError) {
-        throw new Error(`Failed to query leads: ${selectError.message}`);
-      }
 
       // If leads exist, use the most recent one
       if (leads && leads.length > 0) {
@@ -678,20 +670,11 @@ class MessageOrchestrator {
         senderWaId
       }, '[ORCHESTRATOR] No existing lead found, creating new lead');
 
-      const { data: newLead, error: insertError } = await supabase
-        .from('leads')
-        .insert({
-          phone_number: senderWaId,
-          status: 'new',
-          source: 'orchestrator',
-          created_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (insertError) {
-        throw new Error(`Failed to create new lead: ${insertError.message}`);
-      }
+      const newLead = await databaseService.createLead({
+        phoneNumber: senderWaId,
+        fullName: 'WhatsApp User',
+        source: 'WA Direct'
+      });
 
       logger.info({
         senderWaId,
@@ -734,19 +717,6 @@ class MessageOrchestrator {
       const databaseService = require('./databaseService');
 
       const messages = await databaseService.getConversationHistory(leadId, 10);
-        .from('messages')
-        .select('sender, message, created_at')
-        .eq('lead_id', leadId)
-        .order('created_at', { ascending: true })
-        .limit(20); // Last 20 messages for context
-
-      if (error) {
-        logger.warn({
-          err: error,
-          leadId
-        }, '[ORCHESTRATOR] Failed to get conversation history, using empty history');
-        return [];
-      }
 
       const conversationHistory = messages || [];
 

@@ -4,7 +4,6 @@ const databaseService = require('../services/databaseService');
 const logger = require('../logger');
 const botService = require('../services/botService');
 const whatsappService = require('../services/whatsappService');
-const databaseService = require('../services/databaseService');
 // const ChallengingLeadTester = require('../services/challengingLeadTester'); // Temporarily disabled - service missing
 
 router.post('/simulate-inbound', async (req, res, next) => {

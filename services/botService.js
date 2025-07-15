@@ -28,7 +28,8 @@ class BotService {
     this.appointmentService = dependencies.appointmentService || require('./appointmentService');
     this.whatsappService = dependencies.whatsappService || require('./whatsappService');
     this.databaseService = dependencies.databaseService || require('./databaseService');
-    this.supabase = dependencies.supabase || supabase;
+    // Get Supabase client from databaseService to ensure consistent database access
+    this.supabase = dependencies.supabase || this.databaseService.supabase;
 
     // Improved fallback messages following unified personality guidelines
     // Varied emoji usage and natural expressions without repetitive patterns
