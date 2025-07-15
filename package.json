@@ -29,7 +29,7 @@
     "railway:deploy": "node scripts/railway-unified-deploy.js deploy",
     "railway:health": "node scripts/railway-unified-deploy.js health",
     "railway:unified:build": "npm run railway:deploy",
-    "railway:unified:start": "node scripts/start-nextjs-standalone.js",
+    "railway:unified:start": "node scripts/railway-unified-start.js",
     "postinstall": "npm rebuild sharp --platform=linux --arch=x64 || echo 'Sharp rebuild failed, continuing...' && echo 'Installation complete - Ready for Railway deployment'",
     "audit": "npm audit --production",
     "test": "node tests/test_master_runner.js",
