@@ -90,18 +90,18 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
-// Dynamic import for ReactQueryDevtools to prevent SSR issues
-const ReactQueryDevtoolsProduction = dynamic(
-  () =>
-    import('@tanstack/react-query-devtools/build/modern/production.js').then(
-      (d) => ({
-        default: d.ReactQueryDevtools,
-      }),
-    ),
-  {
-    ssr: false,
-  },
-)
+// Temporarily disable ReactQueryDevtools production import to fix deployment
+// const ReactQueryDevtoolsProduction = dynamic(
+//   () =>
+//     import('@tanstack/react-query-devtools/build/modern/production.js').then(
+//       (d) => ({
+//         default: d.ReactQueryDevtools,
+//       }),
+//     ),
+//   {
+//     ssr: false,
+//   },
+// )
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false)

@@ -4,7 +4,8 @@ import './globals.css'
 import { Providers } from './providers'
 import { Toaster } from 'sonner'
 import { cn } from '@/lib/utils'
-import { PWAInstallPrompt, OfflineIndicator } from '@/components/ui/PWAInstallPrompt'
+// Temporarily disable PWA components to fix deployment
+// import { PWAInstallPrompt, OfflineIndicator } from '@/components/ui/PWAInstallPrompt'
 
 // Force dynamic rendering to prevent Context issues during build
 export const dynamic = 'force-dynamic'
@@ -86,9 +87,8 @@ export default function RootLayout({
         )}
       >
         <Providers>
-          <OfflineIndicator />
+          {/* Temporarily disabled PWA components */}
           {children}
-          <PWAInstallPrompt />
           <Toaster
             position="top-right"
             expand={true}
