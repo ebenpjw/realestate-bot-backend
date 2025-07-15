@@ -85,6 +85,24 @@ class MessageOrchestrator {
     // Use the specialized message queue manager
     this.queueManager = new MessageQueueManager();
 
+    // Initialize message queues and processing state
+    this.messageQueues = new Map();
+    this.processingState = new Map();
+    this.processingTimers = new Map();
+
+    // Configuration
+    this.config = {
+      maxQueueAge: 30 * 60 * 1000, // 30 minutes
+      cleanupInterval: 5 * 60 * 1000 // 5 minutes
+    };
+
+    // Metrics
+    this.metrics = {
+      totalProcessed: 0,
+      totalErrors: 0,
+      averageProcessingTime: 0
+    };
+
     // Set up event listeners
     this.queueManager.on('batchCompleted', (data) => {
       this._handleBatchCompleted(data);
@@ -93,6 +111,11 @@ class MessageOrchestrator {
     this.queueManager.on('batchError', (data) => {
       this._handleBatchError(data);
     });
+
+    // Start cleanup timer
+    setInterval(() => {
+      this.cleanupOldQueues();
+    }, this.config.cleanupInterval);
 
     logger.info('Message Processing Orchestrator initialized with QueueManager');
   }
