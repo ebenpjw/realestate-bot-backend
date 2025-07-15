@@ -1,5 +1,5 @@
 const logger = require('../logger');
-const supabase = require('../supabaseClient');
+const databaseService = require('./databaseService');
 const moment = require('moment-timezone');
 
 /**

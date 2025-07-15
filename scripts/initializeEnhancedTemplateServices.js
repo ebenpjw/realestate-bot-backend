@@ -23,7 +23,7 @@ const intelligentFollowUpService = require('../services/intelligentFollowUpServi
 const aiTemplateGenerationService = require('../services/aiTemplateGenerationService');
 const automaticTemplateApprovalService = require('../services/automaticTemplateApprovalService');
 const multiWABATemplateService = require('../services/multiWABATemplateService');
-const supabase = require('../supabaseClient');
+const databaseService = require('../services/databaseService');
 
 class EnhancedTemplateServicesInitializer {
   constructor() {

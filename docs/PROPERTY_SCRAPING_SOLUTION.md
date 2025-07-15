@@ -1,5 +1,7 @@
 # 🏠 Property Scraping Solution for Real Estate Bot
 
+> **Note**: This document describes the property scraping implementation. For comprehensive visual property data system documentation, see [VISUAL_PROPERTY_DATA_SYSTEM.md](VISUAL_PROPERTY_DATA_SYSTEM.md).
+
 ## 📋 **Problem Analysis**
 
 Your screenshot shows EcoProp has rich property data, but our initial scraping attempts failed due to:
@@ -9,6 +11,12 @@ Your screenshot shows EcoProp has rich property data, but our initial scraping a
 3. **Dynamic Content**: JavaScript-heavy sites require proper rendering
 
 ## ✅ **Solution Implemented**
+
+This scraping solution is part of the larger [Visual Property Data System](VISUAL_PROPERTY_DATA_SYSTEM.md) which includes:
+- Property data scraping (this document)
+- Visual analysis with GPT-4 Vision
+- AI-powered property recommendations
+- Integration with the bot conversation system
 
 ### **Local Scraper + Railway Webhook Architecture**
 

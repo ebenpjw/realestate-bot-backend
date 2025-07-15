@@ -1,83 +1,111 @@
-# Local Property Scraper with Direct Supabase Integration
+# Scripts Directory
 
-This scraper extracts property data from ecoprop.com and saves it directly to your Supabase database, eliminating the need for webhook integration with your Railway backend.
+This directory contains various utility scripts for the real estate bot backend system. Scripts are organized by category and purpose.
 
-## 🚀 Features
+## 📁 Script Categories
 
-- **Direct Supabase Integration**: Saves data directly to database without webhooks
-- **Complete Data Extraction**: Property info, unit mix, and ALL floor plans
-- **Smart Availability Checking**: Only extracts floor plans for properties with available units
+### 🚀 Deployment Scripts
+- **`railway-deploy.js`** - Railway deployment automation
+- **`railway-unified-deploy.js`** - Unified frontend/backend deployment
+- **`start-nextjs-standalone.js`** - Production server startup
+- **`unified-server.js`** - Combined frontend/backend server
+
+### 🔍 Property Scraping
+- **`localScraperWithWebhook.js`** - Main property scraper with Supabase integration
+- **`scrapePropertyDetails.js`** - Detailed property information extraction
+- **`scrapeUnitMix.js`** - Unit mix and availability scraping
+
+### ✅ Validation & Testing
+- **`validateSystem.js`** - System health and configuration validation
+- **`validateDatabaseConnection.js`** - Database connectivity testing
+
+### 🛠️ Development Utilities
+- **`build-for-railway.js`** - Frontend build optimization for Railway
+- **`verify-setup.js`** - Development environment verification
+
+## 🚀 Key Features
+
+- **Direct Supabase Integration**: All scripts use centralized database service
+- **Complete Data Extraction**: Property info, unit mix, and floor plans
+- **Smart Availability Checking**: Only extracts floor plans for available properties
 - **Duplicate Detection**: Updates only dynamic fields (prices, unit mix, TOP dates)
-- **Progress Tracking**: Resumable scraping with database session tracking
-- **Error Handling**: Comprehensive error handling with local backup
+- **Progress Tracking**: Resumable operations with database session tracking
+- **Error Handling**: Comprehensive error handling with fallback mechanisms
 - **Rate Limiting**: Built-in delays to respect website limits
 
 ## 📋 Prerequisites
 
-1. **Node.js** (v16 or higher)
+1. **Node.js** (v20 or higher)
 2. **Supabase Project** with the required database schema
-3. **Environment Variables** configured
+3. **Environment Variables** configured in `.env` file
 
 ## 🛠️ Setup Instructions
 
-### 1. Install Dependencies
+### 1. Environment Configuration
 
-```bash
-cd scripts
-npm install
-```
-
-### 2. Database Setup
-
-First, run the database migration to add the scraping_sessions table:
-
-```sql
--- Run this in your Supabase SQL editor
--- File: database/migrations/add_scraping_sessions_table.sql
-```
-
-### 3. Environment Configuration
-
-Copy the example environment file and configure it:
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` with your Supabase credentials:
+The system uses a centralized `.env` file in the project root. Required variables:
 
 ```env
-# Get these from your Supabase project settings > API
+# Supabase Configuration
 SUPABASE_URL=https://your-project-id.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+SUPABASE_ANON_KEY=your-anon-key-here
 
-# Optional: Download floor plans locally
-DOWNLOAD_FLOOR_PLANS=false
+# Railway Deployment
+RAILWAY_PUBLIC_DOMAIN=your-app.railway.app
+
+# WhatsApp Integration
+GUPSHUP_API_KEY=your-gupshup-api-key
+GUPSHUP_APP_NAME=your-app-name
+
+# Google Calendar Integration
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=https://your-app.railway.app/auth/google/callback
+
+# OpenAI Integration
+OPENAI_API_KEY=your-openai-api-key
+
+# Security
+JWT_SECRET=your-jwt-secret
+ENCRYPTION_KEY=your-encryption-key
 ```
 
-**Important**: Use the **Service Role Key**, not the anon key, as the scraper needs full database access.
+**Important**: Use the **Service Role Key** for scripts that need full database access.
 
 ## 🎯 Usage
 
-### Test Database Connection
+### Deployment Scripts
+
 ```bash
-npm run test
-# or
-node localScraperWithWebhook.js test
+# Deploy to Railway
+npm run railway:deploy
+
+# Check Railway deployment health
+npm run railway:health
+
+# Start production server
+npm run start:production
 ```
 
-### Run Scraper Once
+### Property Scraping
+
 ```bash
-npm run scrape
-# or
-node localScraperWithWebhook.js scrape
+# Run property scraper
+node scripts/localScraperWithWebhook.js scrape
+
+# Test database connection
+node scripts/validateDatabaseConnection.js
 ```
 
-### Schedule Daily Scraping
+### System Validation
+
 ```bash
-npm run schedule
-# or
-node localScraperWithWebhook.js schedule
+# Validate entire system
+node scripts/validateSystem.js
+
+# Verify development setup
+node scripts/verify-setup.js
 ```
 
 ## 📊 Data Structure
@@ -149,20 +177,55 @@ The scraper provides detailed console output:
 ## 🔧 Troubleshooting
 
 ### Database Connection Issues
-- Verify SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
+- Verify `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `.env`
 - Check if service role key has proper permissions
 - Ensure database schema is up to date
+- Run `node scripts/validateDatabaseConnection.js` to test connectivity
+
+### Deployment Issues
+- Check Railway environment variables are set correctly
+- Verify build process completes without errors
+- Monitor Railway logs for deployment failures
+- Ensure all required dependencies are in `package.json`
 
 ### Scraping Issues
 - Check if ecoprop.com structure has changed
-- Verify internet connection
-- Review rate limiting settings
+- Verify internet connection and proxy settings
+- Review rate limiting settings to avoid being blocked
+- Monitor for CAPTCHA or anti-bot measures
 
 ### Performance Issues
-- Adjust delay settings in the code
-- Monitor memory usage during large scrapes
-- Consider running during off-peak hours
+- Adjust delay settings in scraper configuration
+- Monitor memory usage during large operations
+- Consider running resource-intensive scripts during off-peak hours
+- Use `NODE_ENV=production` for optimized performance
+
+## 📋 Best Practices
+
+### Script Development
+- Always use the centralized `databaseService` instead of direct Supabase client
+- Implement proper error handling and logging
+- Add progress tracking for long-running operations
+- Use environment variables for configuration
+- Follow the established naming conventions
+
+### Security
+- Never commit API keys or secrets to version control
+- Use service role keys only for server-side operations
+- Implement rate limiting for external API calls
+- Validate all input data before processing
+
+### Maintenance
+- Regularly update dependencies for security patches
+- Monitor script performance and optimize as needed
+- Keep documentation updated when adding new scripts
+- Remove unused scripts to maintain clean codebase
 
 ## 📚 Next Steps
 
-After successful scraping, your Railway backend can access the property data directly from Supabase without needing to run any scraping operations itself.
+After running scripts successfully:
+1. Monitor logs for any errors or warnings
+2. Verify data integrity in Supabase dashboard
+3. Test related functionality in the main application
+4. Schedule recurring scripts using cron jobs or Railway cron
+5. Set up monitoring and alerting for critical scripts

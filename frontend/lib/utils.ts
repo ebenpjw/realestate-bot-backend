@@ -67,12 +67,12 @@ export function getInitials(name: string): string {
 /**
  * Debounce function to limit the rate of function calls
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: never[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout | null = null
-  
+
   return (...args: Parameters<T>) => {
     if (timeout) clearTimeout(timeout)
     timeout = setTimeout(() => func(...args), wait)
@@ -82,12 +82,12 @@ export function debounce<T extends (...args: any[]) => any>(
 /**
  * Throttle function to limit function calls to once per interval
  */
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: never[]) => unknown>(
   func: T,
   limit: number
 ): (...args: Parameters<T>) => void {
   let inThrottle: boolean = false
-  
+
   return (...args: Parameters<T>) => {
     if (!inThrottle) {
       func(...args)
@@ -119,11 +119,11 @@ export function generateId(length: number = 8): string {
 /**
  * Check if a value is empty (null, undefined, empty string, empty array, empty object)
  */
-export function isEmpty(value: any): boolean {
+export function isEmpty(value: unknown): boolean {
   if (value == null) return true
   if (typeof value === 'string') return value.trim().length === 0
   if (Array.isArray(value)) return value.length === 0
-  if (typeof value === 'object') return Object.keys(value).length === 0
+  if (typeof value === 'object' && value !== null) return Object.keys(value).length === 0
   return false
 }
 
@@ -135,10 +135,10 @@ export function deepClone<T>(obj: T): T {
   if (obj instanceof Date) return new Date(obj.getTime()) as unknown as T
   if (obj instanceof Array) return obj.map(item => deepClone(item)) as unknown as T
   if (typeof obj === 'object') {
-    const clonedObj = {} as { [key: string]: any }
+    const clonedObj = {} as Record<string, unknown>
     for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
-        clonedObj[key] = deepClone(obj[key])
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        clonedObj[key] = deepClone((obj as Record<string, unknown>)[key])
       }
     }
     return clonedObj as T
@@ -170,19 +170,24 @@ export function kebabToCamel(str: string): string {
 /**
  * Get a nested object property safely
  */
-export function getNestedProperty(obj: any, path: string): any {
-  return path.split('.').reduce((current, key) => current?.[key], obj)
+export function getNestedProperty<T = unknown>(obj: Record<string, unknown>, path: string): T | undefined {
+  return path.split('.').reduce((current: unknown, key: string) => {
+    if (current && typeof current === 'object' && key in current) {
+      return (current as Record<string, unknown>)[key]
+    }
+    return undefined
+  }, obj) as T | undefined
 }
 
 /**
  * Set a nested object property safely
  */
-export function setNestedProperty(obj: any, path: string, value: any): void {
+export function setNestedProperty(obj: Record<string, unknown>, path: string, value: unknown): void {
   const keys = path.split('.')
   const lastKey = keys.pop()!
-  const target = keys.reduce((current, key) => {
+  const target = keys.reduce((current: Record<string, unknown>, key: string) => {
     if (!(key in current)) current[key] = {}
-    return current[key]
+    return current[key] as Record<string, unknown>
   }, obj)
   target[lastKey] = value
 }
@@ -225,8 +230,8 @@ export function sortBy<T>(
 ): T[] {
   return [...array].sort((a, b) => {
     for (const criterion of criteria) {
-      let aVal: any, bVal: any
-      
+      let aVal: unknown, bVal: unknown
+
       if (typeof criterion === 'function') {
         aVal = criterion(a)
         bVal = criterion(b)
@@ -234,9 +239,23 @@ export function sortBy<T>(
         aVal = a[criterion]
         bVal = b[criterion]
       }
-      
-      if (aVal < bVal) return -1
-      if (aVal > bVal) return 1
+
+      // Type-safe comparison
+      if (aVal == null && bVal != null) return -1
+      if (aVal != null && bVal == null) return 1
+      if (aVal == null && bVal == null) return 0
+
+      // Compare primitive values
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        const comp = aVal.localeCompare(bVal)
+        if (comp !== 0) return comp
+      } else if (typeof aVal === 'number' && typeof bVal === 'number') {
+        if (aVal < bVal) return -1
+        if (aVal > bVal) return 1
+      } else if (typeof aVal === 'boolean' && typeof bVal === 'boolean') {
+        if (aVal < bVal) return -1
+        if (aVal > bVal) return 1
+      }
     }
     return 0
   })

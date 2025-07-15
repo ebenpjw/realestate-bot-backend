@@ -1,6 +1,6 @@
 // api/googleCalendarService.js
 const { google } = require('googleapis');
-const supabase = require('../supabaseClient');
+const databaseService = require('../services/databaseService');
 const config = require('../config');
 const logger = require('../logger');
 const { decrypt } = require('./authHelper'); // Correctly import from helper

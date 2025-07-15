@@ -1,6 +1,7 @@
 // services/appointmentService.js
 
-const supabase = require('../supabaseClient');
+const databaseService = require('./databaseService');
+const config = require('../config');
 const logger = require('../logger');
 const { createEvent, deleteEvent } = require('../api/googleCalendarService');
 const { createZoomMeetingForUser, deleteZoomMeetingForUser } = require('../api/zoomServerService');
@@ -46,7 +47,7 @@ class AppointmentService {
       }, 'Processing appointment booking from multi-layer AI');
 
       // Get default agent (you can enhance this to select best agent)
-      const agentId = process.env.DEFAULT_AGENT_ID || 'default-agent';
+      const agentId = config.DEFAULT_AGENT_ID || 'default-agent';
 
       // Find next available slot (within next 7 days)
       const availableSlot = await this._findNextAvailableSlot(agentId);
@@ -292,25 +293,18 @@ class AppointmentService {
       }
 
       // Fetch full lead details for enhanced calendar event
-      const { data: leadDetails, error: leadError } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('id', leadId)
-        .single();
-
-      if (leadError) {
-        logger.warn({ err: leadError, leadId }, 'Could not fetch lead details, using basic info');
+      let leadDetails = null;
+      try {
+        leadDetails = await databaseService.getLeadById(leadId);
+      } catch (error) {
+        logger.warn({ err: error, leadId }, 'Could not fetch lead details, using basic info');
       }
 
       const enhancedConsultationNotes = this._buildConsultationNotes(leadDetails, consultationNotes);
       const calendarDescription = this._buildCalendarDescription(leadDetails, leadId);
 
       // Get agent information for Zoom integration
-      const { data: agent, error: agentError } = await supabase
-        .from('agents')
-        .select('id, full_name, zoom_user_id')
-        .eq('id', agentId)
-        .single();
+      const agent = await databaseService.getAgentById(agentId);
 
       if (agentError) {
         logger.warn({ err: agentError, agentId }, 'Could not fetch agent details, continuing without Zoom integration');
@@ -382,28 +376,18 @@ class AppointmentService {
       // Step 4: Store appointment in database with retry and rollback capability
       try {
         createdAppointment = await retryDatabaseOperation(async () => {
-          const { data, error } = await supabase
-            .from('appointments')
-            .insert({
-              lead_id: leadId,
-              agent_id: agentId,
-              appointment_time: appointmentStart.toISOString(), // Store in database timezone (Singapore)
-              duration_minutes: this.APPOINTMENT_DURATION,
-              zoom_meeting_id: zoomMeeting.id,
-              zoom_join_url: zoomMeeting.joinUrl,
-              zoom_password: zoomMeeting.password,
-              calendar_event_id: calendarEvent.id,
-              consultation_notes: enhancedConsultationNotes,
-              status: 'scheduled',
-              created_at: new Date().toISOString()
-            })
-            .select()
-            .single();
-
-          if (error) {
-            throw new DatabaseError(`Failed to save appointment: ${error.message}`, error);
-          }
-          return data;
+          return await databaseService.createAppointment({
+            lead_id: leadId,
+            agent_id: agentId,
+            appointment_time: appointmentStart.toISOString(), // Store in database timezone (Singapore)
+            duration_minutes: this.APPOINTMENT_DURATION,
+            zoom_meeting_id: zoomMeeting.id,
+            zoom_join_url: zoomMeeting.joinUrl,
+            zoom_password: zoomMeeting.password,
+            calendar_event_id: calendarEvent.id,
+            consultation_notes: enhancedConsultationNotes,
+            status: 'scheduled'
+          });
         }, 'create-appointment-record');
 
         logger.info({
@@ -435,14 +419,7 @@ class AppointmentService {
       // Step 5: Update lead status
       try {
         await retryDatabaseOperation(async () => {
-          const { error } = await supabase
-            .from('leads')
-            .update({ status: 'booked' })
-            .eq('id', leadId);
-
-          if (error) {
-            throw new DatabaseError(`Failed to update lead status: ${error.message}`, error);
-          }
+          await databaseService.updateLead(leadId, { status: 'booked' });
         }, 'update-lead-status');
       } catch (error) {
         // If lead status update fails, log but don't rollback the appointment
@@ -820,17 +797,7 @@ class AppointmentService {
    */
   async getAppointment(appointmentId) {
     try {
-      const { data: appointment, error } = await supabase
-        .from('appointments')
-        .select('*, leads(full_name, phone_number), agents(google_email, zoom_user_id)')
-        .eq('id', appointmentId)
-        .single();
-
-      if (error) {
-        throw new Error('Failed to fetch appointment');
-      }
-
-      return appointment;
+      return await databaseService.getAppointment(appointmentId);
     } catch (error) {
       logger.error({ err: error, appointmentId }, 'Failed to get appointment');
       throw error;

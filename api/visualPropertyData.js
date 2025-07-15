@@ -1,7 +1,7 @@
 const express = require('express');
 const { body, param, query, validationResult } = require('express-validator');
 const logger = require('../logger');
-const supabase = require('../supabaseClient');
+const databaseService = require('../services/databaseService');
 const VisualPropertyScrapingService = require('../services/visualPropertyScrapingService');
 const VisualAnalysisService = require('../services/visualAnalysisService');
 const ScheduledDataCollectionService = require('../services/scheduledDataCollectionService');

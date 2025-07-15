@@ -1,5 +1,5 @@
 const logger = require('../logger');
-const supabase = require('../supabaseClient');
+const databaseService = require('./databaseService');
 const config = require('../config');
 const OpenAI = require('openai');
 const wabaTemplateAutomationService = require('./wabaTemplateAutomationService');

@@ -126,6 +126,10 @@ app.get('/health', asyncHandler(async (req, res) => {
         templates: templateHealth.status === 'fulfilled' ? templateHealth.value : { status: 'unhealthy', error: templateHealth.reason?.message },
         aiLearning: aiLearningHealth.status === 'fulfilled' ? aiLearningHealth.value : { status: 'unhealthy', error: aiLearningHealth.reason?.message }
       },
+      features: {
+        visualProperty: visualPropertyStatus,
+        webhooks: webhookStatus
+      },
       memory: {
         used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
         total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
@@ -242,27 +246,57 @@ app.use('/api/follow-up', followUpRouter);
 app.use('/api/frontend-auth', frontendAuthRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/leads', require('./api/leads'));
+// Optional feature loading with better error handling and feature flags
+const enabledFeatures = {
+  visualProperty: process.env.ENABLE_VISUAL_PROPERTY_API !== 'false',
+  webhooks: process.env.ENABLE_WEBHOOKS_API !== 'false'
+};
+
 // Visual property API (optional - may not work if dependencies missing)
-try {
-  app.use('/api/visual-property', require('./api/visualPropertyData'));
-  logger.info('✅ Visual property API routes loaded');
-} catch (error) {
-  logger.warn('⚠️ Visual property API not available - some dependencies missing');
+let visualPropertyStatus = { loaded: false, error: null };
+if (enabledFeatures.visualProperty) {
+  try {
+    app.use('/api/visual-property', require('./api/visualPropertyData'));
+    logger.info('✅ Visual property API routes loaded');
+    visualPropertyStatus.loaded = true;
+  } catch (error) {
+    logger.warn({ err: error }, '⚠️ Visual property API not available - some dependencies missing');
+    visualPropertyStatus.error = error.message;
+  }
+} else {
+  logger.info('Visual property API disabled by configuration');
 }
 
 // Webhook API for external data collection
 let webhookStatus = { loaded: false, error: null };
-try {
-  app.use('/api/webhooks', require('./api/webhooks'));
-  logger.info('✅ Webhook API routes loaded');
-  webhookStatus.loaded = true;
-} catch (error) {
-  logger.error({ err: error }, '❌ Webhook API failed to load');
-  logger.warn('⚠️ Webhook API not available - some dependencies missing');
-  webhookStatus.error = error.message;
+if (enabledFeatures.webhooks) {
+  try {
+    app.use('/api/webhooks', require('./api/webhooks'));
+    logger.info('✅ Webhook API routes loaded');
+    webhookStatus.loaded = true;
+  } catch (error) {
+    logger.error({ err: error }, '❌ Webhook API failed to load');
+    logger.warn('⚠️ Webhook API not available - some dependencies missing');
+    webhookStatus.error = error.message;
+  }
+} else {
+  logger.info('Webhook API disabled by configuration');
 }
 
-// Diagnostic endpoint to check webhook loading status
+// Diagnostic endpoint to check feature loading status
+app.get('/debug/features', (_req, res) => {
+  res.json({
+    features: {
+      visualProperty: visualPropertyStatus,
+      webhooks: webhookStatus
+    },
+    configuration: enabledFeatures,
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Legacy endpoint for webhook status (kept for compatibility)
 app.get('/debug/webhook-status', (_req, res) => {
   res.json({
     webhook: webhookStatus,
@@ -287,17 +321,10 @@ app.get('/debug/calendar/:agentId', asyncHandler(async (req, res) => {
 
 // Debug endpoint to list agents
 app.get('/debug/agents', asyncHandler(async (req, res) => {
-  const supabase = require('./supabaseClient');
+  const databaseService = require('./services/databaseService');
 
   try {
-    const { data: agents, error } = await supabase
-      .from('agents')
-      .select('id, google_email, google_refresh_token_encrypted')
-      .limit(5);
-
-    if (error) {
-      return res.status(500).json({ error: error.message, details: error });
-    }
+    const agents = await databaseService.getAgents();
 
     res.json({
       agents: agents?.map(agent => ({
@@ -308,7 +335,10 @@ app.get('/debug/agents', asyncHandler(async (req, res) => {
       count: agents?.length || 0
     });
   } catch (err) {
-    res.status(500).json({ error: err.message, stack: err.stack });
+    res.status(500).json({
+      error: err.message,
+      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    });
   }
 }));
 

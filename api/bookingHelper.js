@@ -1,7 +1,7 @@
 // api/bookingHelper.js
 
 const { checkAvailability } = require('./googleCalendarService');
-const supabase = require('../supabaseClient');
+const databaseService = require('../services/databaseService');
 const logger = require('../logger');
 const {
   formatToFullISO,

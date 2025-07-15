@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const logger = require('../logger');
-const supabase = require('../supabaseClient');
+const databaseService = require('../services/databaseService');
 const aiLearningService = require('../services/aiLearningService');
 const aiLearningManager = require('../services/aiLearningManager');
 

@@ -7,7 +7,7 @@
 
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const supabase = require('../supabaseClient');
+const databaseService = require('../services/databaseService');
 const config = require('../config');
 const logger = require('../logger');
 

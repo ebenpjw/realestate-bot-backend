@@ -1,5 +1,5 @@
 const logger = require('../logger');
-const supabase = require('../supabaseClient');
+const databaseService = require('./databaseService');
 const messageOrchestrator = require('./messageOrchestrator');
 const antiSpamGuard = require('./antiSpamGuard');
 

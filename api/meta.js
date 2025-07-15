@@ -6,23 +6,8 @@ const crypto = require('crypto');
 const config = require('../config');
 const logger = require('../logger');
 
-// This is the background processing function for Meta leads
-// NOTE: Currently disabled as pages table was removed during database cleanup
-// Re-enable when Facebook Lead Ads integration is needed
-async function processMetaLead(changeValue) {
-    try {
-        const { leadgen_id, form_id, page_id } = changeValue;
-        logger.info({ leadgen_id, form_id, page_id }, 'New lead from Meta - currently disabled');
-
-        // TODO: Re-implement when Facebook Lead Ads integration is needed
-        // Will need to recreate pages table and configure page access tokens
-        logger.warn('Meta lead processing is currently disabled - pages table removed during cleanup');
-        return;
-
-    } catch (error) {
-        logger.error({ err: error }, 'Meta webhook processing error.');
-    }
-}
+// Meta lead processing is currently disabled
+// TODO: Re-implement when Facebook Lead Ads integration is needed
 
 // --- Meta Webhook Handler ---
 

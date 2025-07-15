@@ -1,7 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const logger = require('../logger');
-const supabase = require('../supabaseClient');
+const databaseService = require('../services/databaseService');
 
 const router = express.Router();
 

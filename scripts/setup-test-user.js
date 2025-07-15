@@ -6,7 +6,7 @@
  */
 
 const bcrypt = require('bcrypt');
-const supabase = require('../supabaseClient');
+const databaseService = require('../services/databaseService');
 const logger = require('../logger');
 
 async function setupTestUser() {

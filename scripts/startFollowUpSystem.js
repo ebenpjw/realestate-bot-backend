@@ -21,7 +21,7 @@ const config = require('../config');
 const followUpScheduler = require('../services/followUpScheduler');
 const intelligentFollowUpService = require('../services/intelligentFollowUpService');
 const multiWABATemplateService = require('../services/multiWABATemplateService');
-const supabase = require('../supabaseClient');
+const databaseService = require('../services/databaseService');
 
 class FollowUpSystemInitializer {
   constructor() {

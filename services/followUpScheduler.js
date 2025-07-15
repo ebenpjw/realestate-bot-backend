@@ -1,7 +1,7 @@
 const cron = require('node-cron');
 const logger = require('../logger');
 const intelligentFollowUpService = require('./intelligentFollowUpService');
-const supabase = require('../supabaseClient');
+const databaseService = require('./databaseService');
 
 /**
  * FOLLOW-UP SCHEDULER AND PROCESSOR

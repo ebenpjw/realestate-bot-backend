@@ -3,7 +3,7 @@ const floorPlanDeliveryService = require('./floorPlanDeliveryService');
 const appointmentService = require('./appointmentService');
 const whatsappService = require('./whatsappService');
 const databaseService = require('./databaseService');
-const supabase = require('../supabaseClient');
+const databaseService = require('./databaseService');
 const logger = require('../logger');
 
 /**

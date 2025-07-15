@@ -5,7 +5,7 @@
 
 const logger = require('../logger');
 const aiLearningService = require('./aiLearningService');
-const supabase = require('../supabaseClient');
+const databaseService = require('./databaseService');
 
 class AILearningManager {
   constructor() {

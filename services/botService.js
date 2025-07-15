@@ -1,7 +1,6 @@
 const OpenAI = require('openai');
 const config = require('../config');
 const logger = require('../logger');
-const supabase = require('../supabaseClient');
 const { DORO_PERSONALITY, getPersonalityPrompt, getToneForUser, getStageGuidelines, shouldUseMarketData, analyzeContextualIntent } = require('../config/personality');
 const whatsappService = require('./whatsappService');
 const databaseService = require('./databaseService');
@@ -119,27 +118,15 @@ class BotService {
       });
 
       // 3. Save user message to conversation history FIRST
-      const { error: messageError } = await this.supabase.from('messages').insert({
+      await databaseService.createMessage({
         conversation_id: conversation.conversation.id,
+        lead_id: lead.id,
         sender: 'lead',
         message: userText
       });
 
       // Handle lead response for follow-up system (reset sequences if active)
       await this._handleLeadResponseForFollowUp(lead, userText, conversation.conversation.id);
-
-      if (messageError) {
-        logger.error({
-          err: messageError,
-          conversationId: conversation.conversation.id,
-          errorCode: messageError.code,
-          errorMessage: messageError.message,
-          messageLength: userText?.length
-        }, 'Failed to save user message - this may affect conversation context');
-
-        // This is concerning as it affects conversation history
-        // Continue processing but this could impact AI context
-      }
 
       // 4. Get conversation history (now includes current message)
       let previousMessages;
@@ -184,8 +171,9 @@ class BotService {
         await whatsappSvc.sendMessage({ to: senderWaId, message: response.message });
 
         // Save assistant response to conversation history
-        const { error: assistantMessageError } = await this.supabase.from('messages').insert({
+        await databaseService.createMessage({
           conversation_id: conversation.conversation.id,
+          lead_id: lead.id,
           sender: 'bot',
           message: response.message
         });
@@ -228,7 +216,7 @@ class BotService {
           await whatsappService.sendMessage({ to: senderWaId, message });
 
           // Save each message to conversation history
-          const { error: assistantMessageError } = await this.supabase.from('messages').insert({
+          await databaseService.createMessage({
             lead_id: lead.id,
             sender: 'assistant',
             message
@@ -282,8 +270,9 @@ Respond warmly and genuinely while following all personality guidelines above.`;
 
           // Save AI message to conversation history if we have a conversation
           if (conversation?.conversation?.id) {
-            await this.supabase.from('messages').insert({
+            await databaseService.createMessage({
               conversation_id: conversation.conversation.id,
+              lead_id: lead.id,
               sender: 'bot',
               message: processedResponse.message
             });
@@ -310,7 +299,7 @@ Respond warmly and genuinely while following all personality guidelines above.`;
 
         // Save fallback message to conversation history if we have a lead
         if (lead?.id) {
-          await this.supabase.from('messages').insert({
+          await databaseService.createMessage({
             lead_id: lead.id,
             sender: 'assistant',
             message: fallbackMessage
@@ -1246,10 +1235,9 @@ Follow all personality guidelines above.`;
       }
 
       // Update the lead status to reflect reality
-      const { error: updateError } = await this.supabase.from('leads').update({
-        status: correctStatus,
-        updated_at: new Date().toISOString()
-      }).eq('id', leadId);
+      await databaseService.updateLead(leadId, {
+        status: correctStatus
+      });
 
       if (updateError) {
         logger.error({ err: updateError, leadId, correctStatus }, 'Error fixing lead status inconsistency');
@@ -1552,10 +1540,10 @@ Format as clear, actionable notes for the property consultant.`;
         switch (result.type) {
           case 'alternatives_offered':
             // Store alternatives in lead record for follow-up
-            await this.supabase.from('leads').update({
+            await databaseService.updateLead(lead.id, {
               status: 'booking_alternatives_offered',
               booking_alternatives: JSON.stringify(result.alternatives || [])
-            }).eq('id', lead.id);
+            });
 
             return {
               success: false,
@@ -1791,10 +1779,10 @@ Format as clear, actionable notes for the property consultant.`;
       });
 
       // Update lead status and clear tentative booking
-      await supabase.from('leads').update({
+      await databaseService.updateLead(lead.id, {
         status: 'booked',
         tentative_booking_time: null
-      }).eq('id', lead.id);
+      });
 
       const formattedTime = formatForDisplay(toSgTime(tentativeTime));
       return {
@@ -1867,10 +1855,10 @@ Format as clear, actionable notes for the property consultant.`;
       });
 
       // Update lead status and clear alternatives
-      await supabase.from('leads').update({
+      await databaseService.updateLead(lead.id, {
         status: 'booked',
         booking_alternatives: null
-      }).eq('id', lead.id);
+      });
 
       const formattedTime = formatForDisplay(toSgTime(appointmentTime));
       return {
@@ -1922,10 +1910,10 @@ Format as clear, actionable notes for the property consultant.`;
             const formattedRequested = formatForDisplay(toSgTime(newPreferredTime));
 
             // Store the alternative for potential booking
-            await supabase.from('leads').update({
+            await databaseService.updateLead(lead.id, {
               status: 'booking_alternatives_offered',
               booking_alternatives: JSON.stringify([nearestAlternative])
-            }).eq('id', lead.id);
+            });
 
             return {
               success: true,
@@ -1970,10 +1958,10 @@ Format as clear, actionable notes for the property consultant.`;
         logger.info({ leadId: lead.id, userMessage }, 'User requesting new time while alternatives offered - clearing alternatives and processing new request');
 
         // Clear alternatives status to allow new booking attempt
-        await supabase.from('leads').update({
+        await databaseService.updateLead(lead.id, {
           status: 'qualified',
           booking_alternatives: null
-        }).eq('id', lead.id);
+        });
 
         // Update lead object for this request
         lead.status = 'qualified';
@@ -1998,9 +1986,9 @@ Format as clear, actionable notes for the property consultant.`;
 
         if (!existingAppointment) {
           logger.info({ leadId: lead.id }, 'No actual appointment found despite booked status - allowing new booking');
-          await supabase.from('leads').update({
+          await databaseService.updateLead(lead.id, {
             status: 'qualified'
-          }).eq('id', lead.id);
+          });
           lead.status = 'qualified';
         }
       }
@@ -2017,7 +2005,7 @@ Format as clear, actionable notes for the property consultant.`;
 
       if (result.success) {
         // Update lead status to booked
-        await supabase.from('leads').update({ status: 'booked' }).eq('id', lead.id);
+        await databaseService.updateLead(lead.id, { status: 'booked' });
 
         // Record successful outcome for AI learning
         await this._recordConversationOutcome(lead, 'appointment_booked', {
@@ -2035,10 +2023,10 @@ Format as clear, actionable notes for the property consultant.`;
         };
       } else if (result.type === 'alternatives_offered') {
         // Store alternatives and update status
-        await supabase.from('leads').update({
+        await databaseService.updateLead(lead.id, {
           status: 'booking_alternatives_offered',
           booking_alternatives: JSON.stringify(result.alternatives)
-        }).eq('id', lead.id);
+        });
         return {
           success: true,
           message: result.message
@@ -2118,10 +2106,10 @@ Format as clear, actionable notes for the property consultant.`;
         const formattedAlternative = formatForDisplay(toSgTime(nearestAlternative));
 
         // Store the single alternative for potential booking
-        await supabase.from('leads').update({
+        await databaseService.updateLead(lead.id, {
           status: 'booking_alternatives_offered',
           booking_alternatives: JSON.stringify([nearestAlternative])
-        }).eq('id', lead.id);
+        });
 
         return {
           success: true,
@@ -2176,7 +2164,7 @@ Format as clear, actionable notes for the property consultant.`;
       });
 
       // Update lead status
-      await supabase.from('leads').update({ status: 'appointment_cancelled' }).eq('id', lead.id);
+      await databaseService.updateLead(lead.id, { status: 'appointment_cancelled' });
 
       return {
         success: true,
@@ -2202,11 +2190,11 @@ Format as clear, actionable notes for the property consultant.`;
 
       if (exactMatch) {
         // Store tentative booking information
-        await supabase.from('leads').update({
+        await databaseService.updateLead(lead.id, {
           status: 'tentative_booking_offered',
           booking_alternatives: JSON.stringify([exactMatch]),
           tentative_booking_time: exactMatch.toISOString()
-        }).eq('id', lead.id);
+        });
 
         const formattedTime = formatForDisplay(toSgTime(exactMatch));
         return {
@@ -2217,11 +2205,11 @@ Format as clear, actionable notes for the property consultant.`;
         const nearestAlternative = alternatives[0];
         const formattedAlternative = formatForDisplay(toSgTime(nearestAlternative));
 
-        await supabase.from('leads').update({
+        await databaseService.updateLead(lead.id, {
           status: 'tentative_booking_offered',
           booking_alternatives: JSON.stringify([nearestAlternative]),
           tentative_booking_time: nearestAlternative.toISOString()
-        }).eq('id', lead.id);
+        });
 
         return {
           success: true,
@@ -2271,11 +2259,11 @@ Format as clear, actionable notes for the property consultant.`;
 
       if (result.appointment) {
         // Update lead status and clear tentative booking
-        await supabase.from('leads').update({
+        await databaseService.updateLead(lead.id, {
           status: 'booked',
           tentative_booking_time: null,
           booking_alternatives: null
-        }).eq('id', lead.id);
+        });
 
         const formattedTime = formatForDisplay(toSgTime(tentativeTime));
         let successMessage = `Perfect! I've confirmed your consultation for ${formattedTime}.`;
@@ -2369,26 +2357,17 @@ Format as clear, actionable notes for the property consultant.`;
         });
 
         // ENHANCED STATE MANAGEMENT: Update lead status with full cleanup
-        const { error: statusUpdateError } = await supabase.from('leads').update({
+        await databaseService.updateLead(lead.id, {
           status: 'booked',
           booking_alternatives: null,
-          tentative_booking_time: null,
-          updated_at: new Date().toISOString()
-        }).eq('id', lead.id);
+          tentative_booking_time: null
+        });
 
-        if (statusUpdateError) {
-          logger.error({
-            err: statusUpdateError,
-            leadId: lead.id,
-            selectedSlot: selectedSlot.toISOString()
-          }, 'Error updating lead status after alternative selection booking');
-        } else {
-          logger.info({
-            leadId: lead.id,
-            selectedSlot: selectedSlot.toISOString(),
-            newStatus: 'booked'
-          }, 'Lead status updated after alternative selection booking');
-        }
+        logger.info({
+          leadId: lead.id,
+          selectedSlot: selectedSlot.toISOString(),
+          newStatus: 'booked'
+        }, 'Lead status updated after alternative selection booking');
 
         const formattedTime = formatForDisplay(toSgTime(selectedSlot));
         return {

@@ -197,7 +197,7 @@ router.get('/generation-history', async (req, res) => {
   try {
     const { agent_id, limit = 50 } = req.query;
     
-    const supabase = require('../supabaseClient');
+    const databaseService = require('../services/databaseService');
     
     let query = supabase
       .from('waba_template_status')
@@ -238,7 +238,7 @@ router.get('/missing-scenarios', async (req, res) => {
   try {
     const { agent_id, min_occurrences = 3 } = req.query;
     
-    const supabase = require('../supabaseClient');
+    const databaseService = require('../services/databaseService');
     
     let query = supabase
       .from('missing_template_scenarios')

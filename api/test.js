@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const supabase = require('../supabaseClient');
+const databaseService = require('../services/databaseService');
 const logger = require('../logger');
 const botService = require('../services/botService');
 const whatsappService = require('../services/whatsappService');

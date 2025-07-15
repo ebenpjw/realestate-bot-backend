@@ -1,13 +1,25 @@
 import { ValidationError } from './errorHandling'
 
-export interface ValidationRule<T = any> {
+export interface ValidationRule<T = unknown> {
   validate: (value: T) => boolean | string
   message?: string
 }
 
+// Type guard to check if a value is a string
+function isString(value: unknown): value is string {
+  return typeof value === 'string'
+}
+
+// Type guard to check if a value is a number or can be converted to a number
+function isNumberLike(value: unknown): boolean {
+  if (typeof value === 'number') return true
+  if (typeof value === 'string') return !isNaN(Number(value))
+  return false
+}
+
 export interface FieldValidation {
   required?: boolean
-  rules?: ValidationRule[]
+  rules?: ValidationRule<unknown>[]
 }
 
 export interface FormValidation {
@@ -17,7 +29,7 @@ export interface FormValidation {
 // Basic validation rules
 export const validationRules = {
   required: (message = 'This field is required'): ValidationRule => ({
-    validate: (value: any) => {
+    validate: (value: unknown) => {
       if (value === null || value === undefined) return false
       if (typeof value === 'string') return value.trim().length > 0
       if (Array.isArray(value)) return value.length > 0
@@ -27,8 +39,9 @@ export const validationRules = {
   }),
 
   email: (message = 'Please enter a valid email address'): ValidationRule => ({
-    validate: (value: string) => {
+    validate: (value: unknown) => {
       if (!value) return true // Allow empty if not required
+      if (!isString(value)) return false
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       return emailRegex.test(value)
     },
@@ -36,8 +49,9 @@ export const validationRules = {
   }),
 
   phoneNumber: (message = 'Please enter a valid Singapore phone number'): ValidationRule => ({
-    validate: (value: string) => {
+    validate: (value: unknown) => {
       if (!value) return true // Allow empty if not required
+      if (!isString(value)) return false
       const phoneRegex = /^(\+65)?[689]\d{7}$/
       return phoneRegex.test(value.replace(/\s/g, ''))
     },
@@ -45,40 +59,44 @@ export const validationRules = {
   }),
 
   minLength: (min: number, message?: string): ValidationRule => ({
-    validate: (value: string) => {
+    validate: (value: unknown) => {
       if (!value) return true // Allow empty if not required
+      if (!isString(value)) return false
       return value.length >= min
     },
     message: message || `Must be at least ${min} characters long`
   }),
 
   maxLength: (max: number, message?: string): ValidationRule => ({
-    validate: (value: string) => {
+    validate: (value: unknown) => {
       if (!value) return true // Allow empty if not required
+      if (!isString(value)) return false
       return value.length <= max
     },
     message: message || `Must be no more than ${max} characters long`
   }),
 
   pattern: (regex: RegExp, message = 'Invalid format'): ValidationRule => ({
-    validate: (value: string) => {
+    validate: (value: unknown) => {
       if (!value) return true // Allow empty if not required
+      if (!isString(value)) return false
       return regex.test(value)
     },
     message
   }),
 
   number: (message = 'Must be a valid number'): ValidationRule => ({
-    validate: (value: any) => {
+    validate: (value: unknown) => {
       if (!value) return true // Allow empty if not required
-      return !isNaN(Number(value))
+      return isNumberLike(value)
     },
     message
   }),
 
   min: (min: number, message?: string): ValidationRule => ({
-    validate: (value: any) => {
+    validate: (value: unknown) => {
       if (!value) return true // Allow empty if not required
+      if (!isNumberLike(value)) return false
       const num = Number(value)
       return !isNaN(num) && num >= min
     },
@@ -86,8 +104,9 @@ export const validationRules = {
   }),
 
   max: (max: number, message?: string): ValidationRule => ({
-    validate: (value: any) => {
+    validate: (value: unknown) => {
       if (!value) return true // Allow empty if not required
+      if (!isNumberLike(value)) return false
       const num = Number(value)
       return !isNaN(num) && num <= max
     },
@@ -95,8 +114,9 @@ export const validationRules = {
   }),
 
   url: (message = 'Please enter a valid URL'): ValidationRule => ({
-    validate: (value: string) => {
+    validate: (value: unknown) => {
       if (!value) return true // Allow empty if not required
+      if (!isString(value)) return false
       try {
         new URL(value)
         return true
@@ -108,8 +128,9 @@ export const validationRules = {
   }),
 
   date: (message = 'Please enter a valid date'): ValidationRule => ({
-    validate: (value: string) => {
+    validate: (value: unknown) => {
       if (!value) return true // Allow empty if not required
+      if (!isString(value)) return false
       const date = new Date(value)
       return !isNaN(date.getTime())
     },
@@ -117,8 +138,9 @@ export const validationRules = {
   }),
 
   futureDate: (message = 'Date must be in the future'): ValidationRule => ({
-    validate: (value: string) => {
+    validate: (value: unknown) => {
       if (!value) return true // Allow empty if not required
+      if (!isString(value)) return false
       const date = new Date(value)
       return !isNaN(date.getTime()) && date > new Date()
     },
@@ -126,23 +148,24 @@ export const validationRules = {
   }),
 
   pastDate: (message = 'Date must be in the past'): ValidationRule => ({
-    validate: (value: string) => {
+    validate: (value: unknown) => {
       if (!value) return true // Allow empty if not required
+      if (!isString(value)) return false
       const date = new Date(value)
       return !isNaN(date.getTime()) && date < new Date()
     },
     message
   }),
 
-  oneOf: (options: any[], message?: string): ValidationRule => ({
-    validate: (value: any) => {
+  oneOf: (options: unknown[], message?: string): ValidationRule => ({
+    validate: (value: unknown) => {
       if (!value) return true // Allow empty if not required
       return options.includes(value)
     },
     message: message || `Must be one of: ${options.join(', ')}`
   }),
 
-  custom: (validator: (value: any) => boolean | string, message = 'Invalid value'): ValidationRule => ({
+  custom: (validator: (value: unknown) => boolean | string, message = 'Invalid value'): ValidationRule => ({
     validate: validator,
     message
   })
@@ -198,7 +221,9 @@ export function hasFormErrors(errors: Record<string, string>): boolean {
 // Get first error message
 export function getFirstError(errors: Record<string, string>): string | null {
   const errorKeys = Object.keys(errors)
-  return errorKeys.length > 0 ? errors[errorKeys[0]] : null
+  if (errorKeys.length === 0) return null
+  const firstKey = errorKeys[0]!
+  return errors[firstKey] || null
 }
 
 // Specific validation schemas

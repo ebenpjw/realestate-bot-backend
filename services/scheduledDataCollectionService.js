@@ -3,7 +3,7 @@ const logger = require('../logger');
 const VisualPropertyScrapingService = require('./visualPropertyScrapingService');
 const ExternalScrapingService = require('./externalScrapingService');
 const VisualAnalysisService = require('./visualAnalysisService');
-const supabase = require('../supabaseClient');
+const databaseService = require('./databaseService');
 
 class ScheduledDataCollectionService {
   constructor() {

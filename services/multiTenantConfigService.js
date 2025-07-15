@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const config = require('../config');
 const logger = require('../logger');
-const supabase = require('../supabaseClient');
+const databaseService = require('./databaseService');
 const { ExternalServiceError, ValidationError } = require('../middleware/errorHandler');
 
 /**

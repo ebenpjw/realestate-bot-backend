@@ -1,7 +1,7 @@
 const OpenAI = require('openai');
 const config = require('../config');
 const logger = require('../logger');
-const supabase = require('../supabaseClient');
+const databaseService = require('./databaseService');
 
 class VisualAnalysisService {
   constructor() {

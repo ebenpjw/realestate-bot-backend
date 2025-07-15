@@ -119,6 +119,12 @@ const config = {
   CORS_ORIGINS: process.env.CORS_ORIGINS ?
     process.env.CORS_ORIGINS.split(',').map(origin => origin.trim()) :
     ['http://localhost:3000'],
+
+  // Additional API Configuration
+  SCRAPINGBEE_API_KEY: process.env.SCRAPINGBEE_API_KEY,
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  DEFAULT_AGENT_ID: process.env.DEFAULT_AGENT_ID,
+  OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4',
 };
 
 // --- Configuration Validation ---

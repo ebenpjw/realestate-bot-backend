@@ -1,13 +1,79 @@
 const logger = require('../logger');
 const antiSpamGuard = require('./antiSpamGuard');
 const performanceMonitor = require('./performanceMonitor');
+const QueueManager = require('../utils/queueManager');
+
+/**
+ * Specialized Message Queue Manager
+ * Extends QueueManager for message processing
+ */
+class MessageQueueManager extends QueueManager {
+  constructor() {
+    super({
+      batchTimeoutMs: 6000, // 6 seconds default (5-8 second range)
+      maxBatchSize: 10,     // Maximum messages per batch
+      maxQueueAge: 300000,  // 5 minutes max queue age
+      emergencyTimeout: 30000 // 30 seconds emergency timeout
+    });
+
+    // Additional metrics specific to messages
+    this.messageMetrics = {
+      spamPrevented: 0
+    };
+  }
+
+  /**
+   * Process batch of messages - override from QueueManager
+   * @private
+   */
+  async _processBatch(leadId, messages) {
+    const startTime = Date.now();
+
+    try {
+      // Get the first message to determine agent context
+      const firstMessage = messages[0];
+      const agentId = firstMessage.agentId;
+
+      logger.info({
+        leadId,
+        agentId,
+        messageCount: messages.length,
+        batchAge: Date.now() - messages[0].timestamp
+      }, '[ORCHESTRATOR] Processing message batch');
+
+      // Process the batch using the orchestrator logic
+      const result = await this._processMessageBatch(leadId, messages, agentId);
+
+      return result;
+
+    } catch (error) {
+      logger.error({ err: error, leadId, messageCount: messages.length }, 'Error processing message batch');
+      throw error;
+    }
+  }
+
+  /**
+   * Process message batch with full orchestrator logic
+   * @private
+   */
+  async _processMessageBatch(leadId, messages, agentId) {
+    // This will contain the full message processing logic
+    // For now, we'll implement a placeholder
+    logger.info({ leadId, agentId, messageCount: messages.length }, 'Processing message batch (placeholder)');
+
+    // TODO: Implement the full message processing pipeline here
+    // This should include all the AI processing logic from the original orchestrator
+
+    return { processed: messages.length, leadId, agentId };
+  }
+}
 
 /**
  * Message Processing Orchestrator
- * 
+ *
  * Implements intelligent message batching and enhanced response synthesis
  * to address critical performance and user experience issues:
- * 
+ *
  * 1. Batches rapid messages from same lead (5-8 second window)
  * 2. Processes batched messages as unified conversation context
  * 3. Generates single optimized response (400-600 characters)
@@ -16,33 +82,19 @@ const performanceMonitor = require('./performanceMonitor');
  */
 class MessageOrchestrator {
   constructor() {
-    // Message queues per lead (leadId -> MessageQueue)
-    this.messageQueues = new Map();
-    
-    // Processing timers per lead (leadId -> Timer)
-    this.processingTimers = new Map();
-    
-    // Processing state per lead (leadId -> boolean)
-    this.processingState = new Map();
-    
-    // Configuration
-    this.config = {
-      batchTimeoutMs: 6000, // 6 seconds default (5-8 second range)
-      maxBatchSize: 10,     // Maximum messages per batch
-      maxQueueAge: 300000,  // 5 minutes max queue age
-      emergencyTimeout: 30000 // 30 seconds emergency timeout
-    };
-    
-    // Performance metrics
-    this.metrics = {
-      batchesProcessed: 0,
-      messagesProcessed: 0,
-      averageBatchSize: 0,
-      averageProcessingTime: 0,
-      spamPrevented: 0
-    };
-    
-    logger.info('Message Processing Orchestrator initialized');
+    // Use the specialized message queue manager
+    this.queueManager = new MessageQueueManager();
+
+    // Set up event listeners
+    this.queueManager.on('batchCompleted', (data) => {
+      this._handleBatchCompleted(data);
+    });
+
+    this.queueManager.on('batchError', (data) => {
+      this._handleBatchError(data);
+    });
+
+    logger.info('Message Processing Orchestrator initialized with QueueManager');
   }
 
   /**
@@ -55,12 +107,14 @@ class MessageOrchestrator {
     const timestamp = Date.now();
 
     try {
+      const queueStatus = this.queueManager.getQueueStatus(senderWaId);
+
       logger.info({
         operationId,
         senderWaId,
         agentId,
         messageLength: userText?.length,
-        currentQueueSize: this.messageQueues.get(senderWaId)?.messages?.length || 0
+        currentQueueSize: queueStatus?.size || 0
       }, `[ORCHESTRATOR] Processing message: "${userText?.substring(0, 50)}${userText?.length > 50 ? '...' : ''}"`);
 
       // PHASE 1: Anti-spam checking
@@ -85,38 +139,29 @@ class MessageOrchestrator {
       // Set processing lock to prevent duplicates
       antiSpamGuard.setProcessingLock(senderWaId);
 
-      // PHASE 2: Check if lead is already being processed
-      if (this.processingState.get(senderWaId)) {
-        // Add to existing queue and reset timer
-        await this._addToExistingQueue(senderWaId, {
-          userText,
-          senderName,
-          timestamp,
-          spamCheck,
-          agentId
-        });
-        this.metrics.spamPrevented++;
+      // PHASE 2: Use queue manager to handle message batching
+      await this.queueManager.enqueue(senderWaId, {
+        userText,
+        senderName,
+        timestamp,
+        spamCheck,
+        agentId,
+        operationId
+      });
+
+      // Update spam prevention metrics if queue already existed
+      if (queueStatus && queueStatus.isProcessing) {
+        this.queueManager.messageMetrics.spamPrevented++;
 
         logger.info({
           operationId,
           senderWaId,
           agentId,
-          queueSize: this.messageQueues.get(senderWaId)?.messages?.length,
-          spamPrevented: this.metrics.spamPrevented,
+          queueSize: queueStatus.size,
+          spamPrevented: this.queueManager.messageMetrics.spamPrevented,
           flagged: spamCheck.flagged
         }, '[ORCHESTRATOR] Added to existing queue - spam prevention active');
-
-        return;
       }
-
-      // PHASE 3: Start new processing queue
-      await this._startNewQueue(senderWaId, {
-        userText,
-        senderName,
-        timestamp,
-        spamCheck,
-        agentId
-      });
 
     } catch (error) {
       logger.error({
@@ -135,40 +180,52 @@ class MessageOrchestrator {
   }
 
   /**
-   * Add message to existing queue and reset batch timer
+   * Handle batch completion event
    * @private
    */
-  async _addToExistingQueue(senderWaId, messageData) {
-    const queue = this.messageQueues.get(senderWaId);
-    
-    if (!queue) {
-      logger.warn({ senderWaId }, '[ORCHESTRATOR] Queue not found for existing processing - creating new queue');
-      return this._startNewQueue(senderWaId, messageData);
-    }
+  _handleBatchCompleted(data) {
+    const { key: senderWaId, items, processingTime, result } = data;
 
-    // Add message to queue
-    queue.messages.push(messageData);
-    queue.lastUpdated = Date.now();
-
-    // Check for queue overflow
-    if (queue.messages.length > this.config.maxBatchSize) {
-      logger.warn({
-        senderWaId,
-        queueSize: queue.messages.length,
-        maxBatchSize: this.config.maxBatchSize
-      }, '[ORCHESTRATOR] Queue overflow detected - processing immediately');
-      
-      return this._processQueueImmediately(senderWaId);
-    }
-
-    // Reset batch timer
-    this._resetBatchTimer(senderWaId);
-    
-    logger.debug({
+    logger.info({
       senderWaId,
-      queueSize: queue.messages.length,
-      timeRemaining: this.config.batchTimeoutMs
-    }, '[ORCHESTRATOR] Message added to queue, timer reset');
+      messageCount: items.length,
+      processingTime,
+      result
+    }, '[ORCHESTRATOR] Message batch processed successfully');
+
+    // Remove processing lock
+    antiSpamGuard.removeProcessingLock(senderWaId);
+  }
+
+  /**
+   * Handle batch error event
+   * @private
+   */
+  _handleBatchError(data) {
+    const { key: senderWaId, error, items } = data;
+
+    logger.error({
+      err: error,
+      senderWaId,
+      messageCount: items.length
+    }, '[ORCHESTRATOR] Error processing message batch');
+
+    // Remove processing lock
+    antiSpamGuard.removeProcessingLock(senderWaId);
+
+    // Try emergency fallback for the last message
+    if (items.length > 0) {
+      const lastMessage = items[items.length - 1];
+      this._emergencyFallback(senderWaId, {
+        userText: lastMessage.userText,
+        senderName: lastMessage.senderName
+      }).catch(err => {
+        logger.error({
+          err,
+          senderWaId
+        }, '[ORCHESTRATOR] Emergency fallback failed');
+      });
+    }
   }
 
   /**
@@ -592,10 +649,10 @@ class MessageOrchestrator {
    */
   async _getLeadData(senderWaId) {
     try {
-      const supabase = require('../supabaseClient');
+      const databaseService = require('./databaseService');
 
       // First try to get existing leads
-      const { data: leads, error: selectError } = await supabase
+      const leads = await databaseService.getLeads({ phone_number: senderWaId });
         .from('leads')
         .select('*')
         .eq('phone_number', senderWaId)
@@ -674,9 +731,9 @@ class MessageOrchestrator {
         return [];
       }
 
-      const supabase = require('../supabaseClient');
+      const databaseService = require('./databaseService');
 
-      const { data: messages, error } = await supabase
+      const messages = await databaseService.getConversationHistory(leadId, 10);
         .from('messages')
         .select('sender, message, created_at')
         .eq('lead_id', leadId)
@@ -805,6 +862,62 @@ class MessageOrchestrator {
     if (cleanedCount > 0) {
       logger.info({ cleanedCount }, '[ORCHESTRATOR] Cleaned up old queues');
     }
+  }
+
+  /**
+   * Get queue metrics
+   */
+  getMetrics() {
+    const queueMetrics = this.queueManager.getMetrics();
+    const messageMetrics = this.queueManager.messageMetrics;
+
+    return {
+      ...queueMetrics,
+      ...messageMetrics,
+      totalQueues: this.queueManager.queues.size
+    };
+  }
+
+  /**
+   * Get queue status for a specific lead
+   */
+  getQueueStatus(senderWaId) {
+    return this.queueManager.getQueueStatus(senderWaId);
+  }
+
+  /**
+   * Get all queue statuses
+   */
+  getAllQueueStatuses() {
+    return this.queueManager.getAllQueueStatuses();
+  }
+
+  /**
+   * Process queue immediately (for testing or emergency situations)
+   */
+  async processQueueImmediately(senderWaId) {
+    return this.queueManager.processImmediately(senderWaId);
+  }
+
+  /**
+   * Clear queue for a specific lead
+   */
+  clearQueue(senderWaId) {
+    this.queueManager.clearQueue(senderWaId);
+    antiSpamGuard.removeProcessingLock(senderWaId);
+  }
+
+  /**
+   * Emergency fallback processing (placeholder)
+   * @private
+   */
+  async _emergencyFallback(senderWaId, messageData) {
+    logger.warn({ senderWaId }, '[ORCHESTRATOR] Using emergency fallback processing');
+
+    // TODO: Implement direct message processing without batching
+    // This should be a simplified version of the full processing pipeline
+
+    return { processed: true, fallback: true };
   }
 }
 

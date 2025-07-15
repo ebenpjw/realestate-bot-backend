@@ -2,12 +2,12 @@
 const nextConfig = {
   reactStrictMode: true,
   typescript: {
-    // Skip type checking during build for faster deployment
-    ignoreBuildErrors: true,
+    // Enable type checking during build for better code quality
+    ignoreBuildErrors: false,
   },
   eslint: {
-    // Skip ESLint during build for faster deployment
-    ignoreDuringBuilds: true,
+    // Enable ESLint during build for better code quality
+    ignoreDuringBuilds: false,
   },
   // Generate unique build ID for Railway deployments
   generateBuildId: async () => {

@@ -1,5 +1,5 @@
 const logger = require('../logger');
-const supabase = require('../supabaseClient');
+const databaseService = require('./databaseService');
 
 /**
  * Multi-Layer AI Performance Monitoring & Fallback System
