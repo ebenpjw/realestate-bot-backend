@@ -1,6 +1,6 @@
 const whatsappService = require('./whatsappService');
-const databaseService = require('./databaseService');
 const multiTenantConfigService = require('./multiTenantConfigService');
+const partnerTemplateService = require('./partnerTemplateService');
 const logger = require('../logger');
 const { ValidationError } = require('../middleware/errorHandler');
 
@@ -14,104 +14,100 @@ class TemplateService {
     // 24-hour window tracking for WABA compliance
     this.lastUserMessageTimes = new Map();
     this.templateUsageLog = new Map();
-    // WABA-compliant templates (these are your approved templates in Gupshup)
-    this.approvedTemplates = {
-      // Your existing approved welcome template (lead_intro_1)
-      WELCOME_REAL_ESTATE: {
-        id: process.env.TEMPLATE_WELCOME_ID ||
-            process.env.DEFAULT_WELCOME_TEMPLATE_ID ||
-            'c60dee92-5426-4890-96e4-65469620ac7e', // Your approved template ID
-        gupshupName: 'lead_intro_1', // Template name in Gupshup dashboard
-        name: 'welcome_real_estate', // Internal reference name
-        category: 'MARKETING', // As shown in your Gupshup dashboard
-        language: 'EN',
-        description: 'Approved welcome message for real estate leads',
-        params: ['{{1}}', '{{2}}'], // [leadName, contactReason]
-        content: 'Hi {{1}}, thanks for leaving your contact regarding {{2}}! 😊\n\nJust checking in to see what caught your eye or what you\'re exploring.\n\nFeel free to let me know, I\'ll do my best to help!',
-        example: 'Hi John, thanks for leaving your contact regarding your property enquiry! 😊',
-        // WABA 2025: Enhanced metadata for compliance tracking
-        businessInitiated: true,
-        conversationType: 'marketing',
-        qualityRating: 'HIGH', // Template quality rating
-        approvalStatus: 'APPROVED',
-        lastUpdated: '2025-06-25'
-      },
-      PROPERTY_INQUIRY_FOLLOWUP: {
-        id: process.env.TEMPLATE_FOLLOWUP_ID || 'followup_template_id',
-        name: 'property_inquiry_followup',
-        category: 'UTILITY',
-        description: 'Follow up on property inquiry',
-        params: ['{{1}}', '{{2}}', '{{3}}'], // [leadName, propertyType, location]
-        example: 'Hi {{1}}, following up on your interest in {{2}} properties in {{3}}.'
-      },
-      CONSULTATION_REMINDER: {
-        id: process.env.TEMPLATE_REMINDER_ID || 'reminder_template_id',
-        name: 'consultation_reminder',
-        category: 'UTILITY',
-        description: 'Reminder for scheduled consultation',
-        params: ['{{1}}', '{{2}}'], // [leadName, appointmentTime]
-        example: 'Hi {{1}}, reminder: Your property consultation is scheduled for {{2}}.'
-      },
-      PROPERTY_UPDATE: {
-        id: process.env.TEMPLATE_UPDATE_ID || 'update_template_id',
-        name: 'property_update',
-        category: 'MARKETING',
-        description: 'New property listings update',
-        params: ['{{1}}', '{{2}}'], // [leadName, propertyDetails]
-        example: 'Hi {{1}}, new property alert: {{2}}. Interested to know more?'
-      }
+
+    // Template types for dynamic template selection
+    this.templateTypes = {
+      WELCOME: 'welcome',
+      FOLLOWUP: 'followup',
+      REMINDER: 'reminder',
+      UPDATE: 'update',
+      APPOINTMENT: 'appointment'
     };
 
-    logger.info({
-      templatesConfigured: Object.keys(this.approvedTemplates).length,
-      welcomeTemplateId: this.approvedTemplates.WELCOME_REAL_ESTATE.id
-    }, 'Template service initialized with approved templates');
+    logger.info('Template service initialized with Partner API integration');
   }
 
   /**
-   * Send your approved welcome template (lead_intro_1)
+   * Send welcome template using Partner API
    * @param {Object} params - Parameters
    * @param {string} params.phoneNumber - Lead's phone number
-   * @param {string} params.leadName - Lead's name ({{1}} in template)
-   * @param {string} params.contactReason - What they contacted about ({{2}} in template)
+   * @param {string} params.leadName - Lead's name
+   * @param {string} params.contactReason - What they contacted about
+   * @param {string} params.agentId - Agent ID (optional, will try to determine from phone routing)
    * @returns {Promise<Object>} Send result
    */
-  async sendWelcomeTemplate({ phoneNumber, leadName, contactReason = 'your property enquiry' }) {
+  async sendWelcomeTemplate({ phoneNumber, leadName, contactReason = 'your property enquiry', agentId = null }) {
     try {
       this._validatePhoneNumber(phoneNumber);
 
-      const template = this.approvedTemplates.WELCOME_REAL_ESTATE;
-      // Exact parameters for your approved template: Hi {{1}}, thanks for leaving your contact regarding {{2}}!
+      // If no agentId provided, try to determine from routing or use default
+      if (!agentId) {
+        // For now, we'll need to determine the agent from the lead or use a default
+        // This should be improved to use proper routing logic
+        logger.warn({ phoneNumber }, 'No agentId provided for welcome template, using legacy fallback');
+
+        // Try to find agent by phone number or use default agent
+        try {
+          const agentConfig = await multiTenantConfigService.getAgentByWABANumber(phoneNumber);
+          agentId = agentConfig.id;
+        } catch (error) {
+          // Use default agent or throw error
+          throw new ValidationError('Cannot determine agent for welcome template. Agent ID required for Partner API.');
+        }
+      }
+
+      // Get agent's welcome template
+      const agentTemplates = await multiTenantConfigService.getAgentTemplates(agentId);
+      const welcomeTemplate = agentTemplates.find(t =>
+        t.template_type === this.templateTypes.WELCOME ||
+        t.template_name.includes('welcome')
+      );
+
+      if (!welcomeTemplate) {
+        throw new ValidationError(`No welcome template found for agent: ${agentId}`);
+      }
+
+      // Get agent WABA configuration
+      const agentWABAConfig = await multiTenantConfigService.getAgentWABAConfig(agentId);
+
+      // Create agent-specific WhatsApp service
+      const WhatsAppService = require('./whatsappService');
+      const agentWhatsAppService = new WhatsAppService(agentWABAConfig);
+
       const params = [leadName, contactReason];
 
       logger.info({
         phoneNumber,
-        templateId: template.id,
-        gupshupName: template.gupshupName,
+        agentId,
+        templateId: welcomeTemplate.template_id,
+        templateName: welcomeTemplate.template_name,
         params,
-        previewMessage: `Hi ${leadName}, thanks for leaving your contact regarding ${contactReason}! 😊`
-      }, 'Sending approved welcome template (lead_intro_1)');
+        previewMessage: `Hi ${leadName}, thanks for leaving your contact regarding ${contactReason}!`
+      }, 'Sending agent-specific welcome template');
 
-      const result = await whatsappService.sendTemplateMessage({
+      const result = await agentWhatsAppService.sendTemplateMessage({
         to: phoneNumber,
-        templateId: template.id,
-        params
+        templateId: welcomeTemplate.template_id,
+        params,
+        templateName: welcomeTemplate.template_name,
+        category: welcomeTemplate.template_category
       });
 
       if (result.success) {
         // Log template usage for compliance tracking
         await this._logTemplateUsage({
           phoneNumber,
-          templateId: template.id,
-          templateName: template.name,
-          category: template.category,
+          agentId,
+          templateId: welcomeTemplate.template_id,
+          templateName: welcomeTemplate.template_name,
+          category: welcomeTemplate.template_category,
           params,
           messageId: result.messageId
         });
 
         logger.info({
           phoneNumber,
-          templateName: template.name,
+          templateName: welcomeTemplate.template_name,
           messageId: result.messageId
         }, 'Welcome template sent successfully');
       }
@@ -310,22 +306,46 @@ class TemplateService {
    */
   async _logTemplateUsage(templateData) {
     try {
-      // Template usage logging - create a proper method in databaseService if needed
-      logger.info({ templateData }, 'Template usage logged');
-          phone_number: templateData.phoneNumber,
-          template_id: templateData.templateId,
-          template_name: templateData.templateName,
-          template_category: templateData.category,
-          template_params: templateData.params,
-          message_id: templateData.messageId,
-          sent_at: new Date().toISOString(),
-          status: 'sent',
-          created_at: new Date().toISOString()
-        });
+      // Log template usage to database for compliance tracking
+      const { supabase } = require('../database/supabaseClient');
+
+      const logData = {
+        phone_number: templateData.phoneNumber,
+        template_name: templateData.templateName,
+        agent_id: templateData.agentId || null,
+        status: 'sent',
+        gupshup_response: {
+          messageId: templateData.messageId,
+          templateId: templateData.templateId,
+          category: templateData.category,
+          params: templateData.params
+        }
+      };
+
+      const { error } = await supabase
+        .from('template_usage_log')
+        .insert(logData);
+
+      if (error) {
+        throw error;
+      }
+
+      // Update template usage count in waba_templates
+      if (templateData.agentId && templateData.templateId) {
+        await supabase
+          .from('waba_templates')
+          .update({
+            usage_count: supabase.raw('usage_count + 1'),
+            last_used_at: new Date().toISOString()
+          })
+          .eq('agent_id', templateData.agentId)
+          .eq('template_id', templateData.templateId);
+      }
 
       logger.debug({
         templateName: templateData.templateName,
-        phoneNumber: templateData.phoneNumber
+        phoneNumber: templateData.phoneNumber,
+        agentId: templateData.agentId
       }, 'Template usage logged for compliance');
 
     } catch (error) {

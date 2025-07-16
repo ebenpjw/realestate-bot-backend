@@ -1,8 +1,11 @@
 const crypto = require('crypto');
 const config = require('../config');
 const logger = require('../logger');
-const databaseService = require('./databaseService');
+const { supabase } = require('../database/supabaseClient');
 const { ExternalServiceError, ValidationError } = require('../middleware/errorHandler');
+const gupshupPartnerService = require('./gupshupPartnerService');
+const partnerTemplateService = require('./partnerTemplateService');
+const agentWABASetupService = require('./agentWABASetupService');
 
 /**
  * Multi-Tenant Configuration Service
@@ -135,25 +138,14 @@ class MultiTenantConfigService {
    */
   async getAgentTemplates(agentId, category = null) {
     try {
-      let query = supabase
-        .from('waba_templates')
-        .select('*')
-        .eq('agent_id', agentId)
-        .eq('is_active', true)
-        .eq('approval_status', 'approved');
+      // Use Partner API template service for dynamic template management
+      const templates = await partnerTemplateService.getAgentTemplates(agentId, category);
 
-      if (category) {
-        query = query.eq('template_category', category);
-      }
+      // Filter for approved templates only for active use
+      const approvedTemplates = templates.filter(t => t.status === 'approved');
 
-      const { data: templates, error } = await query.order('created_at', { ascending: false });
-
-      if (error) {
-        throw new ExternalServiceError('Supabase', `Failed to fetch agent templates: ${error.message}`, error);
-      }
-
-      logger.info({ agentId, category, count: templates.length }, 'Agent templates loaded');
-      return templates;
+      logger.info({ agentId, category, count: approvedTemplates.length }, 'Agent templates loaded');
+      return approvedTemplates;
 
     } catch (error) {
       logger.error({ err: error, agentId, category }, 'Failed to get agent templates');
@@ -169,22 +161,38 @@ class MultiTenantConfigService {
    */
   async updateAgentWABAConfig(agentId, wabaConfig) {
     try {
+      // Check if this is a new WABA setup
+      const isNewSetup = wabaConfig.setupNewWABA === true;
+
+      if (isNewSetup) {
+        // Use the Agent WABA Setup Service for new setups
+        await agentWABASetupService.setupAgentWABA({
+          agentId,
+          phoneNumber: wabaConfig.wabaNumber,
+          displayName: wabaConfig.displayName,
+          botName: wabaConfig.botName
+        });
+
+        // Clear cache
+        this.configCache.delete(`agent_config_${agentId}`);
+
+        logger.info({ agentId }, 'New agent WABA setup completed through Partner API');
+        return;
+      }
+
+      // For updates to existing WABA configuration
       const updateData = {};
 
       if (wabaConfig.wabaNumber) {
         updateData.waba_phone_number = wabaConfig.wabaNumber;
       }
 
-      if (wabaConfig.apiKey) {
-        updateData.gupshup_api_key_encrypted = this._encrypt(wabaConfig.apiKey);
-      }
-
-      if (wabaConfig.appId) {
-        updateData.gupshup_app_id = wabaConfig.appId;
-      }
-
       if (wabaConfig.displayName) {
         updateData.waba_display_name = wabaConfig.displayName;
+      }
+
+      if (wabaConfig.botName) {
+        updateData.bot_name = wabaConfig.botName;
       }
 
       updateData.updated_at = new Date().toISOString();
@@ -358,6 +366,79 @@ class MultiTenantConfigService {
 
     } catch (error) {
       logger.error({ err: error, wabaNumber }, 'Failed to get agent by WABA number');
+      throw error;
+    }
+  }
+
+  /**
+   * Validate and setup agent WABA through Partner API
+   * @param {string} agentId - Agent UUID
+   * @returns {Promise<Object>} Validation and setup result
+   */
+  async validateAndSetupAgentWABA(agentId) {
+    try {
+      // First validate current WABA setup
+      const validation = await agentWABASetupService.validateAgentWABA(agentId);
+
+      if (validation.valid) {
+        logger.info({ agentId, validation }, 'Agent WABA is already valid');
+        return {
+          valid: true,
+          message: 'Agent WABA is already configured and valid',
+          ...validation
+        };
+      }
+
+      // If not valid, check if we can set it up
+      const agent = await this.getAgentConfig(agentId);
+
+      if (!agent.phone_number) {
+        throw new ValidationError('Agent must have a phone number to setup WABA');
+      }
+
+      // Setup WABA through Partner API
+      const setupResult = await agentWABASetupService.setupAgentWABA({
+        agentId,
+        phoneNumber: agent.phone_number,
+        displayName: `${agent.full_name}'s Bot`,
+        botName: agent.bot_name || 'Doro'
+      });
+
+      // Clear cache after setup
+      this.configCache.delete(`agent_config_${agentId}`);
+
+      return {
+        valid: true,
+        message: 'Agent WABA setup completed successfully',
+        ...setupResult
+      };
+
+    } catch (error) {
+      logger.error({ err: error, agentId }, 'Failed to validate and setup agent WABA');
+      throw error;
+    }
+  }
+
+  /**
+   * Create template for agent through Partner API
+   * @param {string} agentId - Agent UUID
+   * @param {Object} templateData - Template data
+   * @returns {Promise<Object>} Created template
+   */
+  async createAgentTemplate(agentId, templateData) {
+    try {
+      return await partnerTemplateService.createTemplate({
+        agentId,
+        templateName: templateData.templateName,
+        templateCategory: templateData.templateCategory || 'UTILITY',
+        templateContent: templateData.templateContent,
+        templateParams: templateData.templateParams || [],
+        languageCode: templateData.languageCode || 'en',
+        templateType: templateData.templateType || 'standard'
+      });
+
+    } catch (error) {
+      logger.error({ err: error, agentId, templateName: templateData.templateName }, 'Failed to create agent template');
       throw error;
     }
   }

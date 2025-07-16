@@ -29,6 +29,7 @@ const orchestratorRouter = require('./api/orchestrator');
 const followUpRouter = require('./routes/followUpRoutes');
 const frontendAuthRouter = require('./api/frontendAuth');
 const dashboardRouter = require('./api/dashboard');
+const partnerApiRouter = require('./api/partnerApi');
 
 
 // Initialize Express app
@@ -245,6 +246,7 @@ app.use('/api/orchestrator', orchestratorRouter);
 app.use('/api/follow-up', followUpRouter);
 app.use('/api/frontend-auth', frontendAuthRouter);
 app.use('/api/dashboard', dashboardRouter);
+app.use('/api/partner', partnerApiRouter);
 app.use('/api/leads', require('./api/leads'));
 // Optional feature loading with better error handling and feature flags
 const enabledFeatures = {

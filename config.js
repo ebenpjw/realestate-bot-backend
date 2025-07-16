@@ -69,16 +69,13 @@ const config = {
   SUPABASE_KEY: process.env.SUPABASE_KEY,
   SUPABASE_TIMEOUT: parseInteger(process.env.SUPABASE_TIMEOUT, 10000),
 
-  // Gupshup Configuration
-  WABA_NUMBER: process.env.WABA_NUMBER,
-  GUPSHUP_API_KEY: process.env.GUPSHUP_API_KEY,
-  GUPSHUP_API_SECRET: process.env.GUPSHUP_API_SECRET,
-  GUPSHUP_TIMEOUT: parseInteger(process.env.GUPSHUP_TIMEOUT, 10000),
-
-  // Gupshup Partner API Configuration (for template management)
+  // Gupshup Partner API Configuration (Primary - Multi-tenant WABA management)
   GUPSHUP_PARTNER_EMAIL: process.env.GUPSHUP_PARTNER_EMAIL,
   GUPSHUP_PARTNER_PASSWORD: process.env.GUPSHUP_PARTNER_PASSWORD,
-  GUPSHUP_APP_ID: process.env.GUPSHUP_APP_ID, // Default app ID for single-tenant mode
+  GUPSHUP_TIMEOUT: parseInteger(process.env.GUPSHUP_TIMEOUT, 30000),
+
+  // Template status check configuration
+  TEMPLATE_STATUS_CHECK_ENABLED: process.env.TEMPLATE_STATUS_CHECK_ENABLED !== 'false',
 
   // Meta (Facebook) Configuration
   META_VERIFY_TOKEN: process.env.META_VERIFY_TOKEN,
@@ -132,8 +129,8 @@ const config = {
 const coreRequiredConfig = {
   SUPABASE_URL: 'Database connection required',
   SUPABASE_KEY: 'Database authentication required',
-  WABA_NUMBER: 'WhatsApp Business Account number required',
-  GUPSHUP_API_KEY: 'Gupshup API access required',
+  GUPSHUP_PARTNER_EMAIL: 'Gupshup Partner API email required for multi-tenant WABA management',
+  GUPSHUP_PARTNER_PASSWORD: 'Gupshup Partner API password required for multi-tenant WABA management',
   OPENAI_API_KEY: 'OpenAI API access required for AI responses',
   REFRESH_TOKEN_ENCRYPTION_KEY: 'Encryption key required for secure token storage'
 };
