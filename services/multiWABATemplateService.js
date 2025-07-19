@@ -1,5 +1,6 @@
 const logger = require('../logger');
 const databaseService = require('./databaseService');
+const { supabase } = require('./databaseService');
 const multiTenantConfigService = require('./multiTenantConfigService');
 
 /**
@@ -547,20 +548,41 @@ class MultiWABATemplateService {
    */
   async _recordMissingTemplateScenario(agentId, leadState, templateCategory) {
     try {
-      const { error } = await supabase
+      // Try to insert, if conflict occurs, update the existing record
+      const { data: existing, error: selectError } = await supabase
         .from('missing_template_scenarios')
-        .insert({
-          agent_id: agentId,
-          lead_state: leadState,
-          template_category: templateCategory,
-          occurrence_count: 1,
-          last_occurrence: new Date().toISOString()
-        })
-        .onConflict('agent_id,lead_state,template_category')
-        .merge({
-          occurrence_count: supabase.raw('occurrence_count + 1'),
-          last_occurrence: new Date().toISOString()
-        });
+        .select('id, occurrence_count')
+        .eq('agent_id', agentId)
+        .eq('lead_state', leadState)
+        .eq('template_category', templateCategory)
+        .single();
+
+      let error;
+      if (selectError && selectError.code !== 'PGRST116') { // PGRST116 = no rows found
+        error = selectError;
+      } else if (existing) {
+        // Update existing record
+        const { error: updateError } = await supabase
+          .from('missing_template_scenarios')
+          .update({
+            occurrence_count: existing.occurrence_count + 1,
+            last_occurrence: new Date().toISOString()
+          })
+          .eq('id', existing.id);
+        error = updateError;
+      } else {
+        // Insert new record
+        const { error: insertError } = await supabase
+          .from('missing_template_scenarios')
+          .insert({
+            agent_id: agentId,
+            lead_state: leadState,
+            template_category: templateCategory,
+            occurrence_count: 1,
+            last_occurrence: new Date().toISOString()
+          });
+        error = insertError;
+      }
 
       if (error && error.code !== '42P01') { // Ignore if table doesn't exist
         throw error;
@@ -579,7 +601,7 @@ class MultiWABATemplateService {
     try {
       // Get agent's approved templates
       const { data: approvedTemplates, error } = await supabase
-        .from('waba_template_status')
+        .from('waba_templates')
         .select('template_name, template_category, status')
         .eq('agent_id', agentId)
         .eq('status', 'approved');

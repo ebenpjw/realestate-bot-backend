@@ -1,6 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/lib/auth/AuthContext'
+import { useAdminWABAOverview } from '@/lib/hooks/useDashboard'
 import {
   ChatBubbleLeftRightIcon,
   CheckCircleIcon,
@@ -10,7 +13,9 @@ import {
   Cog6ToothIcon,
   DocumentTextIcon,
   PhoneIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline'
+import { RefreshCw } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
@@ -21,15 +26,15 @@ interface WABAAccount {
   agentEmail: string
   phoneNumber: string
   businessName: string
-  status: 'connected' | 'pending' | 'error' | 'suspended'
+  status: 'connected' | 'pending' | 'error' | 'suspended' | 'disconnected'
   verificationStatus: 'verified' | 'pending' | 'rejected'
   lastSync: string
   messagesSent: number
   messagesReceived: number
   templatesActive: number
   templatesPending: number
-  apiUsage: number
-  apiLimit: number
+  appId?: string
+  partnerAppInfo?: any
 }
 
 interface Template {
@@ -40,134 +45,129 @@ interface Template {
   language: string
   lastUsed: string
   usageCount: number
+  agentName?: string
 }
 
-const mockWABAAccounts: WABAAccount[] = [
-  {
-    id: '1',
-    agentName: 'Sarah Chen',
-    agentEmail: 'sarah.chen@propertyhub.sg',
-    phoneNumber: '+65 9123 4567',
-    businessName: 'PropertyHub Singapore - Sarah',
-    status: 'connected',
-    verificationStatus: 'verified',
-    lastSync: '2 minutes ago',
-    messagesSent: 1234,
-    messagesReceived: 987,
-    templatesActive: 8,
-    templatesPending: 2,
-    apiUsage: 850,
-    apiLimit: 1000
-  },
-  {
-    id: '2',
-    agentName: 'Michael Wong',
-    agentEmail: 'michael.wong@propertyhub.sg',
-    phoneNumber: '+65 9234 5678',
-    businessName: 'PropertyHub Singapore - Michael',
-    status: 'pending',
-    verificationStatus: 'pending',
-    lastSync: 'Never',
-    messagesSent: 0,
-    messagesReceived: 0,
-    templatesActive: 0,
-    templatesPending: 0,
-    apiUsage: 0,
-    apiLimit: 1000
-  },
-  {
-    id: '3',
-    agentName: 'Lisa Tan',
-    agentEmail: 'lisa.tan@propertyhub.sg',
-    phoneNumber: '+65 9345 6789',
-    businessName: 'PropertyHub Singapore - Lisa',
-    status: 'connected',
-    verificationStatus: 'verified',
-    lastSync: '5 minutes ago',
-    messagesSent: 892,
-    messagesReceived: 654,
-    templatesActive: 6,
-    templatesPending: 1,
-    apiUsage: 720,
-    apiLimit: 1000
+// Helper functions
+const getStatusIcon = (status: string) => {
+  switch (status) {
+    case 'connected':
+      return <CheckCircleIcon className="h-4 w-4 text-green-600" />
+    case 'pending':
+      return <ExclamationTriangleIcon className="h-4 w-4 text-yellow-600" />
+    case 'error':
+    case 'suspended':
+      return <XCircleIcon className="h-4 w-4 text-red-600" />
+    default:
+      return <XCircleIcon className="h-4 w-4 text-gray-400" />
   }
-]
-
-const mockTemplates: Template[] = [
-  {
-    id: '1',
-    name: 'Welcome Message',
-    category: 'UTILITY',
-    status: 'approved',
-    language: 'en',
-    lastUsed: '2 hours ago',
-    usageCount: 156
-  },
-  {
-    id: '2',
-    name: 'Appointment Confirmation',
-    category: 'UTILITY',
-    status: 'approved',
-    language: 'en',
-    lastUsed: '1 hour ago',
-    usageCount: 89
-  },
-  {
-    id: '3',
-    name: 'Property Showcase',
-    category: 'MARKETING',
-    status: 'pending',
-    language: 'en',
-    lastUsed: 'Never',
-    usageCount: 0
-  }
-]
+}
 
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'connected':
-    case 'verified':
-    case 'approved':
-      return 'bg-green-100 text-green-800'
+      return 'text-green-600 bg-green-50'
     case 'pending':
-      return 'bg-yellow-100 text-yellow-800'
+      return 'text-yellow-600 bg-yellow-50'
     case 'error':
-    case 'rejected':
     case 'suspended':
-      return 'bg-red-100 text-red-800'
+      return 'text-red-600 bg-red-50'
     default:
-      return 'bg-gray-100 text-gray-800'
+      return 'text-gray-600 bg-gray-50'
   }
 }
 
-const getStatusIcon = (status: string) => {
-  switch (status) {
-    case 'connected':
-    case 'verified':
-    case 'approved':
-      return <CheckCircleIcon className="h-4 w-4" />
-    case 'error':
-    case 'rejected':
-    case 'suspended':
-      return <XCircleIcon className="h-4 w-4" />
+const getTemplateStatusIcon = (status: string) => {
+  switch (status.toUpperCase()) {
+    case 'APPROVED':
+      return <CheckCircleIcon className="h-4 w-4 text-green-600" />
+    case 'PENDING':
+      return <ExclamationTriangleIcon className="h-4 w-4 text-yellow-600" />
+    case 'FAILED':
+    case 'REJECTED':
+      return <XCircleIcon className="h-4 w-4 text-red-600" />
     default:
-      return <ExclamationTriangleIcon className="h-4 w-4" />
+      return <ExclamationTriangleIcon className="h-4 w-4 text-gray-400" />
+  }
+}
+
+const getVerificationStatusColor = (status: string) => {
+  switch (status) {
+    case 'verified':
+      return 'text-green-600 bg-green-50'
+    case 'pending':
+      return 'text-yellow-600 bg-yellow-50'
+    case 'rejected':
+      return 'text-red-600 bg-red-50'
+    default:
+      return 'text-gray-600 bg-gray-50'
   }
 }
 
 export default function WABAPage() {
-  const [accounts] = useState(mockWABAAccounts)
-  const [templates] = useState(mockTemplates)
-  const [loading, setLoading] = useState(false)
+  const router = useRouter()
+  const { user, hasPermission } = useAuth()
   const [activeTab, setActiveTab] = useState('accounts')
+  const [selectedAgentId, setSelectedAgentId] = useState<string>('')
 
-  const handleAddAccount = () => {
-    setLoading(true)
-    setTimeout(() => setLoading(false), 2000)
+  // Fetch real WABA data
+  const { data: wabaData, isLoading, error, refetch } = useAdminWABAOverview(selectedAgentId)
+
+  // Check admin permission
+  if (!hasPermission('manage_system')) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Card>
+          <div className="p-6 text-center">
+            <h2 className="text-lg font-semibold mb-2">Access Denied</h2>
+            <p className="text-gray-600">You don't have permission to access WABA management.</p>
+          </div>
+        </Card>
+      </div>
+    )
   }
 
-  const totalApiUsage = accounts.reduce((sum, acc) => sum + acc.apiUsage, 0)
-  const totalApiLimit = accounts.reduce((sum, acc) => sum + acc.apiLimit, 0)
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <LoadingSpinner size="lg" />
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Card>
+          <div className="p-6 text-center">
+            <h2 className="text-lg font-semibold mb-2">Error Loading Data</h2>
+            <p className="text-gray-600 mb-4">Failed to load WABA management data</p>
+            <Button onClick={() => refetch()}>Try Again</Button>
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  const accounts = wabaData?.accounts || []
+  const templates = wabaData?.templates || []
+  const totalAccounts = wabaData?.totalAccounts || 0
+  const activeAccounts = wabaData?.activeAccounts || 0
+  const activeTemplates = wabaData?.activeTemplates || 0
+
+  const handleAddAccount = () => {
+    router.push('/admin/agents?action=add')
+  }
+
+  const handleConfigureAccount = (accountId: string) => {
+    router.push(`/admin/agents/${accountId}/waba`)
+  }
+
+  const handleViewDetails = (accountId: string) => {
+    router.push(`/admin/agents/${accountId}`)
+  }
 
   return (
     <div className="space-y-6">
@@ -179,33 +179,32 @@ export default function WABAPage() {
             Manage WhatsApp Business API accounts and templates
           </p>
         </div>
-        <Button
-          variant="default"
-          onClick={handleAddAccount}
-          disabled={loading}
-        >
-          {loading ? (
-            <>
-              <LoadingSpinner size="sm" className="mr-2" />
-              Setting up...
-            </>
-          ) : (
-            <>
-              <PlusIcon className="h-4 w-4 mr-2" />
-              Add WABA Account
-            </>
-          )}
-        </Button>
+        <div className="flex space-x-3">
+          <Button
+            variant="outline"
+            onClick={() => refetch()}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+          <Button
+            variant="default"
+            onClick={handleAddAccount}
+          >
+            <PlusIcon className="h-4 w-4 mr-2" />
+            Add Agent
+          </Button>
+        </div>
       </div>
 
       {/* Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Accounts</p>
               <p className="text-2xl font-semibold text-gray-900 mt-2">
-                {accounts.length}
+                {totalAccounts}
               </p>
             </div>
             <ChatBubbleLeftRightIcon className="h-8 w-8 text-blue-600" />
@@ -216,7 +215,7 @@ export default function WABAPage() {
             <div>
               <p className="text-sm font-medium text-gray-600">Active Accounts</p>
               <p className="text-2xl font-semibold text-gray-900 mt-2">
-                {accounts.filter(a => a.status === 'connected').length}
+                {activeAccounts}
               </p>
             </div>
             <CheckCircleIcon className="h-8 w-8 text-green-600" />
@@ -225,24 +224,9 @@ export default function WABAPage() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">API Usage</p>
-              <p className="text-2xl font-semibold text-gray-900 mt-2">
-                {Math.round((totalApiUsage / totalApiLimit) * 100)}%
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="text-xs text-gray-500">
-                {totalApiUsage.toLocaleString()} / {totalApiLimit.toLocaleString()}
-              </div>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
               <p className="text-sm font-medium text-gray-600">Active Templates</p>
               <p className="text-2xl font-semibold text-gray-900 mt-2">
-                {templates.filter(t => t.status === 'approved').length}
+                {activeTemplates}
               </p>
             </div>
             <DocumentTextIcon className="h-8 w-8 text-purple-600" />
@@ -305,7 +289,7 @@ export default function WABAPage() {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                    <div className="grid grid-cols-3 gap-4 mt-4">
                       <div>
                         <p className="text-xs text-gray-500">Messages Sent</p>
                         <p className="text-sm font-medium text-gray-900">{account.messagesSent.toLocaleString()}</p>
@@ -318,22 +302,24 @@ export default function WABAPage() {
                         <p className="text-xs text-gray-500">Active Templates</p>
                         <p className="text-sm font-medium text-gray-900">{account.templatesActive}</p>
                       </div>
-                      <div>
-                        <p className="text-xs text-gray-500">API Usage</p>
-                        <p className="text-sm font-medium text-gray-900">
-                          {Math.round((account.apiUsage / account.apiLimit) * 100)}%
-                        </p>
-                      </div>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex space-x-2">
-                  <Button variant="outline" size="sm">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleConfigureAccount(account.id)}
+                  >
                     <Cog6ToothIcon className="h-4 w-4 mr-1" />
                     Configure
                   </Button>
-                  <Button variant="outline" size="sm">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleViewDetails(account.id)}
+                  >
                     View Details
                   </Button>
                 </div>
@@ -344,8 +330,40 @@ export default function WABAPage() {
       )}
 
       {activeTab === 'templates' && (
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="space-y-6">
+          {/* Agent Selector */}
+          <Card className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">Message Templates</h3>
+                <p className="text-sm text-gray-500 mt-1">View templates for a specific agent</p>
+              </div>
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <select
+                    value={selectedAgentId}
+                    onChange={(e) => setSelectedAgentId(e.target.value)}
+                    className="appearance-none bg-white border border-gray-300 rounded-md px-4 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Select an agent...</option>
+                    {accounts
+                      .filter(account => account.status === 'connected')
+                      .map(account => (
+                        <option key={account.id} value={account.id}>
+                          {account.agentName} ({account.businessName})
+                        </option>
+                      ))}
+                  </select>
+                  <ChevronDownIcon className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Templates Table */}
+          {selectedAgentId && (
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -387,7 +405,7 @@ export default function WABAPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(template.status)}`}>
-                        {getStatusIcon(template.status)}
+                        {getTemplateStatusIcon(template.status)}
                         <span className="ml-1">{template.status}</span>
                       </span>
                     </td>
@@ -408,6 +426,21 @@ export default function WABAPage() {
             </table>
           </div>
         </Card>
+          )}
+
+          {/* Show message when no agent selected */}
+          {!selectedAgentId && (
+            <Card className="p-12">
+              <div className="text-center">
+                <DocumentTextIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-4 text-lg font-medium text-gray-900">Select an Agent</h3>
+                <p className="mt-2 text-sm text-gray-500">
+                  Choose an agent from the dropdown above to view their message templates.
+                </p>
+              </div>
+            </Card>
+          )}
+        </div>
       )}
     </div>
   )

@@ -4,7 +4,6 @@ export * from './useConversations'
 export * from './useLeads'
 export * from './useAppointments'
 export * from './useIntegrations'
-export * from './useTesting'
 
 // Export existing hooks
 export * from './usePWA'

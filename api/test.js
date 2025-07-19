@@ -6,6 +6,9 @@ const botService = require('../services/botService');
 const whatsappService = require('../services/whatsappService');
 // const ChallengingLeadTester = require('../services/challengingLeadTester'); // Temporarily disabled - service missing
 
+// Get supabase client from databaseService
+const { supabase } = databaseService;
+
 router.post('/simulate-inbound', async (req, res, next) => {
   try {
     const { from, text, name, reset_conversation } = req.body;

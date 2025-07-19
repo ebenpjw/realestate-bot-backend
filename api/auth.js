@@ -31,7 +31,7 @@ const scopes = [
 router.get('/test-agent/:agentId', async (req, res) => {
   try {
     const agentId = req.params.agentId;
-    const { data: agent, error } = await supabase
+    const { data: agent, error } = await databaseService.supabase
       .from('agents')
       .select('id, full_name, status')
       .eq('id', agentId)
@@ -380,7 +380,7 @@ router.get('/zoom/callback', async (req, res, next) => {
     }
 
     // Save to database
-    const { error } = await supabase.from('agents')
+    const { error } = await databaseService.supabase.from('agents')
         .update(updateData)
         .eq('id', agentId);
 

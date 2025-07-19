@@ -8,6 +8,7 @@ const aiLearningService = require('./aiLearningService');
 const multiTenantConfigService = require('./multiTenantConfigService');
 const leadDeduplicationService = require('./leadDeduplicationService');
 const intelligentFollowUpService = require('./intelligentFollowUpService');
+const newLeadFollowUpService = require('./newLeadFollowUpService');
 const pdpaComplianceService = require('./pdpaComplianceService');
 const { AI } = require('../constants');
 
@@ -946,7 +947,7 @@ Respond naturally and warmly, like you're texting a friend. Ask a follow-up ques
 Follow all personality guidelines above.`;
 
         const alternativeResponse = await this.openai.chat.completions.create({
-          model: "gpt-4.1",
+          model: this.config.OPENAI_MODEL || "gpt-4.1",
           messages: [{ role: "user", content: simplePrompt }],
           temperature: 0.8,
           max_tokens: 200
@@ -2396,7 +2397,7 @@ Format as clear, actionable notes for the property consultant.`;
   async healthCheck() {
     try {
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4.1',
+        model: this.config.OPENAI_MODEL || 'gpt-4.1',
         messages: [{ role: 'user', content: 'Say "OK" if you can respond.' }],
         max_tokens: 10,
         temperature: 0
@@ -2404,7 +2405,7 @@ Format as clear, actionable notes for the property consultant.`;
 
       return {
         status: 'healthy',
-        model: 'gpt-4.1',
+        model: this.config.OPENAI_MODEL || 'gpt-4.1',
         response: response.choices[0]?.message?.content || 'No response'
       };
     } catch (error) {
@@ -4375,7 +4376,7 @@ Return enhanced strategy JSON:
 }`;
 
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4.1",
+        model: this.config.OPENAI_MODEL || "gpt-4.1",
         messages: [{ role: "user", content: enhancedStrategyPrompt }],
         temperature: 0.4,
         max_tokens: 500
@@ -5164,7 +5165,7 @@ FOCUS ON STRATEGIC IMPACT, NOT CHARACTER COUNTS!
       }
 
       // Search property database
-      let query = supabase
+      let query = databaseService.supabase
         .from('property_projects')
         .select(`
           *,
@@ -5541,6 +5542,9 @@ FOCUS ON STRATEGIC IMPACT, NOT CHARACTER COUNTS!
 
       // Reset any active follow-up sequences since lead responded
       await intelligentFollowUpService.handleLeadResponse(lead.id, userMessage, conversationId);
+
+      // Mark lead as responded for 6-hour follow-up system
+      await newLeadFollowUpService.markLeadResponded(lead.id);
 
     } catch (error) {
       logger.error({ err: error, leadId: lead.id }, 'Error handling lead response for follow-up');

@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { dashboardApi, DashboardStats, RecentActivity, PerformanceMetrics } from '@/lib/api/services/dashboardApi'
+import { apiClient } from '@/lib/api/client'
 import { useAuth } from '@/lib/auth/AuthContext'
 
 // Query Keys
 export const dashboardKeys = {
   all: ['dashboard'] as const,
   stats: (agentId?: string) => [...dashboardKeys.all, 'stats', agentId] as const,
-  adminStats: (orgId?: string) => [...dashboardKeys.all, 'admin-stats', orgId] as const,
+  adminStats: (orgId?: string, timeframe?: string) => [...dashboardKeys.all, 'admin-stats', orgId, timeframe] as const,
   activity: (agentId?: string, limit?: number) => [...dashboardKeys.all, 'activity', agentId, limit] as const,
   performance: (period: string, agentId?: string) => [...dashboardKeys.all, 'performance', period, agentId] as const,
   wabaStatus: (agentId?: string) => [...dashboardKeys.all, 'waba-status', agentId] as const,
@@ -55,15 +56,39 @@ export function useWABAStatus(agentId?: string) {
 }
 
 // Admin Dashboard Hooks
-export function useAdminStats(organizationId?: string) {
+export function useAdminStats(organizationId?: string, timeframe: string = '7d') {
   const { user } = useAuth()
-  
+
   return useQuery({
-    queryKey: dashboardKeys.adminStats(organizationId),
-    queryFn: () => dashboardApi.getAdminStats(organizationId),
+    queryKey: dashboardKeys.adminStats(organizationId, timeframe),
+    queryFn: () => dashboardApi.getAdminStats(organizationId, timeframe),
     enabled: user?.role === 'admin',
     staleTime: 2 * 60 * 1000, // 2 minutes
     refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+  })
+}
+
+// Admin WABA Management Hook
+export function useAdminWABAOverview(agentId?: string) {
+  const { user } = useAuth()
+
+  return useQuery({
+    queryKey: [...dashboardKeys.all, 'admin-waba-overview', agentId],
+    queryFn: async () => {
+      const params = agentId ? { agentId } : {}
+      const response = await apiClient.get('/api/dashboard/admin/waba-overview', { params })
+      return response.data.data
+    },
+    enabled: !!user && user.role === 'admin',
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    refetchInterval: false, // Disable automatic refetching to prevent rate limiting
+    retry: (failureCount, error: any) => {
+      // Don't retry on rate limiting errors
+      if (error?.response?.status === 429) {
+        return false
+      }
+      return failureCount < 2
+    },
   })
 }
 

@@ -38,7 +38,7 @@ Please provide a structured response with:
 Be specific and detailed in your analysis.`;
 
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4-vision-preview",
+        model: config.OPENAI_VISION_MODEL || "gpt-4o", // GPT-4.1 doesn't support vision, use GPT-4o for vision tasks
         messages: [
           {
             role: "user",
@@ -70,7 +70,7 @@ Be specific and detailed in your analysis.`;
         .insert({
           visual_asset_id: visualAssetId,
           analysis_type: 'floor_plan_analysis',
-          ai_model: 'gpt-4-vision-preview',
+          ai_model: config.OPENAI_VISION_MODEL || 'gpt-4o',
           confidence_score: structuredData.confidence || 0.8,
           extracted_data: structuredData,
           room_count: structuredData.totalRooms,
@@ -127,7 +127,7 @@ Be specific and detailed in your analysis.`;
 Please provide structured information that would be useful for a real estate agent to discuss with potential buyers.`;
 
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4-vision-preview",
+        model: config.OPENAI_VISION_MODEL || "gpt-4o", // GPT-4.1 doesn't support vision, use GPT-4o for vision tasks
         messages: [
           {
             role: "user",

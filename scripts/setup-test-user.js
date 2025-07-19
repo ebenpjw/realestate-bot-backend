@@ -18,7 +18,7 @@ async function setupTestUser() {
     const hashedPassword = await bcrypt.hash(testPassword, 10);
 
     // Check if test user already exists
-    const { data: existingAgent } = await supabase
+    const { data: existingAgent } = await databaseService.supabase
       .from('agents')
       .select('*')
       .eq('email', testEmail)
@@ -28,7 +28,7 @@ async function setupTestUser() {
       logger.info('✅ Test user already exists, updating password...');
 
       // Update password
-      const { error: updateError } = await supabase
+      const { error: updateError } = await databaseService.supabase
         .from('agents')
         .update({
           password_hash: hashedPassword,
@@ -43,7 +43,7 @@ async function setupTestUser() {
       logger.info('👤 Creating new test user...');
 
       // Create test agent with password
-      const { data: newAgent, error: agentError } = await supabase
+      const { data: newAgent, error: agentError } = await databaseService.supabase
         .from('agents')
         .insert({
           full_name: 'Test Agent',

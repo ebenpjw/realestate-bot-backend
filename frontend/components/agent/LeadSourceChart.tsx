@@ -110,3 +110,5 @@ export function LeadSourceChart({ data }: LeadSourceChartProps) {
     </div>
   )
 }
+
+export default LeadSourceChart

@@ -28,7 +28,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Find user in agents table
-    const { data: agent, error: agentError } = await supabase
+    const { data: agent, error: agentError } = await databaseService.supabase
       .from('agents')
       .select(`
         id,
@@ -78,13 +78,13 @@ router.post('/login', async (req, res) => {
     };
 
     const token = jwt.sign(tokenPayload, config.JWT_SECRET, {
-      expiresIn: '24h',
+      expiresIn: config.JWT_EXPIRES_IN,
       issuer: 'propertyhub-command',
       audience: 'frontend-client'
     });
 
     // Update last active timestamp
-    await supabase
+    await databaseService.supabase
       .from('agents')
       .update({ updated_at: new Date().toISOString() })
       .eq('id', agent.id);
@@ -142,7 +142,7 @@ router.post('/login', async (req, res) => {
 router.post('/logout', authenticateToken, async (req, res) => {
   try {
     // Update last active timestamp
-    await supabase
+    await databaseService.supabase
       .from('agents')
       .update({ last_active: new Date().toISOString() })
       .eq('id', req.user.id);
@@ -169,7 +169,9 @@ router.post('/logout', authenticateToken, async (req, res) => {
  */
 router.get('/me', authenticateToken, async (req, res) => {
   try {
-    const { data: agent, error } = await supabase
+    logger.info('Fetching user data for /me endpoint', { userId: req.user.id });
+
+    const { data: agent, error } = await databaseService.supabase
       .from('agents')
       .select(`
         id,
@@ -179,15 +181,34 @@ router.get('/me', authenticateToken, async (req, res) => {
         role,
         organization_id,
         waba_phone_number,
-        google_email,
-        zoom_user_id,
+        waba_display_name,
+        bot_name,
         created_at,
-        last_active
+        updated_at
       `)
       .eq('id', req.user.id)
       .single();
 
-    if (error || !agent) {
+    if (error) {
+      logger.error('Database error in /me endpoint', {
+        error: error,
+        errorMessage: error.message,
+        errorCode: error.code,
+        errorDetails: error.details,
+        errorStack: error.stack,
+        errorType: typeof error,
+        errorKeys: Object.keys(error || {}),
+        userId: req.user.id,
+        fullErrorObject: JSON.stringify(error, null, 2)
+      });
+      return res.status(500).json({
+        success: false,
+        error: 'Database error'
+      });
+    }
+
+    if (!agent) {
+      logger.warn('User not found in /me endpoint', { userId: req.user.id });
       return res.status(404).json({
         success: false,
         error: 'User not found'
@@ -202,8 +223,10 @@ router.get('/me', authenticateToken, async (req, res) => {
       organization_id: agent.organization_id,
       status: agent.status,
       waba_phone_number: agent.waba_phone_number,
-      google_connected: !!agent.google_email,
-      zoom_connected: !!agent.zoom_user_id,
+      waba_display_name: agent.waba_display_name,
+      bot_name: agent.bot_name,
+      google_connected: false, // TODO: Implement Google integration
+      zoom_connected: false, // TODO: Implement Zoom integration
       permissions: agent.role === 'admin' ? [
         'view_all_agents',
         'manage_agents',
@@ -235,9 +258,37 @@ router.get('/me', authenticateToken, async (req, res) => {
 
 /**
  * POST /api/frontend-auth/refresh
- * Refresh JWT token
+ * Refresh JWT token - allows expired tokens for refresh
  */
-router.post('/refresh', authenticateToken, async (req, res) => {
+router.post('/refresh', (req, res, next) => {
+  // Custom auth middleware that allows expired tokens
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      error: 'Access token required'
+    });
+  }
+
+  jwt.verify(token, config.JWT_SECRET, {
+    issuer: 'propertyhub-command',
+    audience: 'frontend-client',
+    ignoreExpiration: true // Allow expired tokens for refresh
+  }, (err, user) => {
+    if (err && err.name !== 'TokenExpiredError') {
+      logger.warn({ err: err.message }, 'JWT verification failed during refresh');
+      return res.status(403).json({
+        success: false,
+        error: 'Invalid token'
+      });
+    }
+
+    req.user = user;
+    next();
+  });
+}, async (req, res) => {
   try {
     // Generate new token
     const tokenPayload = {
@@ -248,7 +299,7 @@ router.post('/refresh', authenticateToken, async (req, res) => {
     };
 
     const token = jwt.sign(tokenPayload, config.JWT_SECRET, {
-      expiresIn: '24h',
+      expiresIn: config.JWT_EXPIRES_IN,
       issuer: 'propertyhub-command',
       audience: 'frontend-client'
     });
@@ -256,7 +307,7 @@ router.post('/refresh', authenticateToken, async (req, res) => {
     res.json({
       success: true,
       token,
-      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
     });
 
   } catch (error) {
@@ -291,7 +342,7 @@ router.post('/change-password', authenticateToken, async (req, res) => {
     }
 
     // Get current password hash
-    const { data: agent, error: fetchError } = await supabase
+    const { data: agent, error: fetchError } = await databaseService.supabase
       .from('agents')
       .select('password_hash')
       .eq('id', req.user.id)
@@ -318,7 +369,7 @@ router.post('/change-password', authenticateToken, async (req, res) => {
     const newPasswordHash = await bcrypt.hash(new_password, saltRounds);
 
     // Update password
-    const { error: updateError } = await supabase
+    const { error: updateError } = await databaseService.supabase
       .from('agents')
       .update({ 
         password_hash: newPasswordHash,
@@ -372,7 +423,7 @@ router.patch('/profile', authenticateToken, async (req, res) => {
 
     updateData.updated_at = new Date().toISOString();
 
-    const { data: updatedAgent, error } = await supabase
+    const { data: updatedAgent, error } = await databaseService.supabase
       .from('agents')
       .update(updateData)
       .eq('id', req.user.id)

@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 import { useAuth } from '@/lib/auth/AuthContext'
 import { apiClient } from '@/lib/api/client'
 
@@ -117,7 +117,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
       setError(null)
       
       // Load agent configuration
-      const agentResponse = await apiClient.get(`/dashboard/agent/config/${user?.id}`)
+      const agentResponse = await apiClient.get(`/api/agents/${user?.id}`)
       const agentData = agentResponse.data.data
       
       setAgentConfig({
@@ -145,25 +145,20 @@ export function AgentProvider({ children }: AgentProviderProps) {
         averageResponseTime: agentData.average_response_time || 0,
       })
       
-      // Load organization configuration if admin or needed
-      if (user?.role === 'admin' || agentData.organization_id) {
-        try {
-          const orgResponse = await apiClient.get(`/dashboard/organization/config/${agentData.organization_id}`)
-          const orgData = orgResponse.data.data
-          
-          setOrganizationConfig({
-            id: orgData.id,
-            name: orgData.name,
-            slug: orgData.slug,
-            subscriptionTier: orgData.subscription_tier,
-            settings: orgData.settings || {},
-            maxAgents: orgData.max_agents || 10,
-            currentAgents: orgData.current_agents || 1,
-            features: orgData.features || [],
-          })
-        } catch (orgError) {
-          console.warn('Failed to load organization config:', orgError)
-        }
+      // Set organization configuration from agent data (if available)
+      if (user?.role === 'admin' && agentData.organization_id) {
+        // For now, set basic organization config from agent data
+        // In the future, we can add a dedicated organization endpoint if needed
+        setOrganizationConfig({
+          id: agentData.organization_id,
+          name: 'Default Organization', // Could be enhanced with actual org name
+          slug: 'default',
+          subscriptionTier: 'basic',
+          settings: {},
+          maxAgents: 10,
+          currentAgents: 1,
+          features: [],
+        })
       }
     } catch (err: any) {
       console.error('Failed to load agent config:', err)
@@ -178,7 +173,7 @@ export function AgentProvider({ children }: AgentProviderProps) {
       setLoading(true)
       setError(null)
       
-      const response = await apiClient.patch(`/dashboard/agent/config/${user?.id}`, updates)
+      const response = await apiClient.patch(`/api/agents/${user?.id}`, updates)
       const updatedConfig = response.data.data
       
       setAgentConfig(prev => prev ? { ...prev, ...updatedConfig } : null)

@@ -1,5 +1,6 @@
 const config = require('../config');
 const logger = require('../logger');
+const costTrackingService = require('./costTrackingService');
 
 /**
  * Web Search Service for Multi-Layer AI Fact-Checking
@@ -35,9 +36,10 @@ class WebSearchService {
    * Perform web search with fact-checking focus
    * @param {string} query - Search query
    * @param {Object} options - Search options
+   * @param {string} agentId - Agent ID for cost tracking (optional)
    * @returns {Promise<Array>} Search results
    */
-  async search(query, options = {}) {
+  async search(query, options = {}, agentId = null) {
     const startTime = Date.now();
     
     try {
@@ -60,13 +62,34 @@ class WebSearchService {
       if (results && results.length > 0) {
         this.metrics.successfulSearches++;
         this.metrics.averageResponseTime = this._updateAverageResponseTime(Date.now() - startTime);
-        
+
+        // Record cost tracking for successful search
+        if (agentId) {
+          try {
+            await costTrackingService.recordThirdPartyUsage({
+              agentId,
+              leadId: options.leadId || null,
+              serviceName: 'google_search_api',
+              operationType: 'web_search',
+              quantity: 1,
+              metadata: {
+                query,
+                results_count: results.length,
+                response_time: Date.now() - startTime,
+                search_strategy: searchStrategy
+              }
+            });
+          } catch (costError) {
+            logger.error({ err: costError, agentId, query }, 'Failed to record Google Search cost');
+          }
+        }
+
         logger.info({
           query,
           resultsCount: results.length,
           responseTime: Date.now() - startTime
         }, 'Web search completed successfully');
-        
+
         return results;
       }
 

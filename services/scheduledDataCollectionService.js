@@ -139,7 +139,7 @@ class ScheduledDataCollectionService {
       logger.info('Starting scheduled full scraping');
 
       // Check if there's a recent successful scraping session
-      const { data: recentSession } = await supabase
+      const { data: recentSession } = await databaseService.supabase
         .from('scraping_sessions')
         .select('*')
         .eq('status', 'completed')
@@ -228,7 +228,7 @@ class ScheduledDataCollectionService {
       logger.info('Updating property search index');
 
       // Get projects that need search index updates
-      const { data: projects, error } = await supabase
+      const { data: projects, error } = await databaseService.supabase
         .from('property_projects')
         .select(`
           id, project_name, developer, address, district, property_type,
@@ -248,7 +248,7 @@ class ScheduledDataCollectionService {
           const searchableContent = this.extractSearchableContent(project);
           
           // Upsert search index
-          await supabase
+          await databaseService.supabase
             .from('property_search_index')
             .upsert({
               project_id: project.id,
@@ -356,7 +356,7 @@ class ScheduledDataCollectionService {
       const cutoffDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
 
       // Delete old scraping sessions
-      const { error: sessionError } = await supabase
+      const { error: sessionError } = await databaseService.supabase
         .from('scraping_sessions')
         .delete()
         .lt('started_at', cutoffDate.toISOString());
@@ -370,7 +370,7 @@ class ScheduledDataCollectionService {
       // Clean up failed visual assets (older than 7 days)
       const assetCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
       
-      const { error: assetError } = await supabase
+      const { error: assetError } = await databaseService.supabase
         .from('visual_assets')
         .delete()
         .eq('processing_status', 'failed')
@@ -393,7 +393,7 @@ class ScheduledDataCollectionService {
   async runMaintenance() {
     try {
       // Retry failed scraping operations
-      const { data: failedSessions } = await supabase
+      const { data: failedSessions } = await databaseService.supabase
         .from('scraping_sessions')
         .select('*')
         .eq('status', 'failed')
@@ -414,7 +414,7 @@ class ScheduledDataCollectionService {
       }
 
       // Check for assets stuck in processing
-      const { data: stuckAssets } = await supabase
+      const { data: stuckAssets } = await databaseService.supabase
         .from('visual_assets')
         .select('*')
         .eq('processing_status', 'processing')
@@ -424,7 +424,7 @@ class ScheduledDataCollectionService {
         logger.warn({ count: stuckAssets.length }, 'Found assets stuck in processing');
         
         // Reset stuck assets to pending
-        await supabase
+        await databaseService.supabase
           .from('visual_assets')
           .update({ processing_status: 'pending' })
           .in('id', stuckAssets.map(a => a.id));

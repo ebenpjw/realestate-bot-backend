@@ -397,7 +397,7 @@ class AILearningManager {
    */
   async _calculateSuccessRate(startDate, endDate) {
     try {
-      const { data: outcomes, error } = await supabase
+      const { data: outcomes, error } = await databaseService.supabase
         .from('conversation_outcomes')
         .select('outcome_type')
         .gte('outcome_timestamp', startDate.toISOString())
@@ -481,7 +481,7 @@ class AILearningManager {
 
       for (const optimization of optimizations) {
         // Store optimization record
-        const { error } = await supabase
+        const { error } = await databaseService.supabase
           .from('strategy_optimizations')
           .insert({
             optimization_type: 'automated',
@@ -526,7 +526,7 @@ class AILearningManager {
    */
   async _getRecentOptimizations() {
     try {
-      const { data: optimizations, error } = await supabase
+      const { data: optimizations, error } = await databaseService.supabase
         .from('strategy_optimizations')
         .select('*')
         .gte('optimization_timestamp', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
@@ -547,7 +547,7 @@ class AILearningManager {
    */
   async _getTopPerformingStrategies() {
     try {
-      const { data: strategies, error } = await supabase
+      const { data: strategies, error } = await databaseService.supabase
         .from('strategy_performance')
         .select('*')
         .order('success_rate', { ascending: false })
@@ -567,7 +567,7 @@ class AILearningManager {
    */
   async _getRecentLearningInsights() {
     try {
-      const { data: insights, error } = await supabase
+      const { data: insights, error } = await databaseService.supabase
         .from('recent_learning_insights')
         .select('*')
         .limit(10);

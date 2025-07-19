@@ -102,7 +102,7 @@ class AppointmentsApi {
     total: number
     hasMore: boolean
   }> {
-    const response = await apiClient.get('/dashboard/appointments', {
+    const response = await apiClient.get('/api/appointments', {
       params: {
         ...filters,
         limit,
@@ -118,7 +118,7 @@ class AppointmentsApi {
    * Get appointment details
    */
   async getAppointmentDetails(appointmentId: string): Promise<AppointmentDetails> {
-    const response = await apiClient.get(`/dashboard/appointments/${appointmentId}`)
+    const response = await apiClient.get(`/api/appointments/${appointmentId}`)
     return response.data.data
   }
 
@@ -126,7 +126,7 @@ class AppointmentsApi {
    * Create a new appointment
    */
   async createAppointment(request: CreateAppointmentRequest): Promise<Appointment> {
-    const response = await apiClient.post('/dashboard/appointments', request)
+    const response = await apiClient.post('/api/appointments', request)
     return response.data.data
   }
 
@@ -137,7 +137,7 @@ class AppointmentsApi {
     appointmentId: string,
     request: UpdateAppointmentRequest
   ): Promise<Appointment> {
-    const response = await apiClient.patch(`/dashboard/appointments/${appointmentId}`, request)
+    const response = await apiClient.patch(`/api/appointments/${appointmentId}`, request)
     return response.data.data
   }
 
@@ -149,7 +149,7 @@ class AppointmentsApi {
     reason?: string,
     notifyLead = true
   ): Promise<Appointment> {
-    const response = await apiClient.post(`/dashboard/appointments/${appointmentId}/cancel`, {
+    const response = await apiClient.post(`/api/appointments/${appointmentId}/cancel`, {
       reason,
       notifyLead
     })
@@ -165,7 +165,7 @@ class AppointmentsApi {
     reason?: string,
     notifyLead = true
   ): Promise<Appointment> {
-    const response = await apiClient.post(`/dashboard/appointments/${appointmentId}/reschedule`, {
+    const response = await apiClient.post(`/api/appointments/${appointmentId}/reschedule`, {
       newTime,
       reason,
       notifyLead
@@ -181,7 +181,7 @@ class AppointmentsApi {
     notes?: string,
     outcome?: 'interested' | 'not_interested' | 'follow_up_required'
   ): Promise<Appointment> {
-    const response = await apiClient.post(`/dashboard/appointments/${appointmentId}/complete`, {
+    const response = await apiClient.post(`/api/appointments/${appointmentId}/complete`, {
       notes,
       outcome
     })
@@ -196,7 +196,7 @@ class AppointmentsApi {
     date?: string,
     duration = 60
   ): Promise<AvailableSlot[]> {
-    const response = await apiClient.get('/dashboard/appointments/available-slots', {
+    const response = await apiClient.get('/api/appointments/available-slots', {
       params: {
         agentId,
         date,
@@ -223,7 +223,7 @@ class AppointmentsApi {
     }>
     suggestedAlternatives?: AvailableSlot[]
   }> {
-    const response = await apiClient.get('/dashboard/appointments/check-availability', {
+    const response = await apiClient.get('/api/appointments/check-availability', {
       params: {
         agentId,
         startTime,
@@ -260,7 +260,7 @@ class AppointmentsApi {
       cancelled: number
     }>
   }> {
-    const response = await apiClient.get('/dashboard/appointments/analytics', {
+    const response = await apiClient.get('/api/appointments/analytics', {
       params: { period, agentId }
     })
     return response.data.data
@@ -270,7 +270,7 @@ class AppointmentsApi {
    * Get today's appointments
    */
   async getTodaysAppointments(agentId?: string): Promise<Appointment[]> {
-    const response = await apiClient.get('/dashboard/appointments/today', {
+    const response = await apiClient.get('/api/appointments/today', {
       params: { agentId }
     })
     return response.data.data
@@ -283,7 +283,7 @@ class AppointmentsApi {
     agentId?: string,
     days = 7
   ): Promise<Appointment[]> {
-    const response = await apiClient.get('/dashboard/appointments/upcoming', {
+    const response = await apiClient.get('/api/appointments/upcoming', {
       params: { agentId, days }
     })
     return response.data.data
@@ -296,7 +296,7 @@ class AppointmentsApi {
     appointmentId: string,
     type: 'sms' | 'whatsapp' | 'email' = 'whatsapp'
   ): Promise<void> {
-    await apiClient.post(`/dashboard/appointments/${appointmentId}/reminder`, {
+    await apiClient.post(`/api/appointments/${appointmentId}/reminder`, {
       type
     })
   }
@@ -310,7 +310,7 @@ class AppointmentsApi {
     description: string
     severity: 'high' | 'medium' | 'low'
   }>> {
-    const response = await apiClient.get('/dashboard/appointments/conflicts', {
+    const response = await apiClient.get('/api/appointments/conflicts', {
       params: { agentId, date }
     })
     return response.data.data

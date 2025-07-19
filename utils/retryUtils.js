@@ -60,7 +60,7 @@ function isRetryableError(error) {
   // HTTP status codes that should be retried
   if (error.response && error.response.status) {
     const status = error.response.status;
-    return status >= 500 || status === 429; // Server errors or rate limiting
+    return status >= 500; // Only server errors (rate limiting removed)
   }
   
   // Specific error messages

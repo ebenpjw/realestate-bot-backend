@@ -2,6 +2,8 @@ const logger = require('../logger');
 const databaseService = require('./databaseService');
 const config = require('../config');
 const axios = require('axios');
+const multiTenantConfigService = require('./multiTenantConfigService');
+const supabase = databaseService.supabase;
 
 /**
  * WABA Template Automation Service
@@ -11,16 +13,16 @@ const axios = require('axios');
  */
 class WABATemplateAutomationService {
   constructor() {
-    this.gupshupPartnerBaseURL = 'https://api.gupshup.io/partner';
+    this.gupshupPartnerBaseURL = 'https://partner.gupshup.io/partner';
     this.partnerToken = null;
     this.templateCheckInterval = null;
-    
+
     // Create axios instance for Partner API calls
     this.partnerClient = axios.create({
       baseURL: this.gupshupPartnerBaseURL,
       timeout: 30000,
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
       }
     });
   }
@@ -54,9 +56,23 @@ class WABATemplateAutomationService {
    */
   async _getPartnerToken() {
     try {
-      const response = await axios.post(`${this.gupshupPartnerBaseURL}/account/login`, {
+      if (!config.GUPSHUP_PARTNER_CLIENT_SECRET) {
+        throw new Error('Partner API client secret not configured');
+      }
+
+      logger.info({
         email: config.GUPSHUP_PARTNER_EMAIL,
-        password: config.GUPSHUP_PARTNER_PASSWORD
+        hasClientSecret: !!config.GUPSHUP_PARTNER_CLIENT_SECRET
+      }, 'Partner API authentication with client secret');
+
+      const loginData = new URLSearchParams();
+      loginData.append('email', config.GUPSHUP_PARTNER_EMAIL);
+      loginData.append('password', config.GUPSHUP_PARTNER_CLIENT_SECRET);
+
+      const response = await axios.post(`${this.gupshupPartnerBaseURL}/account/login`, loginData, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
       });
 
       if (response.data && response.data.token) {
@@ -68,6 +84,40 @@ class WABATemplateAutomationService {
       }
     } catch (error) {
       logger.error({ err: error }, 'Failed to get partner token');
+      throw error;
+    }
+  }
+
+  /**
+   * Get app access token for specific app
+   * @private
+   */
+  async _getAppAccessToken(appId) {
+    try {
+      // Ensure we have a partner token
+      await this._getPartnerToken();
+
+      logger.info({ appId }, 'Getting app access token');
+
+      const response = await axios.get(
+        `${this.gupshupPartnerBaseURL}/app/${appId}/token`,
+        {
+          headers: {
+            'Authorization': this.partnerToken,
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      if (response.data && response.data.status === 'success' && response.data.token && response.data.token.token) {
+        const appToken = response.data.token.token;
+        logger.info({ appId }, 'App access token obtained successfully');
+        return appToken;
+      } else {
+        throw new Error(`Failed to obtain app access token: ${response.data?.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      logger.error({ err: error, appId }, 'Failed to get app access token');
       throw error;
     }
   }
@@ -94,20 +144,60 @@ class WABATemplateAutomationService {
         agentId
       }, 'Submitting template for WABA approval');
 
-      // Get app ID (use agent-specific or default)
-      const appId = agentId ? 
-        await this._getAgentAppId(agentId) : 
-        config.GUPSHUP_APP_ID;
+      if (!agentId) {
+        throw new Error('Agent ID is required for template submission');
+      }
 
-      // Submit template via Partner API
-      const response = await this.partnerClient.post(`/app/${appId}/templates`, {
-        elementName: templateName,
-        languageCode: language,
-        category: category.toUpperCase(),
-        components: components,
-        // Add sample data for approval process
-        sample: this._generateTemplateSamples(components)
-      });
+      // Get agent WABA configuration
+      const agentConfig = await multiTenantConfigService.getAgentWABAConfig(agentId);
+
+      if (!agentConfig.appId) {
+        throw new Error('Agent does not have app ID configured');
+      }
+
+      // Get Partner App Token for the specific app
+      const appToken = await this._getAppAccessToken(agentConfig.appId);
+
+      // Submit template via Partner API using app access token
+      const formData = new URLSearchParams();
+      formData.append('appId', agentConfig.appId);
+      formData.append('elementName', templateName);
+      formData.append('languageCode', language);
+      formData.append('category', category.toUpperCase());
+      formData.append('templateType', 'TEXT');
+
+      // Convert components to content format
+      const bodyComponent = components.find(c => c.type === 'BODY');
+      if (bodyComponent) {
+        formData.append('content', bodyComponent.text);
+
+        // Generate example text by replacing placeholders
+        const exampleText = this._generateExampleText(bodyComponent.text);
+        formData.append('example', exampleText);
+      }
+
+      // Add footer if present
+      const footerComponent = components.find(c => c.type === 'FOOTER');
+      if (footerComponent) {
+        formData.append('footer', footerComponent.text);
+      }
+
+      formData.append('enableSample', 'true');
+      formData.append('allowTemplateCategoryChange', 'false');
+      formData.append('vertical', 'Real Estate Follow-up');
+
+      // Use Partner App Token for authentication
+      const response = await axios.post(
+        `${this.gupshupPartnerBaseURL}/app/${agentConfig.appId}/templates`,
+        formData,
+        {
+          headers: {
+            'Authorization': appToken,
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json'
+          }
+        }
+      );
 
       if (response.data && response.data.status === 'success') {
         const templateId = response.data.template?.id;
@@ -141,16 +231,61 @@ class WABATemplateAutomationService {
       }
 
     } catch (error) {
+      // Log detailed error information including response body
+      const errorDetails = {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        responseData: error.response?.data,
+        requestUrl: error.config?.url,
+        requestData: error.config?.data
+      };
+
       logger.error({
         err: error,
-        templateName: templateData.templateName
+        templateName: templateData.templateName,
+        errorDetails
       }, 'Failed to submit template');
 
       return {
         success: false,
         error: error.message,
-        status: 'failed'
+        status: 'failed',
+        details: errorDetails
       };
+    }
+  }
+
+  /**
+   * Check status of a specific template by ID
+   * @param {string} templateId - Template ID to check
+   * @returns {Promise<Object>} Template status information
+   */
+  async checkTemplateStatus(templateId) {
+    try {
+      // Get template from database
+      const { data: template, error } = await supabase
+        .from('waba_templates')
+        .select('*')
+        .eq('id', templateId)
+        .single();
+
+      if (error || !template) {
+        throw new Error(`Template not found: ${templateId}`);
+      }
+
+      // Check status with Gupshup
+      const statusResult = await this._checkSingleTemplateStatus(template);
+
+      return {
+        success: true,
+        template: template,
+        status: statusResult
+      };
+
+    } catch (error) {
+      logger.error({ err: error, templateId }, 'Failed to check template status');
+      throw error;
     }
   }
 
@@ -162,7 +297,7 @@ class WABATemplateAutomationService {
     try {
       // Get all pending templates from database
       const { data: pendingTemplates, error } = await supabase
-        .from('waba_template_status')
+        .from('waba_templates')
         .select('*')
         .eq('status', 'pending');
 
@@ -192,12 +327,30 @@ class WABATemplateAutomationService {
    */
   async _checkSingleTemplateStatus(template) {
     try {
-      const appId = template.agent_id ? 
-        await this._getAgentAppId(template.agent_id) : 
-        config.GUPSHUP_APP_ID;
+      if (!template.agent_id) {
+        throw new Error('Agent ID is required for template status check');
+      }
 
-      // Get template status from Gupshup
-      const response = await this.partnerClient.get(`/app/${appId}/templates`);
+      // Get agent WABA configuration
+      const agentConfig = await multiTenantConfigService.getAgentWABAConfig(template.agent_id);
+
+      if (!agentConfig.appId) {
+        throw new Error('Agent does not have app ID configured');
+      }
+
+      // Get Partner App Token for the specific app
+      const appToken = await this._getAppAccessToken(agentConfig.appId);
+
+      // Get template status from Gupshup using app access token
+      const response = await axios.get(
+        `${this.gupshupPartnerBaseURL}/app/${agentConfig.appId}/templates`,
+        {
+          headers: {
+            'Authorization': appToken,
+            'Accept': 'application/json'
+          }
+        }
+      );
       
       if (response.data && response.data.templates) {
         const gupshupTemplate = response.data.templates.find(t => 
@@ -249,7 +402,7 @@ class WABATemplateAutomationService {
       }
 
       const { error } = await supabase
-        .from('waba_template_status')
+        .from('waba_templates')
         .update(updateData)
         .eq('id', templateId);
 
@@ -294,7 +447,7 @@ class WABATemplateAutomationService {
   async getApprovedTemplates(category = null, agentId = null) {
     try {
       let query = supabase
-        .from('waba_template_status')
+        .from('waba_templates')
         .select('*')
         .eq('status', 'approved');
 
@@ -335,7 +488,7 @@ class WABATemplateAutomationService {
   async validateTemplateForSending(templateName, agentId = null) {
     try {
       let query = supabase
-        .from('waba_template_status')
+        .from('waba_templates')
         .select('*')
         .eq('template_name', templateName)
         .eq('status', 'approved');
@@ -378,14 +531,16 @@ class WABATemplateAutomationService {
   async _storeTemplateSubmission(templateData) {
     try {
       const { error } = await supabase
-        .from('waba_template_status')
+        .from('waba_templates')
         .insert({
           template_name: templateData.templateName,
           template_category: templateData.category,
           language_code: templateData.language,
           agent_id: templateData.agentId,
           status: templateData.status,
-          template_components: templateData.components,
+          template_content: JSON.stringify(templateData.components),
+          template_params: templateData.components.filter(c => c.type === 'BODY')[0]?.parameters || [],
+          submitted_at: templateData.submittedAt,
           created_at: templateData.submittedAt,
           updated_at: templateData.submittedAt
         });
@@ -425,6 +580,23 @@ class WABATemplateAutomationService {
   }
 
   /**
+   * Generate example text by replacing placeholders with sample values
+   * @private
+   */
+  _generateExampleText(templateText) {
+    let exampleText = templateText;
+
+    // Replace common placeholders with sample values
+    exampleText = exampleText.replace(/\{\{1\}\}/g, 'John Doe');
+    exampleText = exampleText.replace(/\{\{2\}\}/g, 'Orchard Road');
+    exampleText = exampleText.replace(/\{\{3\}\}/g, 'Sample Value');
+    exampleText = exampleText.replace(/\{\{4\}\}/g, 'Sample Value');
+    exampleText = exampleText.replace(/\{\{5\}\}/g, 'Sample Value');
+
+    return exampleText;
+  }
+
+  /**
    * Generate sample parameter value
    * @private
    */
@@ -458,28 +630,7 @@ class WABATemplateAutomationService {
     return statusMap[gupshupStatus] || 'pending';
   }
 
-  /**
-   * Get agent app ID for multi-tenant setup
-   * @private
-   */
-  async _getAgentAppId(agentId) {
-    try {
-      const { data: agent, error } = await supabase
-        .from('agents')
-        .select('gupshup_app_id')
-        .eq('id', agentId)
-        .single();
 
-      if (error || !agent) {
-        throw new Error(`Agent not found: ${agentId}`);
-      }
-
-      return agent.gupshup_app_id;
-    } catch (error) {
-      logger.error({ err: error, agentId }, 'Failed to get agent app ID');
-      throw error;
-    }
-  }
 
   /**
    * Stop the service

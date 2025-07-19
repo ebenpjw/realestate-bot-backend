@@ -89,7 +89,7 @@ class PDPAComplianceService {
   async recordConsent(leadId, consentMethod = 'form_submission', consentSource = 'facebook_form') {
     try {
       // Check if compliance record exists
-      const { data: existing } = await supabase
+      const { data: existing } = await databaseService.supabase
         .from('pdpa_compliance')
         .select('*')
         .eq('lead_id', leadId)
@@ -111,7 +111,7 @@ class PDPAComplianceService {
 
       if (existing) {
         // Update existing record
-        const { error } = await supabase
+        const { error } = await databaseService.supabase
           .from('pdpa_compliance')
           .update(consentData)
           .eq('id', existing.id);
@@ -119,7 +119,7 @@ class PDPAComplianceService {
         if (error) throw error;
       } else {
         // Create new record
-        const { error } = await supabase
+        const { error } = await databaseService.supabase
           .from('pdpa_compliance')
           .insert(consentData);
 
@@ -141,7 +141,7 @@ class PDPAComplianceService {
    */
   async checkConsentStatus(leadId) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await databaseService.supabase
         .from('pdpa_compliance')
         .select('*')
         .eq('lead_id', leadId)
@@ -194,7 +194,7 @@ class PDPAComplianceService {
       logger.info({ leadId }, 'Processing data access request');
 
       // Mark request in compliance table
-      await supabase
+      await databaseService.supabase
         .from('pdpa_compliance')
         .update({
           data_access_requested: true,
@@ -238,7 +238,7 @@ class PDPAComplianceService {
       logger.info({ leadId }, 'Processing data deletion request');
 
       // Mark request in compliance table
-      await supabase
+      await databaseService.supabase
         .from('pdpa_compliance')
         .update({
           data_deletion_requested: true,
@@ -381,7 +381,7 @@ class PDPAComplianceService {
   async _processOptOutRequest(leadId, message, analysis) {
     try {
       // Update or create compliance record
-      const { data: existing } = await supabase
+      const { data: existing } = await databaseService.supabase
         .from('pdpa_compliance')
         .select('*')
         .eq('lead_id', leadId)
@@ -401,12 +401,12 @@ class PDPAComplianceService {
       };
 
       if (existing) {
-        await supabase
+        await databaseService.supabase
           .from('pdpa_compliance')
           .update(optOutData)
           .eq('id', existing.id);
       } else {
-        await supabase
+        await databaseService.supabase
           .from('pdpa_compliance')
           .insert({
             lead_id: leadId,
@@ -415,7 +415,7 @@ class PDPAComplianceService {
       }
 
       // Update lead state to block follow-ups
-      await supabase
+      await databaseService.supabase
         .from('lead_states')
         .update({
           is_follow_up_eligible: false,
@@ -426,7 +426,7 @@ class PDPAComplianceService {
         .eq('lead_id', leadId);
 
       // Cancel any pending follow-ups
-      await supabase
+      await databaseService.supabase
         .from('follow_up_sequences')
         .update({
           status: 'cancelled',
@@ -479,7 +479,7 @@ Consider Singapore communication patterns and both direct and polite refusal sty
    * @private
    */
   async _getLeadData(leadId) {
-    const { data } = await supabase
+    const { data } = await databaseService.supabase
       .from('leads')
       .select('phone_number, full_name, status, intent, budget, location_preference, property_type, timeline, created_at')
       .eq('id', leadId)
@@ -493,7 +493,7 @@ Consider Singapore communication patterns and both direct and polite refusal sty
    * @private
    */
   async _getMessagesData(leadId) {
-    const { data } = await supabase
+    const { data } = await databaseService.supabase
       .from('messages')
       .select('sender, message, created_at')
       .eq('lead_id', leadId)
@@ -507,7 +507,7 @@ Consider Singapore communication patterns and both direct and polite refusal sty
    * @private
    */
   async _getFollowUpData(leadId) {
-    const { data } = await supabase
+    const { data } = await databaseService.supabase
       .from('follow_up_tracking')
       .select('follow_up_type, sent_at, response_received, led_to_appointment')
       .eq('lead_id', leadId)
@@ -521,7 +521,7 @@ Consider Singapore communication patterns and both direct and polite refusal sty
    * @private
    */
   async _getComplianceData(leadId) {
-    const { data } = await supabase
+    const { data } = await databaseService.supabase
       .from('pdpa_compliance')
       .select('*')
       .eq('lead_id', leadId)

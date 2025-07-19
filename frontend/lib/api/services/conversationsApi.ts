@@ -74,7 +74,7 @@ class ConversationsApi {
     total: number
     hasMore: boolean
   }> {
-    const response = await apiClient.get('/dashboard/conversations', {
+    const response = await apiClient.get('/api/dashboard/conversations', {
       params: {
         agentId,
         status,
@@ -89,7 +89,7 @@ class ConversationsApi {
    * Get conversation details with messages
    */
   async getConversationDetails(conversationId: string): Promise<ConversationDetails> {
-    const response = await apiClient.get(`/dashboard/conversations/${conversationId}`)
+    const response = await apiClient.get(`/api/dashboard/conversations/${conversationId}`)
     return response.data.data
   }
 
@@ -105,7 +105,7 @@ class ConversationsApi {
     total: number
     hasMore: boolean
   }> {
-    const response = await apiClient.get(`/dashboard/conversations/${conversationId}/messages`, {
+    const response = await apiClient.get(`/api/conversations/${conversationId}/messages`, {
       params: { limit, offset }
     })
     return response.data.data
@@ -115,7 +115,7 @@ class ConversationsApi {
    * Send a message in a conversation
    */
   async sendMessage(request: SendMessageRequest): Promise<Message> {
-    const response = await apiClient.post('/test/send-message', {
+    const response = await apiClient.post('/api/test/send-message', {
       conversationId: request.conversationId,
       message: request.message,
       messageType: request.messageType || 'text',
@@ -133,7 +133,7 @@ class ConversationsApi {
     status: 'active' | 'waiting' | 'converted' | 'lost' | 'paused',
     notes?: string
   ): Promise<Conversation> {
-    const response = await apiClient.patch(`/dashboard/conversations/${conversationId}/status`, {
+    const response = await apiClient.patch(`/api/conversations/${conversationId}/status`, {
       status,
       notes
     })
@@ -155,7 +155,7 @@ class ConversationsApi {
       notes?: string
     }
   ): Promise<ConversationDetails> {
-    const response = await apiClient.patch(`/dashboard/conversations/${conversationId}/profile`, profile)
+    const response = await apiClient.patch(`/api/conversations/${conversationId}/profile`, profile)
     return response.data.data
   }
 
@@ -163,7 +163,7 @@ class ConversationsApi {
    * Mark messages as read
    */
   async markAsRead(conversationId: string, messageIds?: string[]): Promise<void> {
-    await apiClient.post(`/dashboard/conversations/${conversationId}/read`, {
+    await apiClient.post(`/api/conversations/${conversationId}/read`, {
       messageIds
     })
   }
@@ -181,7 +181,7 @@ class ConversationsApi {
       source?: string
     }
   ): Promise<Conversation[]> {
-    const response = await apiClient.get('/dashboard/conversations/search', {
+    const response = await apiClient.get('/api/conversations/search', {
       params: {
         q: query,
         agentId,
@@ -204,7 +204,7 @@ class ConversationsApi {
     conversionProbability: number
     nextBestAction: string
   }> {
-    const response = await apiClient.get(`/dashboard/conversations/${conversationId}/analytics`)
+    const response = await apiClient.get(`/api/conversations/${conversationId}/analytics`)
     return response.data.data
   }
 
@@ -221,7 +221,7 @@ class ConversationsApi {
     confidence: number
     reason: string
   }>> {
-    const response = await apiClient.get(`/dashboard/conversations/${conversationId}/suggestions`, {
+    const response = await apiClient.get(`/api/conversations/${conversationId}/suggestions`, {
       params: { context }
     })
     return response.data.data
@@ -231,7 +231,7 @@ class ConversationsApi {
    * Archive a conversation
    */
   async archiveConversation(conversationId: string, reason?: string): Promise<void> {
-    await apiClient.post(`/dashboard/conversations/${conversationId}/archive`, {
+    await apiClient.post(`/api/conversations/${conversationId}/archive`, {
       reason
     })
   }
@@ -244,7 +244,7 @@ class ConversationsApi {
     targetAgentId: string,
     notes?: string
   ): Promise<Conversation> {
-    const response = await apiClient.post(`/dashboard/conversations/${conversationId}/transfer`, {
+    const response = await apiClient.post(`/api/conversations/${conversationId}/transfer`, {
       targetAgentId,
       notes
     })

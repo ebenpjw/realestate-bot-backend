@@ -2,7 +2,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 const config = require('../config');
 const logger = require('../logger');
-const { supabase } = require('../database/supabaseClient');
+const databaseService = require('./databaseService');
 
 /**
  * Gupshup Partner API Service
@@ -21,7 +21,7 @@ class GupshupPartnerService {
     this.partnerToken = null;
     this.tokenExpiry = null;
     this.partnerEmail = config.GUPSHUP_PARTNER_EMAIL;
-    this.partnerPassword = config.GUPSHUP_PARTNER_PASSWORD;
+    this.partnerClientSecret = config.GUPSHUP_PARTNER_CLIENT_SECRET;
     this.encryptionKey = config.REFRESH_TOKEN_ENCRYPTION_KEY;
 
     // Rate limiting configuration
@@ -30,7 +30,7 @@ class GupshupPartnerService {
     this.maxRetries = 3;
     this.retryDelay = 2000; // 2 seconds initial retry delay
 
-    if (!this.partnerEmail || !this.partnerPassword) {
+    if (!this.partnerEmail || !this.partnerClientSecret) {
       throw new Error('Gupshup Partner API credentials not configured');
     }
 
@@ -93,20 +93,12 @@ class GupshupPartnerService {
   }
 
   /**
-   * Rate limiting helper to prevent API abuse
+   * Rate limiting helper - DISABLED for scalability
    * @private
    */
   async _enforceRateLimit() {
-    const now = Date.now();
-    const timeSinceLastRequest = now - this.lastRequestTime;
-
-    if (timeSinceLastRequest < this.rateLimitDelay) {
-      const waitTime = this.rateLimitDelay - timeSinceLastRequest;
-      logger.debug({ waitTime }, 'Rate limiting: waiting before next request');
-      await new Promise(resolve => setTimeout(resolve, waitTime));
-    }
-
-    this.lastRequestTime = Date.now();
+    // Rate limiting completely disabled for scalability
+    return;
   }
 
   /**
@@ -141,10 +133,10 @@ class GupshupPartnerService {
     if (!error.response) return true; // Network errors are retryable
 
     const status = error.response.status;
-    return status === 429 || // Rate limited
-           status === 502 || // Bad gateway
+    return status === 502 || // Bad gateway
            status === 503 || // Service unavailable
            status === 504;   // Gateway timeout
+    // Removed 429 rate limiting since it's disabled
   }
 
   /**
@@ -212,7 +204,7 @@ class GupshupPartnerService {
       }
 
       // Try to get token from database first
-      const { data: tokenData, error } = await supabase
+      const { data: tokenData, error } = await databaseService.supabase
         .from('partner_api_tokens')
         .select('*')
         .order('created_at', { ascending: false })
@@ -236,10 +228,19 @@ class GupshupPartnerService {
 
       // Get new token from Partner API
       logger.info('Requesting new Partner API token');
-      
+
+      if (!this.partnerClientSecret) {
+        throw new Error('Partner API client secret not configured');
+      }
+
+      logger.info({
+        email: this.partnerEmail,
+        hasClientSecret: !!this.partnerClientSecret
+      }, 'Partner API authentication with client secret');
+
       const response = await this.axios.post('/account/login', new URLSearchParams({
         email: this.partnerEmail,
-        password: this.partnerPassword
+        password: this.partnerClientSecret
       }));
 
       if (!response.data || !response.data.token) {
@@ -254,7 +255,7 @@ class GupshupPartnerService {
       const encryptedToken = this._encrypt(this.partnerToken);
 
       // Clear old tokens (keep only the latest 5 tokens for safety)
-      const { data: existingTokens } = await supabase
+      const { data: existingTokens } = await databaseService.supabase
         .from('partner_api_tokens')
         .select('id')
         .order('created_at', { ascending: false })
@@ -265,7 +266,7 @@ class GupshupPartnerService {
         const idsToDelete = tokensToDelete.map(t => t.id);
 
         if (idsToDelete.length > 0) {
-          await supabase
+          await databaseService.supabase
             .from('partner_api_tokens')
             .delete()
             .in('id', idsToDelete);
@@ -273,7 +274,7 @@ class GupshupPartnerService {
       }
 
       // Insert new token
-      await supabase.from('partner_api_tokens').insert({
+      await databaseService.supabase.from('partner_api_tokens').insert({
         token_encrypted: encryptedToken.encrypted,
         token_iv: encryptedToken.iv,
         token_tag: encryptedToken.tag,
@@ -438,11 +439,11 @@ class GupshupPartnerService {
         }
       });
 
-      if (!response.data || !response.data.token) {
+      if (!response.data || !response.data.token || !response.data.token.token) {
         throw new Error('Invalid response from get app token');
       }
 
-      return response.data.token;
+      return response.data.token.token;
 
     } catch (error) {
       logger.error({

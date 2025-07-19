@@ -2,94 +2,39 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth/AuthContext'
+import { leadsApi, type Lead, type LeadDetails as LeadDetailsType } from '@/lib/api/services'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { LeadTable } from '@/components/agent/LeadTable'
 import { LeadFilters } from '@/components/agent/LeadFilters'
 import { LeadDetails } from '@/components/agent/LeadDetails'
 import { BulkActions } from '@/components/agent/BulkActions'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import {
-  PlusIcon,
-  FunnelIcon,
-  ArrowDownTrayIcon,
-  MagnifyingGlassIcon,
-} from '@heroicons/react/24/outline'
+  Plus,
+  Filter,
+  Download,
+  Search,
+  Users,
+  TrendingUp,
+} from 'lucide-react'
 
-interface Lead {
-  id: string
-  phoneNumber: string
-  fullName: string
-  status: 'new' | 'qualified' | 'booked' | 'completed' | 'lost'
-  intent?: string
-  budget?: string
-  locationPreference?: string
-  propertyType?: string
-  timeline?: string
-  lastInteraction: string
-  messagesCount: number
-  createdAt: string
-  source: string
-  assignedAgent?: string
-}
-
-// Mock data - this would come from your API
-const mockLeads: Lead[] = [
-  {
-    id: '1',
-    phoneNumber: '+65 9123 4567',
-    fullName: 'Sarah Chen',
-    status: 'qualified',
-    intent: 'buy',
-    budget: '$800K - $1.2M',
-    locationPreference: 'Marina Bay',
-    propertyType: '3-bedroom condo',
-    timeline: 'Within 3 months',
-    lastInteraction: '2024-01-15T10:30:00Z',
-    messagesCount: 12,
-    createdAt: '2024-01-10T09:00:00Z',
-    source: 'Facebook Lead Ad',
-  },
-  {
-    id: '2',
-    phoneNumber: '+65 9234 5678',
-    fullName: 'Michael Tan',
-    status: 'new',
-    intent: 'browse',
-    budget: '$600K - $900K',
-    locationPreference: 'Orchard',
-    propertyType: '2-bedroom condo',
-    timeline: 'Within 6 months',
-    lastInteraction: '2024-01-15T09:45:00Z',
-    messagesCount: 5,
-    createdAt: '2024-01-14T14:30:00Z',
-    source: 'WhatsApp Direct',
-  },
-  {
-    id: '3',
-    phoneNumber: '+65 9345 6789',
-    fullName: 'Jennifer Lim',
-    status: 'booked',
-    intent: 'buy',
-    budget: '$1M - $1.5M',
-    locationPreference: 'Sentosa Cove',
-    propertyType: '4-bedroom condo',
-    timeline: 'Within 2 months',
-    lastInteraction: '2024-01-15T08:15:00Z',
-    messagesCount: 18,
-    createdAt: '2024-01-08T11:20:00Z',
-    source: 'Property Portal',
-  },
-]
-
+// Use the API types instead of local interfaces
 export default function LeadsPage() {
   const { user } = useAuth()
-  const [leads, setLeads] = useState<Lead[]>(mockLeads)
-  const [filteredLeads, setFilteredLeads] = useState<Lead[]>(mockLeads)
+  const [leads, setLeads] = useState<Lead[]>([])
   const [selectedLeads, setSelectedLeads] = useState<string[]>([])
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [leadDetails, setLeadDetails] = useState<LeadDetailsType | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadingDetails, setLoadingDetails] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  
+  const [error, setError] = useState<string | null>(null)
+  const [total, setTotal] = useState(0)
+
   // Filter states
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [intentFilter, setIntentFilter] = useState<string>('all')
@@ -100,59 +45,67 @@ export default function LeadsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(20)
 
-  // Apply filters
-  useEffect(() => {
-    let filtered = leads
+  // Load leads from API
+  const loadLeads = async () => {
+    if (!user?.id) return
 
-    // Search filter
-    if (searchQuery) {
-      filtered = filtered.filter(lead =>
-        lead.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.phoneNumber.includes(searchQuery) ||
-        lead.locationPreference?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    }
+    try {
+      setLoading(true)
+      setError(null)
 
-    // Status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(lead => lead.status === statusFilter)
-    }
-
-    // Intent filter
-    if (intentFilter !== 'all') {
-      filtered = filtered.filter(lead => lead.intent === intentFilter)
-    }
-
-    // Source filter
-    if (sourceFilter !== 'all') {
-      filtered = filtered.filter(lead => lead.source === sourceFilter)
-    }
-
-    // Date range filter
-    if (dateRange !== 'all') {
-      const now = new Date()
-      const filterDate = new Date()
-      
-      switch (dateRange) {
-        case '24h':
-          filterDate.setHours(now.getHours() - 24)
-          break
-        case '7d':
-          filterDate.setDate(now.getDate() - 7)
-          break
-        case '30d':
-          filterDate.setDate(now.getDate() - 30)
-          break
+      const filters = {
+        agentId: user.id,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        source: sourceFilter === 'all' ? undefined : sourceFilter,
+        // Add more filters as needed
       }
-      
-      filtered = filtered.filter(lead => 
-        new Date(lead.createdAt) >= filterDate
-      )
-    }
 
-    setFilteredLeads(filtered)
-    setCurrentPage(1) // Reset to first page when filters change
-  }, [leads, searchQuery, statusFilter, intentFilter, sourceFilter, dateRange])
+      const response = await leadsApi.getLeads(
+        filters,
+        itemsPerPage,
+        (currentPage - 1) * itemsPerPage
+      )
+
+      setLeads(response.leads)
+      setTotal(response.total)
+    } catch (err) {
+      console.error('Failed to load leads:', err)
+      setError('Failed to load leads')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Load lead details
+  const loadLeadDetails = async (leadId: string) => {
+    try {
+      setLoadingDetails(true)
+      const details = await leadsApi.getLeadDetails(leadId)
+      setLeadDetails(details)
+    } catch (err) {
+      console.error('Failed to load lead details:', err)
+      setError('Failed to load lead details')
+    } finally {
+      setLoadingDetails(false)
+    }
+  }
+
+  // Load leads when filters change
+  useEffect(() => {
+    loadLeads()
+  }, [user?.id, statusFilter, sourceFilter, currentPage])
+
+  // Filter leads locally for search
+  const filteredLeads = leads.filter(lead => {
+    if (!searchQuery) return true
+
+    return (
+      (lead.fullName && lead.fullName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      lead.phoneNumber.includes(searchQuery) ||
+      (lead.locationPreference && lead.locationPreference.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (lead.intent && lead.intent.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
+  })
 
   const handleLeadSelect = (leadId: string, selected: boolean) => {
     if (selected) {
@@ -170,18 +123,41 @@ export default function LeadsPage() {
     }
   }
 
-  const handleStatusUpdate = (leadIds: string[], newStatus: string) => {
-    setLeads(prev => prev.map(lead => 
-      leadIds.includes(lead.id) 
-        ? { ...lead, status: newStatus as Lead['status'] }
-        : lead
-    ))
-    setSelectedLeads([])
+  const handleLeadClick = async (lead: Lead) => {
+    setSelectedLead(lead)
+    await loadLeadDetails(lead.id)
   }
 
-  const handleBulkDelete = (leadIds: string[]) => {
-    setLeads(prev => prev.filter(lead => !leadIds.includes(lead.id)))
-    setSelectedLeads([])
+  const handleStatusUpdate = async (leadIds: string[], newStatus: string) => {
+    try {
+      // Update leads via API
+      for (const leadId of leadIds) {
+        await leadsApi.updateLead(leadId, { status: newStatus as Lead['status'] })
+      }
+
+      // Refresh leads list
+      await loadLeads()
+      setSelectedLeads([])
+    } catch (err) {
+      console.error('Failed to update lead status:', err)
+      setError('Failed to update lead status')
+    }
+  }
+
+  const handleBulkDelete = async (leadIds: string[]) => {
+    try {
+      // Delete leads via API
+      for (const leadId of leadIds) {
+        await leadsApi.deleteLead(leadId)
+      }
+
+      // Refresh leads list
+      await loadLeads()
+      setSelectedLeads([])
+    } catch (err) {
+      console.error('Failed to delete leads:', err)
+      setError('Failed to delete leads')
+    }
   }
 
   const handleExport = () => {
@@ -208,17 +184,15 @@ export default function LeadsPage() {
     window.URL.revokeObjectURL(url)
   }
 
-  // Pagination
-  const totalPages = Math.ceil(filteredLeads.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const paginatedLeads = filteredLeads.slice(startIndex, startIndex + itemsPerPage)
+  // Pagination - using server-side pagination
+  const totalPages = Math.ceil(total / itemsPerPage)
 
   const stats = {
-    total: leads.length,
+    total: total,
     new: leads.filter(l => l.status === 'new').length,
     qualified: leads.filter(l => l.status === 'qualified').length,
-    booked: leads.filter(l => l.status === 'booked').length,
-    completed: leads.filter(l => l.status === 'completed').length,
+    booked: leads.filter(l => l.status === 'appointment_set').length,
+    completed: leads.filter(l => l.status === 'converted').length,
     lost: leads.filter(l => l.status === 'lost').length,
   }
 
@@ -227,77 +201,81 @@ export default function LeadsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Lead Management</h1>
-          <p className="text-gray-600">
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Users className="h-6 w-6" />
+            Lead Management
+          </h1>
+          <p className="text-muted-foreground">
             Manage and track your leads through the sales pipeline
           </p>
         </div>
         <div className="flex items-center space-x-3">
-          <button
+          <Button
+            variant="outline"
             onClick={handleExport}
-            className="btn-secondary flex items-center"
           >
-            <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+            <Download className="h-4 w-4 mr-2" />
             Export
-          </button>
-          <button className="btn-primary flex items-center">
-            <PlusIcon className="h-4 w-4 mr-2" />
+          </Button>
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
             Add Lead
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         {Object.entries(stats).map(([key, value]) => (
-          <div key={key} className="metric-card">
-            <div className="metric-value">{value}</div>
-            <div className="metric-label capitalize">{key}</div>
-          </div>
+          <Card key={key}>
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold">{value}</div>
+              <div className="text-sm text-muted-foreground capitalize">{key}</div>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
       {/* Search and Filters */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex-1 max-w-md">
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex-1 max-w-md">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search leads..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
               </div>
-              <input
-                type="text"
-                className="input-field pl-10"
-                placeholder="Search leads..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            </div>
+            <div className="flex items-center space-x-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Filters
+              </Button>
             </div>
           </div>
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="btn-secondary flex items-center"
-            >
-              <FunnelIcon className="h-4 w-4 mr-2" />
-              Filters
-            </button>
-          </div>
-        </div>
 
-        {showFilters && (
-          <LeadFilters
-            statusFilter={statusFilter}
-            onStatusFilterChange={setStatusFilter}
-            intentFilter={intentFilter}
-            onIntentFilterChange={setIntentFilter}
-            sourceFilter={sourceFilter}
-            onSourceFilterChange={setSourceFilter}
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
-          />
-        )}
-      </div>
+          {showFilters && (
+            <LeadFilters
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+              intentFilter={intentFilter}
+              onIntentFilterChange={setIntentFilter}
+              sourceFilter={sourceFilter}
+              onSourceFilterChange={setSourceFilter}
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+            />
+          )}
+        </CardContent>
+      </Card>
 
       {/* Bulk Actions */}
       {selectedLeads.length > 0 && (
@@ -310,52 +288,74 @@ export default function LeadsPage() {
       )}
 
       {/* Lead Table */}
-      <div className="card p-0">
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <LoadingSpinner size="lg" />
-          </div>
-        ) : (
-          <LeadTable
-            leads={paginatedLeads}
-            selectedLeads={selectedLeads}
-            onLeadSelect={handleLeadSelect}
-            onSelectAll={handleSelectAll}
-            onLeadClick={setSelectedLead}
-            onStatusUpdate={(leadId, status) => handleStatusUpdate([leadId], status)}
-          />
-        )}
+      <Card>
+        <CardContent className="p-0">
+          {error && (
+            <div className="p-4 text-center text-red-600">
+              {error}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadLeads}
+                className="ml-2"
+              >
+                Retry
+              </Button>
+            </div>
+          )}
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <LoadingSpinner size="lg" />
+            </div>
+          ) : filteredLeads.length > 0 ? (
+            <LeadTable
+              leads={filteredLeads}
+              selectedLeads={selectedLeads}
+              onLeadSelect={handleLeadSelect}
+              onSelectAll={handleSelectAll}
+              onLeadClick={handleLeadClick}
+              onStatusUpdate={(leadId, status) => handleStatusUpdate([leadId], status)}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+              <Users className="h-8 w-8 mb-2" />
+              <p className="text-sm">No leads found</p>
+            </div>
+          )}
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-gray-200">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-700">
-                Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredLeads.length)} of {filteredLeads.length} results
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <span className="text-sm text-gray-700">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="px-6 py-4 border-t">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, total)} of {total} results
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Lead Details Modal */}
       {selectedLead && (

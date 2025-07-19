@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const logger = require('../logger');
 const intelligentFollowUpService = require('./intelligentFollowUpService');
+const newLeadFollowUpService = require('./newLeadFollowUpService');
 const databaseService = require('./databaseService');
 
 /**
@@ -75,6 +76,11 @@ class FollowUpScheduler {
     // Template performance update job - daily at 3 AM
     this.scheduleJob('template-performance', '0 3 * * *', async () => {
       await this._updateTemplatePerformance();
+    });
+
+    // 6-hour new lead follow-up job - every 10 minutes during business hours
+    this.scheduleJob('6-hour-followup', '*/10 * * * *', async () => {
+      await this._process6HourFollowUps();
     });
 
     this.isRunning = true;
@@ -541,6 +547,40 @@ class FollowUpScheduler {
       totalProcessed: this.stats.totalProcessed,
       totalFailed: this.stats.totalFailed
     };
+  }
+
+  /**
+   * Process 6-hour follow-ups for new leads
+   * @private
+   */
+  async _process6HourFollowUps() {
+    const startTime = Date.now();
+
+    try {
+      logger.debug('Processing 6-hour follow-ups for new leads');
+
+      const result = await newLeadFollowUpService.processPending6HourFollowUps();
+
+      const duration = Date.now() - startTime;
+
+      if (result.processed > 0) {
+        logger.info({
+          processed: result.processed,
+          failed: result.failed || 0,
+          duration
+        }, '6-hour follow-up processing completed');
+      } else {
+        logger.debug({
+          reason: result.reason || 'no_pending_followups',
+          duration
+        }, '6-hour follow-up processing completed (no actions taken)');
+      }
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      logger.error({ err: error, duration }, 'Error in 6-hour follow-up processing');
+      this._recordError('6-hour-followup', error);
+    }
   }
 }
 

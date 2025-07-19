@@ -1,6 +1,7 @@
 const axios = require('axios');
 const logger = require('../logger');
 const databaseService = require('./databaseService');
+const costTrackingService = require('./costTrackingService');
 
 class ExternalScrapingService {
   constructor() {
@@ -30,8 +31,9 @@ class ExternalScrapingService {
 
   /**
    * Scrape property data using external service
+   * @param {string} agentId - Agent ID for cost tracking (optional)
    */
-  async scrapePropertyData() {
+  async scrapePropertyData(agentId = null) {
     try {
       logger.info('Starting external scraping service');
 
@@ -103,6 +105,28 @@ class ExternalScrapingService {
           },
           timeout: 30000
         });
+
+        // Record cost tracking for ScrapingBee usage
+        if (agentId && response && response.data) {
+          try {
+            await costTrackingService.recordThirdPartyUsage({
+              agentId,
+              leadId: null,
+              serviceName: 'scrapingbee_request',
+              operationType: 'property_listings_scrape',
+              quantity: 1,
+              metadata: {
+                url: targetUrl,
+                provider: 'ScrapingBee',
+                render_js: true,
+                premium_proxy: true,
+                country_code: 'sg'
+              }
+            });
+          } catch (costError) {
+            logger.error({ err: costError, agentId }, 'Failed to record ScrapingBee cost');
+          }
+        }
       } else if (this.activeProvider.name === 'ScraperAPI') {
         response = await axios.get(this.activeProvider.endpoint, {
           params: {
@@ -113,6 +137,27 @@ class ExternalScrapingService {
           },
           timeout: 30000
         });
+
+        // Record cost tracking for ScraperAPI usage
+        if (agentId && response && response.data) {
+          try {
+            await costTrackingService.recordThirdPartyUsage({
+              agentId,
+              leadId: null,
+              serviceName: 'scrapingbee_request', // Using same category for simplicity
+              operationType: 'property_listings_scrape',
+              quantity: 1,
+              metadata: {
+                url: targetUrl,
+                provider: 'ScraperAPI',
+                render: true,
+                country_code: 'sg'
+              }
+            });
+          } catch (costError) {
+            logger.error({ err: costError, agentId }, 'Failed to record ScraperAPI cost');
+          }
+        }
       }
 
       if (response && response.data) {
@@ -352,7 +397,7 @@ class ExternalScrapingService {
 
       // Save visual assets (simplified for external scraping)
       for (const asset of propertyData.visualAssets) {
-        await supabase
+        await databaseService.supabase
           .from('visual_assets')
           .insert({
             project_id: project.id,

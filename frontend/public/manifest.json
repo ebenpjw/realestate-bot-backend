@@ -1,6 +1,6 @@
 {
-  "name": "PropertyHub Command",
-  "short_name": "PropertyHub",
+  "name": "Outpaced Command",
+  "short_name": "Outpaced",
   "description": "Apple-inspired frontend for multi-tenant real estate bot system",
   "start_url": "/",
   "display": "standalone",

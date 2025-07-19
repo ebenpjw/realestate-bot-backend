@@ -57,7 +57,15 @@ app.use(cors({
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'X-Request-ID',
+    'x-request-id',
+    'X-Request-Time',
+    'x-request-time'
+  ],
   exposedHeaders: ['X-Total-Count', 'X-Page-Count']
 }));
 
@@ -232,8 +240,8 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Apply rate limiting to API routes
-app.use('/api', rateLimits.api);
+// Rate limiting completely disabled for scalability
+logger.info('Rate limiting permanently disabled for scalability');
 
 // --- API Routes ---
 app.use('/api/gupshup', gupshupRouter);
@@ -248,6 +256,12 @@ app.use('/api/frontend-auth', frontendAuthRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/partner', partnerApiRouter);
 app.use('/api/leads', require('./api/leads'));
+app.use('/api/appointments', require('./api/appointments'));
+app.use('/api/conversations', require('./api/conversations'));
+app.use('/api/integrations', require('./api/integrations'));
+app.use('/api/agents', require('./api/agents'));
+app.use('/api/cost-tracking', require('./api/costTracking'));
+app.use('/api/cost-tracking-dashboard', require('./api/costTrackingDashboard'));
 // Optional feature loading with better error handling and feature flags
 const enabledFeatures = {
   visualProperty: process.env.ENABLE_VISUAL_PROPERTY_API !== 'false',
@@ -509,8 +523,23 @@ async function initializeAILearningSystem() {
   }
 }
 
+// Create HTTP server for Socket.IO support
+const http = require('http');
+const server = http.createServer(app);
+
+// Initialize Socket.IO
+try {
+  const { initializeSocketIO } = require('./services/socketService');
+  if (initializeSocketIO) {
+    initializeSocketIO(server);
+    logger.info('✅ Socket.IO initialized successfully');
+  }
+} catch (error) {
+  logger.warn('⚠️ Socket.IO initialization failed, continuing without WebSocket support:', error.message);
+}
+
 // Start server
-const server = app.listen(PORT, async () => {
+server.listen(PORT, async () => {
   logger.info({
     port: PORT,
     environment: config.NODE_ENV,

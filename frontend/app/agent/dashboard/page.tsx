@@ -7,20 +7,22 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth/AuthContext'
 import { useRealTimeNotifications } from '@/lib/hooks/useRealTimeNotifications'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
-import { RealTimeMetrics, LiveActivityFeed } from '@/components/ui/RealTimeStatus'
+import { apiClient } from '@/lib/api/client'
+import { showErrorToast } from '@/lib/utils/errorHandling'
+import { LiveActivityFeed } from '@/components/ui/RealTimeStatus'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
-  UserGroupIcon,
-  ChatBubbleLeftRightIcon,
-  CalendarDaysIcon,
-  ChartBarIcon,
-  ClockIcon,
-  PhoneIcon,
-} from '@heroicons/react/24/outline'
-import {
-  UserGroupIcon as UserGroupIconSolid,
-  ChatBubbleLeftRightIcon as ChatIconSolid,
-  CalendarDaysIcon as CalendarIconSolid,
-} from '@heroicons/react/24/solid'
+  Users,
+  MessageSquare,
+  Calendar,
+  BarChart3,
+  Clock,
+  Phone,
+  TrendingUp,
+  TrendingDown,
+} from 'lucide-react'
 
 // Mock data - this would come from your API
 const mockDashboardData = {
@@ -31,6 +33,12 @@ const mockDashboardData = {
     conversionRate: 24.5,
     avgResponseTime: 2.3,
     totalAppointments: 12,
+  },
+  growth: {
+    totalLeads: '+12%',
+    activeConversations: '+3',
+    conversionRate: '+2.1%',
+    appointmentsToday: 'On schedule'
   },
   recentLeads: [
     {
@@ -85,58 +93,113 @@ export default function AgentDashboard() {
   const { user } = useAuth()
   const { metrics: realTimeMetrics, connected } = useRealTimeNotifications()
   const [dashboardData, setDashboardData] = useState(mockDashboardData)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  // Fetch real dashboard data
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!user?.id) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+
+        // Fetch dashboard stats using API client
+        const response = await apiClient.get(`/api/dashboard/agent/stats?agentId=${user.id}`)
+        const statsData = response.data
+
+        if (statsData.success) {
+          // Update dashboard data with real data
+          setDashboardData(prev => ({
+            ...prev,
+            metrics: {
+              totalLeads: statsData.data.totalLeads || 0,
+              activeConversations: statsData.data.activeConversations || 0,
+              appointmentsToday: statsData.data.appointmentsToday || 0,
+              conversionRate: statsData.data.conversionRate || 0,
+              avgResponseTime: statsData.data.responseTime || 0,
+              totalAppointments: statsData.data.totalAppointments || 0,
+            },
+            growth: statsData.data.growth || {
+              totalLeads: '0%',
+              activeConversations: '0%',
+              conversionRate: '0%',
+              appointmentsToday: 'On schedule'
+            },
+            recentLeads: statsData.data.recentLeads || [],
+            upcomingAppointments: statsData.data.upcomingAppointments || []
+          }))
+        } else {
+          showErrorToast('Failed to load dashboard data', 'Dashboard Error')
+        }
+      } catch (error) {
+        showErrorToast(error, 'Failed to load dashboard')
+        // Keep using mock data on error with clear indication
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDashboardData()
+  }, [user?.id])
+
+  // Helper function to determine change type based on growth value
+  const getChangeType = (change: string) => {
+    if (change === 'On schedule' || change === '0%') return 'neutral'
+    if (change.startsWith('+')) return 'positive'
+    if (change.startsWith('-')) return 'negative'
+    return 'neutral'
+  }
 
   const metrics = [
     {
       name: 'Total Leads',
       value: dashboardData.metrics.totalLeads,
-      change: '+12%',
-      changeType: 'positive',
-      icon: UserGroupIcon,
-      iconSolid: UserGroupIconSolid,
+      change: dashboardData.growth?.totalLeads || '0%',
+      changeType: getChangeType(dashboardData.growth?.totalLeads || '0%'),
+      icon: Users,
       color: 'blue',
     },
     {
       name: 'Active Conversations',
       value: dashboardData.metrics.activeConversations,
-      change: '+3',
-      changeType: 'positive',
-      icon: ChatBubbleLeftRightIcon,
-      iconSolid: ChatIconSolid,
+      change: dashboardData.growth?.activeConversations || '0%',
+      changeType: getChangeType(dashboardData.growth?.activeConversations || '0%'),
+      icon: MessageSquare,
       color: 'green',
     },
     {
       name: 'Appointments Today',
       value: dashboardData.metrics.appointmentsToday,
-      change: 'On schedule',
+      change: dashboardData.growth?.appointmentsToday || 'On schedule',
       changeType: 'neutral',
-      icon: CalendarDaysIcon,
-      iconSolid: CalendarIconSolid,
+      icon: Calendar,
       color: 'purple',
     },
     {
       name: 'Conversion Rate',
       value: `${dashboardData.metrics.conversionRate}%`,
-      change: '+2.1%',
-      changeType: 'positive',
-      icon: ChartBarIcon,
+      change: dashboardData.growth?.conversionRate || '0%',
+      changeType: getChangeType(dashboardData.growth?.conversionRate || '0%'),
+      icon: BarChart3,
       color: 'orange',
     },
   ]
 
-  const getStatusColor = (status: string) => {
+  const getStatusVariant = (status: string) => {
     switch (status) {
       case 'new':
-        return 'bg-blue-100 text-blue-800'
+        return 'default'
       case 'qualified':
-        return 'bg-green-100 text-green-800'
+        return 'secondary'
       case 'booked':
-        return 'bg-purple-100 text-purple-800'
+        return 'default'
       case 'lost':
-        return 'bg-red-100 text-red-800'
+        return 'destructive'
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'outline'
     }
   }
 
@@ -151,171 +214,170 @@ export default function AgentDashboard() {
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-xl p-6 text-white">
-        <h1 className="text-2xl font-bold">
-          Good morning, {user?.full_name?.split(' ')[0] || 'Agent'}! 👋
-        </h1>
-        <p className="mt-2 text-primary-100">
-          You have {dashboardData.metrics.activeConversations} active conversations and {dashboardData.metrics.appointmentsToday} appointments today.
-        </p>
-      </div>
+      <Card className="bg-gradient-to-r from-primary to-primary/90 text-primary-foreground border-0">
+        <CardContent className="p-6">
+          <h1 className="text-2xl font-bold">
+            Good morning, {user?.full_name?.split(' ')[0] || 'Agent'}! 👋
+          </h1>
+          <p className="mt-2 text-primary-foreground/80">
+            You have {dashboardData.metrics.activeConversations} active conversations and {dashboardData.metrics.appointmentsToday} appointments today.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {metrics.map((metric) => {
-          const Icon = metric.iconSolid || metric.icon
+          const Icon = metric.icon
+          const TrendIcon = metric.changeType === 'positive' ? TrendingUp :
+                          metric.changeType === 'negative' ? TrendingDown : null
           return (
-            <div key={metric.name} className="metric-card">
-              <div className="flex items-center">
-                <div className={`p-2 rounded-lg bg-${metric.color}-100`}>
-                  <Icon className={`h-6 w-6 text-${metric.color}-600`} />
+            <Card key={metric.name}>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">{metric.name}</p>
+                    <p className="text-2xl font-bold">{metric.value}</p>
+                  </div>
+                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Icon className="h-6 w-6 text-primary" />
+                  </div>
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">{metric.name}</p>
-                  <p className="metric-value">{metric.value}</p>
+                <div className="mt-4 flex items-center">
+                  {TrendIcon && (
+                    <TrendIcon className={`h-4 w-4 mr-1 ${
+                      metric.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
+                    }`} />
+                  )}
+                  <span className={`text-sm font-medium ${
+                    metric.changeType === 'positive' ? 'text-green-600' :
+                    metric.changeType === 'negative' ? 'text-red-600' :
+                    'text-muted-foreground'
+                  }`}>
+                    {metric.change}
+                  </span>
                 </div>
-              </div>
-              <div className="mt-4">
-                <span className={`metric-change ${
-                  metric.changeType === 'positive' ? 'metric-change-positive' :
-                  metric.changeType === 'negative' ? 'metric-change-negative' :
-                  'text-gray-600'
-                }`}>
-                  {metric.change}
-                </span>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           )
         })}
       </div>
 
-      {/* Real-time Metrics */}
-      {connected && (
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Live Metrics</h2>
-            <div className="flex items-center space-x-2">
-              <div className="h-2 w-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span className="text-sm text-gray-600">Live</span>
-            </div>
-          </div>
-          <RealTimeMetrics />
-        </div>
-      )}
+
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Leads */}
         <div className="lg:col-span-2">
-          <div className="card">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-gray-900">Recent Leads</h2>
-              <button className="btn-ghost text-sm">View all</button>
-            </div>
-            <div className="space-y-4">
-              {dashboardData.recentLeads.map((lead) => (
-                <div key={lead.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-                  <div className="flex items-center space-x-4">
-                    <div className="h-10 w-10 bg-primary-100 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-medium text-primary-700">
-                        {lead.name.charAt(0)}
-                      </span>
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Recent Leads</CardTitle>
+                <Button variant="ghost" size="sm">View all</Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {dashboardData.recentLeads.map((lead) => (
+                  <div key={lead.id} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors cursor-pointer">
+                    <div className="flex items-center space-x-4">
+                      <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center">
+                        <span className="text-sm font-medium text-primary">
+                          {lead.name.charAt(0)}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-medium">{lead.name}</p>
+                        <p className="text-sm text-muted-foreground">{lead.phone}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{lead.lastMessage}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{lead.name}</p>
-                      <p className="text-sm text-gray-500">{lead.phone}</p>
-                      <p className="text-sm text-gray-600 mt-1">{lead.lastMessage}</p>
+                    <div className="text-right">
+                      <Badge variant={getStatusVariant(lead.status)}>
+                        {lead.status}
+                      </Badge>
+                      <p className="text-xs text-muted-foreground mt-1">{lead.timestamp}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(lead.status)}`}>
-                      {lead.status}
-                    </span>
-                    <p className="text-xs text-gray-500 mt-1">{lead.timestamp}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Upcoming Appointments */}
         <div>
-          <div className="card">
-            <h2 className="text-lg font-semibold text-gray-900 mb-6">Upcoming Appointments</h2>
-            <div className="space-y-4">
-              {dashboardData.upcomingAppointments.map((appointment) => (
-                <div key={appointment.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-medium text-gray-900">{appointment.leadName}</p>
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      appointment.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {appointment.status}
-                    </span>
+          <Card>
+            <CardHeader>
+              <CardTitle>Upcoming Appointments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {dashboardData.upcomingAppointments.map((appointment) => (
+                  <div key={appointment.id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="font-medium">{appointment.leadName}</p>
+                      <Badge variant={appointment.status === 'confirmed' ? 'secondary' : 'outline'}>
+                        {appointment.status}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Clock className="h-4 w-4 mr-1" />
+                      {appointment.time} • {appointment.date}
+                    </div>
+                    <div className="flex items-center text-sm text-muted-foreground mt-1">
+                      <Phone className="h-4 w-4 mr-1" />
+                      {appointment.type} Meeting
+                    </div>
                   </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <ClockIcon className="h-4 w-4 mr-1" />
-                    {appointment.time} • {appointment.date}
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600 mt-1">
-                    <PhoneIcon className="h-4 w-4 mr-1" />
-                    {appointment.type} Meeting
-                  </div>
-                </div>
-              ))}
-            </div>
-            <button className="w-full mt-4 btn-secondary text-sm">
-              View Calendar
-            </button>
-          </div>
+                ))}
+              </div>
+              <Button variant="secondary" className="w-full mt-4">
+                View Calendar
+              </Button>
+            </CardContent>
+          </Card>
 
           {/* Live Activity Feed */}
           {connected && (
-            <div className="card mt-6">
-              <LiveActivityFeed />
-            </div>
+            <Card className="mt-6">
+              <CardContent className="p-6">
+                <LiveActivityFeed />
+              </CardContent>
+            </Card>
           )}
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <button className="card-compact hover:shadow-md transition-shadow cursor-pointer text-left">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <ChatBubbleLeftRightIcon className="h-6 w-6 text-blue-600" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="hover:shadow-md transition-shadow cursor-pointer">
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <Users className="h-6 w-6 text-green-600" />
+              </div>
+              <div className="ml-4">
+                <p className="font-medium">View All Leads</p>
+                <p className="text-sm text-muted-foreground">Manage your lead pipeline</p>
+              </div>
             </div>
-            <div className="ml-4">
-              <p className="font-medium text-gray-900">Start Test Conversation</p>
-              <p className="text-sm text-gray-500">Test bot responses safely</p>
-            </div>
-          </div>
-        </button>
+          </CardContent>
+        </Card>
 
-        <button className="card-compact hover:shadow-md transition-shadow cursor-pointer text-left">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <UserGroupIcon className="h-6 w-6 text-green-600" />
+        <Card className="hover:shadow-md transition-shadow cursor-pointer">
+          <CardContent className="p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <BarChart3 className="h-6 w-6 text-purple-600" />
+              </div>
+              <div className="ml-4">
+                <p className="font-medium">View Analytics</p>
+                <p className="text-sm text-muted-foreground">Track your performance</p>
+              </div>
             </div>
-            <div className="ml-4">
-              <p className="font-medium text-gray-900">View All Leads</p>
-              <p className="text-sm text-gray-500">Manage your lead pipeline</p>
-            </div>
-          </div>
-        </button>
-
-        <button className="card-compact hover:shadow-md transition-shadow cursor-pointer text-left">
-          <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <ChartBarIcon className="h-6 w-6 text-purple-600" />
-            </div>
-            <div className="ml-4">
-              <p className="font-medium text-gray-900">View Analytics</p>
-              <p className="text-sm text-gray-500">Track your performance</p>
-            </div>
-          </div>
-        </button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

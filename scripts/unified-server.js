@@ -9,7 +9,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const logger = require('../logger');
 
 const PORT = process.env.PORT || 8080;
-const NODE_ENV = process.env.NODE_ENV || 'production';
+const NODE_ENV = (process.env.NODE_ENV || 'production').trim();
 
 // Create unified app
 const app = express();
@@ -101,10 +101,38 @@ try {
   logger.warn('⚠️ Socket.IO initialization failed, continuing without WebSocket support:', error.message);
 }
 
-// In standalone mode, this server only handles API routes
-// The Next.js frontend runs separately and proxies API requests here
-logger.info('🔌 API-only mode: Serving backend API endpoints only');
-logger.info('📱 Frontend will be served by separate Next.js process');
+// Frontend serving logic
+if (NODE_ENV === 'development') {
+  // In development, proxy frontend requests to Next.js dev server
+  const frontendProxy = createProxyMiddleware({
+    target: 'http://localhost:3000',
+    changeOrigin: true,
+    ws: true, // Enable WebSocket proxying
+    onError: (err, req, res) => {
+      logger.warn('Frontend proxy error:', err.message);
+      res.status(503).json({
+        error: 'Frontend service unavailable',
+        message: 'Make sure Next.js dev server is running on port 3000'
+      });
+    }
+  });
+
+  // Proxy all non-API requests to Next.js dev server
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/health')) {
+      next(); // Let backend handle API routes
+    } else {
+      frontendProxy(req, res, next); // Proxy to Next.js
+    }
+  });
+
+  logger.info('🔌 Development mode: Proxying frontend to Next.js dev server');
+  logger.info('📱 Make sure to run "npm run dev" in the frontend directory');
+} else {
+  // In production, serve static files from Next.js build
+  logger.info('🔌 Production mode: Serving backend API endpoints only');
+  logger.info('📱 Frontend will be served by separate Next.js process');
+}
 
 // Error handling
 app.use((err, req, res, next) => {

@@ -1,9 +1,9 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { useAuth } from '@/lib/auth/AuthContext'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 
 interface SocketContextType {
   socket: Socket | null

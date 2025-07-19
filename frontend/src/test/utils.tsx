@@ -1,5 +1,5 @@
-import React, { ReactElement } from 'react'
-import { render, RenderOptions } from '@testing-library/react'
+import React, { type ReactElement } from 'react'
+import { render, type RenderOptions } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from '@/lib/auth/AuthContext'
 import { SocketProvider } from '@/lib/socket/SocketContext'
@@ -218,5 +218,5 @@ export const customMatchers = {
 
 // Export everything for easy importing
 export * from '@testing-library/react'
-export * from '@testing-library/user-event'
+export { default as userEvent } from '@testing-library/user-event'
 export { vi } from 'vitest'

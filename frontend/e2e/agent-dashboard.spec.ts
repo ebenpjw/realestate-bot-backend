@@ -94,13 +94,7 @@ test.describe('Agent Dashboard', () => {
     await expect(page.locator('text=Manage your lead pipeline')).toBeVisible()
   })
 
-  test('should navigate to test conversation', async ({ page }) => {
-    // Click on start test conversation
-    await page.click('text=Start Test Conversation')
-    
-    // Should navigate to testing page
-    await expect(page).toHaveURL(/\/agent\/testing/)
-  })
+
 
   test('should navigate to leads page', async ({ page }) => {
     // Click on view all leads

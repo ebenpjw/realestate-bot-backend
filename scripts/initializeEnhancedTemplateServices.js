@@ -110,7 +110,7 @@ class EnhancedTemplateServicesInitializer {
       'OPENAI_API_KEY',
       'GUPSHUP_API_KEY',
       'GUPSHUP_PARTNER_EMAIL',
-      'GUPSHUP_PARTNER_PASSWORD',
+      'GUPSHUP_PARTNER_CLIENT_SECRET',
       'SUPABASE_URL',
       'SUPABASE_KEY'
     ];

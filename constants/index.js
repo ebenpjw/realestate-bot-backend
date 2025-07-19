@@ -4,17 +4,8 @@ const APP_CONSTANTS = {
   DEFAULT_PORT: 8080,
   SHUTDOWN_TIMEOUT: 10000, // 10 seconds
   
-  // Rate limiting
-  RATE_LIMIT: {
-    WEBHOOK: {
-      WINDOW_MS: 60 * 1000, // 1 minute
-      MAX_REQUESTS: 100
-    },
-    API: {
-      WINDOW_MS: 15 * 60 * 1000, // 15 minutes
-      MAX_REQUESTS: 1000
-    }
-  },
+  // Rate limiting - DISABLED for scalability
+  // All rate limiting constants removed
   
   // Message processing
   MESSAGE: {

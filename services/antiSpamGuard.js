@@ -90,20 +90,8 @@ class AntiSpamGuard {
         };
       }
 
-      // 2. Check rate limiting
-      const rateLimitCheck = this._checkRateLimit(senderWaId, timestamp);
-      if (!rateLimitCheck.allowed) {
-        this.metrics.rateLimit++;
-        
-        logger.warn({
-          operationId,
-          senderWaId,
-          messagesPerMinute: rateLimitCheck.messagesPerMinute,
-          maxAllowed: this.config.maxMessagesPerMinute
-        }, '[ANTI-SPAM] Message blocked - rate limit exceeded');
-        
-        return rateLimitCheck;
-      }
+      // 2. Rate limiting disabled for scalability
+      // Skip rate limiting check to allow high-volume usage
 
       // 3. Check message patterns for spam
       const patternCheck = this._checkSpamPatterns(userText);
@@ -240,42 +228,11 @@ class AntiSpamGuard {
   }
 
   /**
-   * Check rate limiting
+   * Check rate limiting - DISABLED for scalability
    * @private
    */
   _checkRateLimit(senderWaId, timestamp) {
-    const history = this.messageHistory.get(senderWaId) || [];
-    
-    // Count messages in last minute
-    const oneMinuteAgo = timestamp - 60000;
-    const recentMessages = history.filter(msg => msg.timestamp > oneMinuteAgo);
-    
-    if (recentMessages.length >= this.config.maxMessagesPerMinute) {
-      return {
-        allowed: false,
-        reason: 'rate_limit_exceeded',
-        action: 'block',
-        messagesPerMinute: recentMessages.length,
-        maxAllowed: this.config.maxMessagesPerMinute
-      };
-    }
-    
-    // Check minimum interval between messages
-    if (history.length > 0) {
-      const lastMessage = history[history.length - 1];
-      const interval = timestamp - lastMessage.timestamp;
-      
-      if (interval < this.config.minMessageInterval) {
-        return {
-          allowed: false,
-          reason: 'message_interval_too_short',
-          action: 'block',
-          interval,
-          minInterval: this.config.minMessageInterval
-        };
-      }
-    }
-    
+    // Rate limiting completely disabled for scalability
     return { allowed: true };
   }
 

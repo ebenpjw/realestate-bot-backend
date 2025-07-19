@@ -112,3 +112,5 @@ export function ResponseTimeChart({ data }: ResponseTimeChartProps) {
     </div>
   )
 }
+
+export default ResponseTimeChart

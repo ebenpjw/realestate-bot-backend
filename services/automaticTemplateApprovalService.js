@@ -4,77 +4,97 @@ const config = require('../config');
 const axios = require('axios');
 const wabaTemplateAutomationService = require('./wabaTemplateAutomationService');
 const multiTenantConfigService = require('./multiTenantConfigService');
+const supabase = databaseService.supabase;
 
 /**
- * AUTOMATIC TEMPLATE APPROVAL SERVICE
- * 
- * Automatically checks if agents have all required templates approved in their WABA
- * and submits missing templates via Gupshup Partner API. Ensures all agents have
- * consistent template coverage for the intelligent follow-up system.
- * 
+ * DYNAMIC TEMPLATE APPROVAL SERVICE
+ *
+ * Manages template creation and approval for the appointment-setting bot.
+ * Includes core templates for common appointment-setting scenarios plus
+ * dynamic template creation based on AI analysis of conversation patterns.
+ *
  * Features:
- * - Multi-agent template approval checking
- * - Automatic missing template submission
- * - Template synchronization across agents
- * - Approval status monitoring
- * - Integration with existing WABA automation
+ * - Core templates for common appointment-setting scenarios
+ * - Dynamic template creation based on AI analysis
+ * - Context-aware template generation
+ * - Automatic template approval workflow
+ * - Template performance tracking
  */
 class AutomaticTemplateApprovalService {
   constructor() {
-    // Required templates for all agents
-    this.REQUIRED_TEMPLATES = {
-      // Core follow-up templates
-      FOLLOW_UP_GENERIC: {
-        name: 'follow_up_generic',
+    // Core templates for appointment-setting scenarios
+    this.CORE_TEMPLATES = {
+      WELCOME_INITIAL_CONTACT: {
+        name: 'welcome_initial_contact',
         category: 'UTILITY',
         priority: 'high',
-        description: 'Generic follow-up message for leads'
+        description: 'Welcome message for new leads',
+        components: [
+          {
+            type: 'BODY',
+            text: 'Hi {{1}}, thanks for leaving your contact regarding {{2}}! 😊\n\nJust checking in to see what caught your eye or what you\'re exploring.\n\nFeel free to let me know, I\'ll do my best to help!'
+          }
+        ]
       },
-      FOLLOW_UP_FAMILY_DISCUSSION: {
-        name: 'follow_up_family_discussion',
+      FAMILY_DISCUSSION_FOLLOWUP: {
+        name: 'family_discussion_followup',
         category: 'UTILITY',
         priority: 'high',
-        description: 'Follow-up for leads needing family discussion'
+        description: 'Follow-up for leads discussing with family/partner',
+        components: [
+          {
+            type: 'BODY',
+            text: 'Hi {{1}}, hope you\'re doing well!\n\nHave you had a chance to discuss {{2}} with your family/partner?\n\nI\'m here whenever you\'re ready to explore further! 😊'
+          }
+        ]
       },
-      FOLLOW_UP_BUDGET_CONCERNS: {
-        name: 'follow_up_budget_concerns',
+      TIMING_FOLLOWUP: {
+        name: 'timing_followup',
         category: 'UTILITY',
         priority: 'high',
-        description: 'Follow-up for leads with budget concerns'
+        description: 'Follow-up for leads with timing concerns',
+        components: [
+          {
+            type: 'BODY',
+            text: 'Hi {{1}}, no worries about the timing!\n\nI\'ll check back with you in {{2}} as mentioned. In the meantime, feel free to reach out if anything changes or if you have questions about {{3}}!'
+          }
+        ]
       },
-      FOLLOW_UP_TIMING_NOT_RIGHT: {
-        name: 'follow_up_timing_not_right',
+      GENERAL_FOLLOWUP: {
+        name: 'general_followup',
         category: 'UTILITY',
         priority: 'high',
-        description: 'Follow-up for leads with timing issues'
+        description: 'General follow-up for non-responsive leads',
+        components: [
+          {
+            type: 'BODY',
+            text: 'Hi {{1}}, just a gentle follow-up on {{2}}!\n\nI know you\'re probably busy, but wanted to see if you had any questions or if there\'s anything specific I can help you with regarding your property search? 😊'
+          }
+        ]
       },
-      
-      // Appointment-related templates
+      CALLBACK_SCHEDULE_FOLLOWUP: {
+        name: 'callback_schedule_followup',
+        category: 'UTILITY',
+        priority: 'high',
+        description: 'Follow-up for leads who said they\'d get back',
+        components: [
+          {
+            type: 'BODY',
+            text: 'Hi {{1}}, hope you\'re well!\n\nYou mentioned you\'d get back to me about {{2}}. Just wanted to check if you\'ve had time to think it through or if you need any additional information?\n\nHappy to help! 😊'
+          }
+        ]
+      },
       APPOINTMENT_REMINDER: {
         name: 'appointment_reminder',
         category: 'UTILITY',
         priority: 'medium',
-        description: 'Appointment reminder message'
-      },
-      APPOINTMENT_CONFIRMATION: {
-        name: 'appointment_confirmation',
-        category: 'UTILITY',
-        priority: 'medium',
-        description: 'Appointment confirmation message'
-      },
-      
-      // Property update templates
-      PROPERTY_UPDATE_NOTIFICATION: {
-        name: 'property_update_notification',
-        category: 'MARKETING',
-        priority: 'low',
-        description: 'Property update notification'
-      },
-      MARKET_INSIGHT_SHARE: {
-        name: 'market_insight_share',
-        category: 'MARKETING',
-        priority: 'low',
-        description: 'Market insights sharing'
+        description: 'Reminder for scheduled appointments',
+        components: [
+          {
+            type: 'BODY',
+            text: 'Hi {{1}}, just a friendly reminder about our {{2}} appointment tomorrow at {{3}}!\n\nLooking forward to discussing {{4}} with you. See you then! 😊'
+          }
+        ]
       }
     };
 
@@ -202,7 +222,7 @@ class AutomaticTemplateApprovalService {
   }
 
   /**
-   * Check template approval status for a specific agent
+   * Check and ensure agent has core templates, plus process pending approvals
    * @private
    */
   async _checkAgentTemplateApproval(agent) {
@@ -211,31 +231,33 @@ class AutomaticTemplateApprovalService {
 
       // Get agent's current approved templates
       const approvedTemplates = await this._getAgentApprovedTemplates(agent.id);
-      
-      // Identify missing required templates
-      const missingTemplates = await this._identifyMissingTemplates(agent.id, approvedTemplates);
-      
-      if (missingTemplates.length === 0) {
-        logger.debug({ agentId: agent.id }, 'Agent has all required templates approved');
-        return {
-          agentId: agent.id,
-          agentName: agent.full_name,
-          templatesSubmitted: 0,
-          missingTemplates: [],
-          status: 'complete'
-        };
+
+      // Check for missing core templates
+      const missingCoreTemplates = await this._identifyMissingCoreTemplates(agent.id, approvedTemplates);
+
+      // Submit missing core templates
+      let coreTemplatesSubmitted = 0;
+      if (missingCoreTemplates.length > 0) {
+        const submissionResults = await this._submitMissingTemplates(agent, missingCoreTemplates);
+        coreTemplatesSubmitted = submissionResults.submitted;
       }
 
-      // Submit missing templates
-      const submissionResults = await this._submitMissingTemplates(agent, missingTemplates);
-      
+      // Check status of pending templates with Gupshup
+      const pendingTemplates = await this._getAgentPendingTemplates(agent.id);
+      let templatesUpdated = 0;
+      for (const template of pendingTemplates) {
+        const statusUpdated = await this._checkAndUpdateTemplateStatus(template);
+        if (statusUpdated) templatesUpdated++;
+      }
+
       return {
         agentId: agent.id,
         agentName: agent.full_name,
-        templatesSubmitted: submissionResults.submitted,
-        missingTemplates: missingTemplates.map(t => t.name),
-        submissionResults,
-        status: 'templates_submitted'
+        coreTemplatesSubmitted,
+        templatesChecked: pendingTemplates.length,
+        templatesUpdated,
+        missingCoreTemplates: missingCoreTemplates.map(t => t.name),
+        status: coreTemplatesSubmitted > 0 ? 'core_templates_submitted' : 'status_checked'
       };
 
     } catch (error) {
@@ -243,7 +265,9 @@ class AutomaticTemplateApprovalService {
       return {
         agentId: agent.id,
         agentName: agent.full_name,
-        templatesSubmitted: 0,
+        coreTemplatesSubmitted: 0,
+        templatesChecked: 0,
+        templatesUpdated: 0,
         error: error.message,
         status: 'error'
       };
@@ -257,7 +281,7 @@ class AutomaticTemplateApprovalService {
   async _getAgentApprovedTemplates(agentId) {
     try {
       const { data: templates, error } = await supabase
-        .from('waba_template_status')
+        .from('waba_templates')
         .select('template_name, template_category, status')
         .eq('agent_id', agentId)
         .eq('status', 'approved');
@@ -272,14 +296,14 @@ class AutomaticTemplateApprovalService {
   }
 
   /**
-   * Identify missing required templates for an agent
+   * Identify missing core templates for an agent
    * @private
    */
-  async _identifyMissingTemplates(agentId, approvedTemplates) {
+  async _identifyMissingCoreTemplates(agentId, approvedTemplates) {
     const approvedTemplateNames = new Set(approvedTemplates.map(t => t.template_name));
     const missingTemplates = [];
 
-    for (const [key, template] of Object.entries(this.REQUIRED_TEMPLATES)) {
+    for (const [key, template] of Object.entries(this.CORE_TEMPLATES)) {
       if (!approvedTemplateNames.has(template.name)) {
         missingTemplates.push({
           key,
@@ -294,6 +318,47 @@ class AutomaticTemplateApprovalService {
     missingTemplates.sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority]);
 
     return missingTemplates;
+  }
+
+  /**
+   * Get agent's pending templates that need status updates
+   * @private
+   */
+  async _getAgentPendingTemplates(agentId) {
+    try {
+      const { data: pendingTemplates, error } = await supabase
+        .from('waba_templates')
+        .select('*')
+        .eq('agent_id', agentId)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      return pendingTemplates || [];
+    } catch (error) {
+      logger.error({ err: error, agentId }, 'Failed to get agent pending templates');
+      return [];
+    }
+  }
+
+  /**
+   * Check and update template status with Gupshup
+   * @private
+   */
+  async _checkAndUpdateTemplateStatus(template) {
+    try {
+      // Use the existing template status checking service
+      const statusResult = await wabaTemplateAutomationService._checkSingleTemplateStatus(template);
+      return statusResult; // Returns true if status was updated
+    } catch (error) {
+      logger.error({
+        err: error,
+        templateId: template.id,
+        templateName: template.template_name
+      }, 'Failed to check template status');
+      return false;
+    }
   }
 
   /**
@@ -364,74 +429,16 @@ class AutomaticTemplateApprovalService {
    * @private
    */
   async _generateTemplateDefinition(template, agent) {
-    const templateDefinitions = {
-      follow_up_generic: {
-        components: [
-          {
-            type: 'BODY',
-            text: 'Hey {{1}}, how are you doing? Just checking in regarding your property search. Anything I can help with?'
-          }
-        ]
-      },
-      follow_up_family_discussion: {
-        components: [
-          {
-            type: 'BODY',
-            text: 'Hey {{1}}, how are you doing? Just checking in regarding your property search. Have you had a chance to discuss with your family?'
-          }
-        ]
-      },
-      follow_up_budget_concerns: {
-        components: [
-          {
-            type: 'BODY',
-            text: 'Hey {{1}}, how are you doing? Just checking in regarding your property search. Any updates on your budget considerations?'
-          }
-        ]
-      },
-      follow_up_timing_not_right: {
-        components: [
-          {
-            type: 'BODY',
-            text: 'Hey {{1}}, how are you doing? Just checking in regarding your property search. Has the timing become more suitable for you?'
-          }
-        ]
-      },
-      appointment_reminder: {
-        components: [
-          {
-            type: 'BODY',
-            text: 'Hi {{1}}, this is a reminder about your property consultation scheduled for {{2}} at {{3}}. Looking forward to speaking with you!'
-          }
-        ]
-      },
-      appointment_confirmation: {
-        components: [
-          {
-            type: 'BODY',
-            text: 'Hi {{1}}, your property consultation has been confirmed for {{2}} at {{3}}. You will receive a Zoom link shortly. See you then!'
-          }
-        ]
-      },
-      property_update_notification: {
-        components: [
-          {
-            type: 'BODY',
-            text: 'Hi {{1}}, there\'s an update on {{2}} properties in {{3}} that might interest you. {{4}} units are now available with prices starting from ${{5}}.'
-          }
-        ]
-      },
-      market_insight_share: {
-        components: [
-          {
-            type: 'BODY',
-            text: 'Hi {{1}}, here\'s a market insight that might interest you: {{2}} in {{3}} area. This could impact your property decision. Let me know if you\'d like to discuss!'
-          }
-        ]
-      }
-    };
+    // For core templates, use the predefined components
+    if (this.CORE_TEMPLATES[template.key]) {
+      return {
+        components: this.CORE_TEMPLATES[template.key].components
+      };
+    }
 
-    return templateDefinitions[template.name] || {
+    // For dynamic templates (AI-generated), this would be handled by AI service
+    // For now, return a generic fallback
+    return {
       components: [
         {
           type: 'BODY',
@@ -473,7 +480,7 @@ class AutomaticTemplateApprovalService {
   async getApprovalStatistics(agentId = null) {
     try {
       let query = supabase
-        .from('waba_template_status')
+        .from('waba_templates')
         .select('agent_id, template_name, template_category, status, created_at');
 
       if (agentId) {
@@ -553,7 +560,7 @@ class AutomaticTemplateApprovalService {
 
       // Get source agent's approved templates
       const { data: sourceTemplates, error } = await supabase
-        .from('waba_template_status')
+        .from('waba_templates')
         .select('*')
         .eq('agent_id', sourceAgentId)
         .eq('status', 'approved');
@@ -626,7 +633,7 @@ class AutomaticTemplateApprovalService {
     try {
       // Get target agent's existing templates
       const { data: existingTemplates, error } = await supabase
-        .from('waba_template_status')
+        .from('waba_templates')
         .select('template_name')
         .eq('agent_id', targetAgentId);
 

@@ -1,0 +1,26 @@
+{
+  "pages": {
+    "/_not-found/page": [
+      "static/chunks/[root-of-the-server]__46fc740a._.css",
+      "static/chunks/node_modules_@tanstack_query-devtools_build_7f060f07._.js",
+      "static/chunks/_1b44a163._.js",
+      "static/chunks/node_modules_next_721ac015._.js",
+      "static/chunks/node_modules_axios_lib_99999129._.js",
+      "static/chunks/node_modules_@tanstack_query-core_build_modern_7b47f90a._.js",
+      "static/chunks/node_modules_@tanstack_query-devtools_build_c02dd60e._.js",
+      "static/chunks/node_modules_16c98d90._.js",
+      "static/chunks/app_layout_tsx_58a9c777._.js",
+      "static/chunks/node_modules_next_dist_b758c999._.js",
+      "static/chunks/app_not-found_tsx_a45bf45d._.js",
+      "static/chunks/[turbopack]_browser_dev_hmr-client_hmr-client_ts_b7a1b65d._.js",
+      "static/chunks/node_modules_next_dist_compiled_react-dom_1f56dc06._.js",
+      "static/chunks/node_modules_next_dist_compiled_next-devtools_index_d575f738.js",
+      "static/chunks/node_modules_next_dist_compiled_0f1b9fd4._.js",
+      "static/chunks/node_modules_next_dist_client_20b209c9._.js",
+      "static/chunks/node_modules_next_dist_445d8acf._.js",
+      "static/chunks/ed0b0_@swc_helpers_cjs_036b0ed0._.js",
+      "static/chunks/_e69f0d32._.js",
+      "static/chunks/_d7fb4440._.js"
+    ]
+  }
+}

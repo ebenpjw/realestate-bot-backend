@@ -5,6 +5,7 @@ const databaseService = require('./databaseService');
 const { web_search } = require('./webSearchService');
 const multiLayerMonitoring = require('./multiLayerMonitoring');
 const { DORO_PERSONALITY } = require('../config/personality');
+const costTrackingService = require('./costTrackingService');
 
 /**
  * Multi-Layered AI Thinking Architecture for Real Estate Bot
@@ -56,6 +57,76 @@ class MultiLayerAI {
   }
 
   /**
+   * Wrapper for OpenAI API calls with cost tracking
+   * @private
+   */
+  async _callOpenAIWithTracking({
+    agentId,
+    leadId,
+    operationType,
+    messages,
+    model = config.OPENAI_MODEL || 'gpt-4.1',
+    temperature = 0.7,
+    maxTokens = 1000,
+    responseFormat = null,
+    metadata = {}
+  }) {
+    try {
+      const requestParams = {
+        model,
+        messages,
+        temperature,
+        max_tokens: maxTokens
+      };
+
+      if (responseFormat) {
+        requestParams.response_format = responseFormat;
+      }
+
+      const completion = await this.openai.chat.completions.create(requestParams);
+
+      // Extract token usage
+      const inputTokens = completion.usage?.prompt_tokens || 0;
+      const outputTokens = completion.usage?.completion_tokens || 0;
+      const totalTokens = completion.usage?.total_tokens || 0;
+
+      // Record cost tracking
+      if (agentId) {
+        await costTrackingService.recordOpenAIUsage({
+          agentId,
+          leadId,
+          operationType,
+          model,
+          inputTokens,
+          outputTokens,
+          metadata: {
+            ...metadata,
+            temperature,
+            max_tokens: maxTokens,
+            total_tokens: totalTokens
+          }
+        }).catch(err => {
+          logger.error({ err, agentId, operationType }, 'Failed to record OpenAI cost tracking');
+        });
+      }
+
+      logger.debug({
+        operationType,
+        model,
+        inputTokens,
+        outputTokens,
+        totalTokens
+      }, 'OpenAI API call completed with cost tracking');
+
+      return completion;
+
+    } catch (error) {
+      logger.error({ err: error, operationType, model }, 'OpenAI API call failed');
+      throw error;
+    }
+  }
+
+  /**
    * Main processing entry point - replaces current message processing
    * Processes message through all 5 AI layers sequentially
    * Enhanced with agent context support for multi-tenant operations
@@ -89,13 +160,15 @@ class MultiLayerAI {
           userText,
           conversationHistory,
           leadData,
-          operationId
+          operationId,
+          agentId
         }),
         // LAYER 2: Intelligence Gathering & Data Retrieval with Fact-Checking
         this._layer2_intelligenceGathering({
           userText,
           leadData,
-          operationId
+          operationId,
+          agentId
         })
       ]);
 
@@ -104,7 +177,8 @@ class MultiLayerAI {
         psychologyAnalysis,
         intelligenceData,
         leadData,
-        operationId
+        operationId,
+        agentId
       });
 
       // LAYER 4: Content Generation & Personalization
@@ -113,7 +187,8 @@ class MultiLayerAI {
         intelligenceData,
         responseStrategy,
         leadData,
-        operationId
+        operationId,
+        agentId
       });
 
       // LAYER 5: Synthesis & Quality Validation
@@ -123,7 +198,8 @@ class MultiLayerAI {
         responseStrategy,
         contentGeneration,
         leadData,
-        operationId
+        operationId,
+        agentId
       });
 
       // Calculate processing time
@@ -199,17 +275,20 @@ class MultiLayerAI {
     userText,
     conversationHistory,
     leadData,
-    operationId
+    operationId,
+    agentId
   }) {
     const startTime = Date.now();
-    
+
     try {
       logger.debug({ operationId }, '[LAYER1] Starting psychology analysis');
 
       const prompt = this._buildPsychologyPrompt(userText, conversationHistory, leadData);
-      
-      const completion = await this.openai.chat.completions.create({
-        model: config.OPENAI_MODEL || 'gpt-4.1',
+
+      const completion = await this._callOpenAIWithTracking({
+        agentId,
+        leadId,
+        operationType: 'psychology_analysis',
         messages: [
           {
             role: 'system',
@@ -221,8 +300,14 @@ class MultiLayerAI {
           }
         ],
         temperature: 0.3,
-        max_tokens: 600, // SPEED OPTIMIZATION: Limit psychology analysis length
-        response_format: { type: "json_object" }
+        maxTokens: 600,
+        responseFormat: { type: "json_object" },
+        metadata: {
+          layer: 1,
+          operation_id: operationId,
+          user_text_length: userText?.length || 0,
+          conversation_history_length: conversationHistory?.length || 0
+        }
       });
 
       const analysis = JSON.parse(completion.choices[0]?.message?.content || '{}');
@@ -260,7 +345,8 @@ class MultiLayerAI {
   async _layer2_intelligenceGathering({
     userText,
     leadData,
-    operationId
+    operationId,
+    agentId
   }) {
     const startTime = Date.now();
     
@@ -622,7 +708,7 @@ Provide detailed psychological analysis in JSON format:
       // Extract property search criteria from message
       const searchCriteria = this._extractPropertyCriteria(userText, leadData);
 
-      let query = supabase
+      let query = databaseService.supabase
         .from('property_projects')
         .select(`
           *,
@@ -1058,7 +1144,8 @@ Provide verification analysis in JSON format:
     psychologyAnalysis,
     intelligenceData,
     leadData,
-    operationId
+    operationId,
+    agentId
   }) {
     const startTime = Date.now();
 
@@ -1067,8 +1154,10 @@ Provide verification analysis in JSON format:
 
       const strategyPrompt = this._buildStrategyPrompt(psychologyAnalysis, intelligenceData, leadData);
 
-      const completion = await this.openai.chat.completions.create({
-        model: config.OPENAI_MODEL || 'gpt-4.1',
+      const completion = await this._callOpenAIWithTracking({
+        agentId,
+        leadId: leadData?.id,
+        operationType: 'strategic_planning',
         messages: [
           {
             role: 'system',
@@ -1080,8 +1169,14 @@ Provide verification analysis in JSON format:
           }
         ],
         temperature: 0.4,
-        max_tokens: 800, // SPEED OPTIMIZATION: Limit strategy planning length
-        response_format: { type: "json_object" }
+        maxTokens: 800,
+        responseFormat: { type: "json_object" },
+        metadata: {
+          layer: 3,
+          operation_id: operationId,
+          psychology_confidence: psychologyAnalysis?.confidence || 0,
+          intelligence_data_count: intelligenceData?.properties?.length || 0
+        }
       });
 
       const strategy = JSON.parse(completion.choices[0]?.message?.content || '{}');
@@ -1133,7 +1228,8 @@ Provide verification analysis in JSON format:
     intelligenceData,
     responseStrategy,
     leadData,
-    operationId
+    operationId,
+    agentId
   }) {
     const startTime = Date.now();
 
@@ -1147,8 +1243,10 @@ Provide verification analysis in JSON format:
         leadData
       );
 
-      const completion = await this.openai.chat.completions.create({
-        model: config.OPENAI_MODEL || 'gpt-4.1',
+      const completion = await this._callOpenAIWithTracking({
+        agentId,
+        leadId: leadData?.id,
+        operationType: 'content_generation',
         messages: [
           {
             role: 'system',
@@ -1160,8 +1258,14 @@ Provide verification analysis in JSON format:
           }
         ],
         temperature: 0.6,
-        max_tokens: 500, // SPEED OPTIMIZATION: Limit content generation for WhatsApp
-        response_format: { type: "json_object" }
+        maxTokens: 500,
+        responseFormat: { type: "json_object" },
+        metadata: {
+          layer: 4,
+          operation_id: operationId,
+          strategy_type: responseStrategy?.strategy || 'unknown',
+          include_floor_plans: responseStrategy?.includeFloorPlans || false
+        }
       });
 
       const content = JSON.parse(completion.choices[0]?.message?.content || '{}');
@@ -1197,7 +1301,8 @@ Provide verification analysis in JSON format:
     responseStrategy,
     contentGeneration,
     leadData,
-    operationId
+    operationId,
+    agentId
   }) {
     const startTime = Date.now();
 
@@ -1212,8 +1317,10 @@ Provide verification analysis in JSON format:
         leadData
       );
 
-      const completion = await this.openai.chat.completions.create({
-        model: config.OPENAI_MODEL || 'gpt-4.1',
+      const completion = await this._callOpenAIWithTracking({
+        agentId,
+        leadId: leadData?.id,
+        operationType: 'synthesis_validation',
         messages: [
           {
             role: 'system',
@@ -1225,8 +1332,14 @@ Provide verification analysis in JSON format:
           }
         ],
         temperature: 0.2,
-        max_tokens: 400, // SPEED OPTIMIZATION: Limit synthesis validation
-        response_format: { type: "json_object" }
+        maxTokens: 400,
+        responseFormat: { type: "json_object" },
+        metadata: {
+          layer: 5,
+          operation_id: operationId,
+          content_quality_score: contentGeneration?.qualityScore || 0,
+          strategy_confidence: responseStrategy?.confidence || 0
+        }
       });
 
       const synthesis = JSON.parse(completion.choices[0]?.message?.content || '{}');

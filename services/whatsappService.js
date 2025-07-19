@@ -3,6 +3,7 @@ const config = require('../config');
 const logger = require('../logger');
 const { MESSAGE, VALIDATION } = require('../constants');
 const { ExternalServiceError, ValidationError } = require('../middleware/errorHandler');
+const costTrackingService = require('./costTrackingService');
 
 class WhatsAppService {
   constructor(agentConfig = null) {
@@ -69,10 +70,12 @@ class WhatsAppService {
    * @param {Object} params - Message parameters
    * @param {string} params.to - Recipient phone number
    * @param {string} params.message - Message text
+   * @param {string} params.agentId - Agent ID for cost tracking (optional)
+   * @param {string} params.leadId - Lead ID for cost tracking (optional)
    * @param {Object} options - Additional options
    * @returns {Promise<Object>} Send result
    */
-  async sendMessage({ to, message }, _options = {}) {
+  async sendMessage({ to, message, agentId = null, leadId = null }, _options = {}) {
     try {
       // CRITICAL SAFETY CHECK: Block test phone numbers
       const testNumbers = ['+6591234567', '+6587654321', '+6512345678'];
@@ -126,15 +129,42 @@ class WhatsAppService {
         results.push(result);
       }
 
-      logger.info({ 
-        to, 
+      const overallSuccess = results.every(r => r.success);
+
+      // Record cost tracking for successful session messages
+      if (overallSuccess && agentId) {
+        try {
+          // Record cost for each successful message part
+          const successfulParts = results.filter(r => r.success);
+          for (const result of successfulParts) {
+            await costTrackingService.recordGupshupUsage({
+              agentId,
+              leadId,
+              messageType: 'session',
+              phoneNumber: to,
+              messageId: result.messageId,
+              metadata: {
+                message_length: message.length,
+                total_parts: messageParts.length,
+                part_index: result.partIndex,
+                waba_number: this.wabaNumber
+              }
+            });
+          }
+        } catch (costError) {
+          logger.error({ err: costError, agentId, to }, 'Failed to record session message cost');
+        }
+      }
+
+      logger.info({
+        to,
         messageLength: message.length,
         parts: messageParts.length,
-        success: results.every(r => r.success)
+        success: overallSuccess
       }, 'WhatsApp message sent');
 
       return {
-        success: results.every(r => r.success),
+        success: overallSuccess,
         results,
         totalParts: messageParts.length
       };
@@ -158,9 +188,11 @@ class WhatsAppService {
    * @param {Array} params.params - Template parameters
    * @param {string} params.templateName - Template name for logging
    * @param {string} params.category - Template category (MARKETING, UTILITY, AUTHENTICATION)
+   * @param {string} params.agentId - Agent ID for cost tracking (optional)
+   * @param {string} params.leadId - Lead ID for cost tracking (optional)
    * @returns {Promise<Object>} Send result
    */
-  async sendTemplateMessage({ to, templateId, params = [], templateName = '', category = 'UTILITY' }) {
+  async sendTemplateMessage({ to, templateId, params = [], templateName = '', category = 'UTILITY', agentId = null, leadId = null }) {
     try {
       // CRITICAL SAFETY CHECK: Block test phone numbers
       const testNumbers = ['+6591234567', '+6587654321', '+6512345678'];
@@ -217,6 +249,28 @@ class WhatsAppService {
       const response = await this.client.post('/template/msg', payload);
 
       const success = response.data?.status === 'submitted';
+
+      // Record cost tracking for successful template messages
+      if (success && agentId) {
+        try {
+          await costTrackingService.recordGupshupUsage({
+            agentId,
+            leadId,
+            messageType: 'template',
+            phoneNumber: to,
+            templateName,
+            messageId: response.data?.messageId,
+            metadata: {
+              template_id: templateId,
+              category,
+              params_count: params.length,
+              waba_number: this.wabaNumber
+            }
+          });
+        } catch (costError) {
+          logger.error({ err: costError, agentId, templateId }, 'Failed to record template message cost');
+        }
+      }
 
       // Note: Template usage logging is handled by TemplateService to avoid duplication
 

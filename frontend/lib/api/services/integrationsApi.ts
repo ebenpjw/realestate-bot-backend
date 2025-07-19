@@ -78,7 +78,7 @@ class IntegrationsApi {
    * Get all integration statuses for an agent
    */
   async getIntegrationStatus(agentId?: string): Promise<IntegrationStatus> {
-    const response = await apiClient.get('/dashboard/integrations/status', {
+    const response = await apiClient.get('/api/dashboard/integrations/status', {
       params: { agentId }
     })
     return response.data.data
@@ -88,7 +88,7 @@ class IntegrationsApi {
    * Get WABA integration details
    */
   async getWABAIntegration(agentId?: string): Promise<WABAIntegration> {
-    const response = await apiClient.get('/dashboard/integrations/waba', {
+    const response = await apiClient.get('/api/dashboard/integrations/waba', {
       params: { agentId }
     })
     return response.data.data
@@ -98,7 +98,7 @@ class IntegrationsApi {
    * Connect WABA integration
    */
   async connectWABA(request: ConnectWABARequest): Promise<WABAIntegration> {
-    const response = await apiClient.post('/dashboard/integrations/waba/connect', request)
+    const response = await apiClient.post('/api/integrations/waba/connect', request)
     return response.data.data
   }
 
@@ -106,7 +106,7 @@ class IntegrationsApi {
    * Update WABA integration
    */
   async updateWABA(request: UpdateWABARequest): Promise<WABAIntegration> {
-    const response = await apiClient.patch('/dashboard/integrations/waba', request)
+    const response = await apiClient.patch('/api/integrations/waba', request)
     return response.data.data
   }
 
@@ -114,7 +114,7 @@ class IntegrationsApi {
    * Disconnect WABA integration
    */
   async disconnectWABA(): Promise<void> {
-    await apiClient.post('/dashboard/integrations/waba/disconnect')
+    await apiClient.post('/api/integrations/waba/disconnect')
   }
 
   /**
@@ -125,7 +125,7 @@ class IntegrationsApi {
     message: string
     details?: any
   }> {
-    const response = await apiClient.post('/dashboard/integrations/waba/test', {
+    const response = await apiClient.post('/api/integrations/waba/test', {
       agentId
     })
     return response.data.data
@@ -139,7 +139,7 @@ class IntegrationsApi {
     setupUrl: string
     expiresAt: string
   }> {
-    const response = await apiClient.get('/dashboard/integrations/waba/qr-code')
+    const response = await apiClient.get('/api/integrations/waba/qr-code')
     return response.data.data
   }
 
@@ -147,7 +147,7 @@ class IntegrationsApi {
    * Get Google Calendar integration
    */
   async getGoogleIntegration(agentId?: string): Promise<GoogleIntegration> {
-    const response = await apiClient.get('/dashboard/integrations/google', {
+    const response = await apiClient.get('/api/integrations/google', {
       params: { agentId }
     })
     return response.data.data
@@ -160,7 +160,7 @@ class IntegrationsApi {
     authUrl: string
     state: string
   }> {
-    const response = await apiClient.get('/auth/google', {
+    const response = await apiClient.get('/api/auth/google', {
       params: { agentId }
     })
     return response.data
@@ -170,7 +170,7 @@ class IntegrationsApi {
    * Disconnect Google integration
    */
   async disconnectGoogle(): Promise<void> {
-    await apiClient.post('/dashboard/integrations/google/disconnect')
+    await apiClient.post('/api/integrations/google/disconnect')
   }
 
   /**
@@ -182,7 +182,7 @@ class IntegrationsApi {
     calendarCount?: number
     lastEvent?: string
   }> {
-    const response = await apiClient.post('/dashboard/integrations/google/test', {
+    const response = await apiClient.post('/api/integrations/google/test', {
       agentId
     })
     return response.data.data
@@ -192,7 +192,7 @@ class IntegrationsApi {
    * Get Zoom integration
    */
   async getZoomIntegration(agentId?: string): Promise<ZoomIntegration> {
-    const response = await apiClient.get('/dashboard/integrations/zoom', {
+    const response = await apiClient.get('/api/integrations/zoom', {
       params: { agentId }
     })
     return response.data.data
@@ -205,7 +205,7 @@ class IntegrationsApi {
     authUrl: string
     state: string
   }> {
-    const response = await apiClient.get('/auth/zoom', {
+    const response = await apiClient.get('/api/auth/zoom', {
       params: { agentId }
     })
     return response.data
@@ -215,7 +215,7 @@ class IntegrationsApi {
    * Disconnect Zoom integration
    */
   async disconnectZoom(): Promise<void> {
-    await apiClient.post('/dashboard/integrations/zoom/disconnect')
+    await apiClient.post('/api/integrations/zoom/disconnect')
   }
 
   /**
@@ -227,7 +227,7 @@ class IntegrationsApi {
     meetingCapability?: boolean
     personalMeetingId?: string
   }> {
-    const response = await apiClient.post('/dashboard/integrations/zoom/test', {
+    const response = await apiClient.post('/api/integrations/zoom/test', {
       agentId
     })
     return response.data.data
@@ -241,7 +241,7 @@ class IntegrationsApi {
     waitingRoom?: boolean
     joinBeforeHost?: boolean
   }): Promise<ZoomIntegration> {
-    const response = await apiClient.patch('/dashboard/integrations/zoom/settings', settings)
+    const response = await apiClient.patch('/api/integrations/zoom/settings', settings)
     return response.data.data
   }
 
@@ -249,7 +249,7 @@ class IntegrationsApi {
    * Get Meta Business integration
    */
   async getMetaBusinessIntegration(agentId?: string): Promise<MetaBusinessIntegration> {
-    const response = await apiClient.get('/dashboard/integrations/meta', {
+    const response = await apiClient.get('/api/integrations/meta', {
       params: { agentId }
     })
     return response.data.data
@@ -262,7 +262,7 @@ class IntegrationsApi {
     authUrl: string
     state: string
   }> {
-    const response = await apiClient.get('/dashboard/integrations/meta/auth-url')
+    const response = await apiClient.get('/api/integrations/meta/auth-url')
     return response.data
   }
 
@@ -270,7 +270,7 @@ class IntegrationsApi {
    * Disconnect Meta Business integration
    */
   async disconnectMeta(): Promise<void> {
-    await apiClient.post('/dashboard/integrations/meta/disconnect')
+    await apiClient.post('/api/integrations/meta/disconnect')
   }
 
   /**
@@ -282,7 +282,7 @@ class IntegrationsApi {
     zoom: { success: boolean; message: string }
     meta: { success: boolean; message: string }
   }> {
-    const response = await apiClient.post('/dashboard/integrations/sync-all', {
+    const response = await apiClient.post('/api/integrations/sync-all', {
       agentId
     })
     return response.data.data
@@ -301,7 +301,7 @@ class IntegrationsApi {
     }
     recommendations: string[]
   }> {
-    const response = await apiClient.get('/dashboard/integrations/health', {
+    const response = await apiClient.get('/api/integrations/health', {
       params: { agentId }
     })
     return response.data.data

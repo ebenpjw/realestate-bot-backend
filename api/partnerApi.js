@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const logger = require('../logger');
-const { authenticateJWT } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const { validateRequest } = require('../middleware/validation');
 const multiTenantConfigService = require('../services/multiTenantConfigService');
 const gupshupPartnerService = require('../services/gupshupPartnerService');
@@ -23,7 +23,7 @@ const validateAgentId = (req, res, next) => {
 };
 
 // Get agent WABA configuration
-router.get('/agents/:agentId/waba', authenticateJWT, validateAgentId, async (req, res) => {
+router.get('/agents/:agentId/waba', authenticateToken, validateAgentId, async (req, res) => {
   try {
     const agentId = req.params.agentId;
     
@@ -55,44 +55,64 @@ router.get('/agents/:agentId/waba', authenticateJWT, validateAgentId, async (req
   }
 });
 
-// Setup agent WABA
-router.post('/agents/:agentId/waba/setup', authenticateJWT, validateAgentId, validateRequest({
-  body: {
-    phoneNumber: { type: 'string', optional: true },
-    displayName: { type: 'string', optional: true },
-    botName: { type: 'string', optional: true }
-  }
-}), async (req, res) => {
+// Auto-discover and configure agent WABA
+router.post('/agents/:agentId/waba/auto-discover', authenticateToken, validateAgentId, async (req, res) => {
   try {
     const agentId = req.params.agentId;
-    
+
     // Validate agent access (agent can only access their own config)
     if (req.user.role !== 'admin' && req.user.id !== agentId) {
       return res.status(403).json({ error: 'Unauthorized access to agent configuration' });
     }
-    
-    // Setup agent WABA
-    const setupResult = await agentWABASetupService.setupAgentWABA({
-      agentId,
-      phoneNumber: req.body.phoneNumber,
-      displayName: req.body.displayName,
-      botName: req.body.botName
-    });
-    
+
+    // Auto-discover and configure agent WABA
+    const result = await agentWABASetupService.autoDiscoverAndConfigureWABA(agentId);
+
     res.json({
-      success: true,
-      message: 'Agent WABA setup completed successfully',
-      setupResult
+      success: result.success,
+      message: result.message,
+      data: result
     });
-    
+
   } catch (error) {
-    logger.error({ err: error, agentId: req.params.agentId }, 'Failed to setup agent WABA');
+    logger.error({ err: error, agentId: req.params.agentId }, 'Failed to auto-discover agent WABA');
     res.status(500).json({ error: error.message });
   }
 });
 
+// Discover WABA details by phone number (for form auto-population)
+router.post('/waba/discover-by-phone', authenticateToken, validateRequest({
+  body: {
+    phoneNumber: { type: 'string' }
+  }
+}), async (req, res) => {
+  try {
+    // Only admins can discover WABA details
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Unauthorized access to WABA discovery' });
+    }
+
+    const { phoneNumber } = req.body;
+
+    // Discover WABA details by phone number
+    const discoveredDetails = await agentWABASetupService.discoverWABADetailsByPhoneNumber(phoneNumber);
+
+    res.json({
+      success: discoveredDetails.found,
+      message: discoveredDetails.found ? 'WABA details discovered successfully' : 'No WABA details found for this phone number',
+      data: discoveredDetails
+    });
+
+  } catch (error) {
+    logger.error({ err: error, phoneNumber: req.body.phoneNumber }, 'Failed to discover WABA details by phone number');
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+
 // Get agent templates
-router.get('/agents/:agentId/templates', authenticateJWT, validateAgentId, async (req, res) => {
+router.get('/agents/:agentId/templates', authenticateToken, validateAgentId, async (req, res) => {
   try {
     const agentId = req.params.agentId;
     const category = req.query.category;
@@ -117,7 +137,7 @@ router.get('/agents/:agentId/templates', authenticateJWT, validateAgentId, async
 });
 
 // Create agent template
-router.post('/agents/:agentId/templates', authenticateJWT, validateAgentId, validateRequest({
+router.post('/agents/:agentId/templates', authenticateToken, validateAgentId, validateRequest({
   body: {
     templateName: {
       type: 'string',
@@ -209,7 +229,7 @@ router.post('/agents/:agentId/templates', authenticateJWT, validateAgentId, vali
 });
 
 // Get Partner API apps
-router.get('/apps', authenticateJWT, async (req, res) => {
+router.get('/apps', authenticateToken, async (req, res) => {
   try {
     // Only admins can access all apps
     if (req.user.role !== 'admin') {
@@ -231,7 +251,7 @@ router.get('/apps', authenticateJWT, async (req, res) => {
 });
 
 // Create Partner API app
-router.post('/apps', authenticateJWT, validateRequest({
+router.post('/apps', authenticateToken, validateRequest({
   body: {
     name: { type: 'string' },
     templateMessaging: { type: 'boolean', optional: true }
@@ -262,7 +282,7 @@ router.post('/apps', authenticateJWT, validateRequest({
 });
 
 // Register phone for app
-router.post('/apps/:appId/phone', authenticateJWT, validateRequest({
+router.post('/apps/:appId/phone', authenticateToken, validateRequest({
   body: {
     phoneNumber: { type: 'string' }
   }

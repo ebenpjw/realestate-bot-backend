@@ -77,9 +77,23 @@ const config: Config = {
           500: '#ef4444',
           600: '#dc2626',
         },
+        sidebar: {
+          DEFAULT: 'hsl(var(--sidebar-background))',
+          foreground: 'hsl(var(--sidebar-foreground))',
+          primary: 'hsl(var(--sidebar-primary))',
+          'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
+          accent: 'hsl(var(--sidebar-accent))',
+          'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
+          border: 'hsl(var(--sidebar-border))',
+          ring: 'hsl(var(--sidebar-ring))',
+        },
+        danger: {
+          DEFAULT: 'hsl(var(--danger))',
+          foreground: 'hsl(var(--danger-foreground))',
+        },
       },
       fontFamily: {
-        sans: ['var(--font-sans)', ...fontFamily.sans],
+        sans: ['Inter var', 'var(--font-sans)', ...fontFamily.sans],
         mono: ['var(--font-mono)', ...fontFamily.mono],
       },
       fontSize: {
@@ -99,6 +113,10 @@ const config: Config = {
         'apple-lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
         'apple-xl': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
         'inner-apple': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)',
+        'card': '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)',
+        'card-hover': '0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22)',
+        'neomorphic': '10px 10px 20px #d1d1d1, -10px -10px 20px #ffffff',
+        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.1)',
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',
@@ -116,6 +134,8 @@ const config: Config = {
         'pulse-subtle': 'pulseSubtle 2s infinite',
         'bounce-subtle': 'bounceSubtle 1s infinite',
         'shimmer': 'shimmer 2s linear infinite',
+        'pulse-gentle': 'pulse-gentle 2s ease-in-out infinite',
+        'float': 'float 3s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -178,6 +198,14 @@ const config: Config = {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(100%)' },
         },
+        'pulse-gentle': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.8' },
+        },
+        'float': {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-5px)' },
+        },
       },
       backdropBlur: {
         xs: '2px',
@@ -193,10 +221,9 @@ const config: Config = {
     },
   },
   plugins: [
-    require('@tailwindcss/forms')({
-      strategy: 'class',
-    }),
-    // require('@tailwindcss/typography'),
+    // require('@tailwindcss/forms')({
+    //   strategy: 'class',
+    // }),
     // require('tailwindcss-animate'),
   ],
 }

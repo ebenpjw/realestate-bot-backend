@@ -110,7 +110,7 @@ class LeadsApi {
     total: number
     hasMore: boolean
   }> {
-    const response = await apiClient.get('/dashboard/leads', {
+    const response = await apiClient.get('/api/leads', {
       params: {
         ...filters,
         limit,
@@ -126,7 +126,7 @@ class LeadsApi {
    * Get lead details with full history
    */
   async getLeadDetails(leadId: string): Promise<LeadDetails> {
-    const response = await apiClient.get(`/dashboard/leads/${leadId}`)
+    const response = await apiClient.get(`/api/leads/${leadId}`)
     return response.data.data
   }
 
@@ -134,7 +134,7 @@ class LeadsApi {
    * Create a new lead
    */
   async createLead(request: CreateLeadRequest): Promise<Lead> {
-    const response = await apiClient.post('/dashboard/leads', request)
+    const response = await apiClient.post('/api/leads', request)
     return response.data.data
   }
 
@@ -142,7 +142,7 @@ class LeadsApi {
    * Update lead information
    */
   async updateLead(leadId: string, request: UpdateLeadRequest): Promise<Lead> {
-    const response = await apiClient.patch(`/dashboard/leads/${leadId}`, request)
+    const response = await apiClient.patch(`/api/leads/${leadId}`, request)
     return response.data.data
   }
 
@@ -154,7 +154,7 @@ class LeadsApi {
     status: string,
     notes?: string
   ): Promise<Lead> {
-    const response = await apiClient.patch(`/dashboard/leads/${leadId}/status`, {
+    const response = await apiClient.patch(`/api/leads/${leadId}/status`, {
       status,
       notes
     })
@@ -165,7 +165,7 @@ class LeadsApi {
    * Assign lead to agent
    */
   async assignLead(leadId: string, agentId: string, notes?: string): Promise<Lead> {
-    const response = await apiClient.post(`/dashboard/leads/${leadId}/assign`, {
+    const response = await apiClient.post(`/api/leads/${leadId}/assign`, {
       agentId,
       notes
     })
@@ -179,7 +179,7 @@ class LeadsApi {
     query: string,
     filters?: LeadFilters
   ): Promise<Lead[]> {
-    const response = await apiClient.get('/dashboard/leads/search', {
+    const response = await apiClient.get('/api/leads/search', {
       params: {
         q: query,
         ...filters
@@ -218,7 +218,7 @@ class LeadsApi {
       conversionRate: number
     }>
   }> {
-    const response = await apiClient.get('/dashboard/leads/analytics', {
+    const response = await apiClient.get('/api/leads/analytics', {
       params: { period, agentId }
     })
     return response.data.data
@@ -241,7 +241,7 @@ class LeadsApi {
     }>
     nextBestAction: string
   }> {
-    const response = await apiClient.get(`/dashboard/leads/${leadId}/score`)
+    const response = await apiClient.get(`/api/leads/${leadId}/score`)
     return response.data.data
   }
 
@@ -249,7 +249,7 @@ class LeadsApi {
    * Add note to lead
    */
   async addNote(leadId: string, note: string, isPrivate = false): Promise<void> {
-    await apiClient.post(`/dashboard/leads/${leadId}/notes`, {
+    await apiClient.post(`/api/leads/${leadId}/notes`, {
       note,
       isPrivate
     })
@@ -265,7 +265,7 @@ class LeadsApi {
     agentName: string
     createdAt: string
   }>> {
-    const response = await apiClient.get(`/dashboard/leads/${leadId}/notes`)
+    const response = await apiClient.get(`/api/leads/${leadId}/notes`)
     return response.data.data
   }
 
@@ -273,7 +273,7 @@ class LeadsApi {
    * Export leads to CSV
    */
   async exportLeads(filters?: LeadFilters): Promise<Blob> {
-    const response = await apiClient.get('/dashboard/leads/export', {
+    const response = await apiClient.get('/api/leads/export', {
       params: filters,
       responseType: 'blob'
     })
@@ -291,11 +291,18 @@ class LeadsApi {
       tags?: string[]
     }
   ): Promise<{ updated: number; failed: number }> {
-    const response = await apiClient.post('/dashboard/leads/bulk-update', {
+    const response = await apiClient.post('/api/leads/bulk-update', {
       leadIds,
       updates
     })
     return response.data.data
+  }
+
+  /**
+   * Delete a lead
+   */
+  async deleteLead(leadId: string): Promise<void> {
+    await apiClient.delete(`/api/leads/${leadId}`)
   }
 }
 

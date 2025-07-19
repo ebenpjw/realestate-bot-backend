@@ -41,7 +41,7 @@ class DashboardApi {
    * Get dashboard statistics for agent
    */
   async getAgentStats(agentId?: string): Promise<DashboardStats> {
-    const response = await apiClient.get('/dashboard/agent/stats', {
+    const response = await apiClient.get('/api/dashboard/agent/stats', {
       params: agentId ? { agentId } : undefined
     })
     return response.data.data
@@ -50,14 +50,32 @@ class DashboardApi {
   /**
    * Get admin dashboard statistics
    */
-  async getAdminStats(organizationId?: string): Promise<DashboardStats & {
-    totalAgents: number
-    activeAgents: number
-    totalCost: number
-    costPerLead: number
+  async getAdminStats(organizationId?: string, timeframe: string = '7d'): Promise<{
+    metrics: {
+      totalAgents: number
+      totalLeads: number
+      totalAppointments: number
+      totalMessages: number
+      totalConversations: number
+      monthlyCosts: number
+      conversionRate: number
+      avgConversionRate: number
+    }
+    growth: {
+      agents: number
+      conversations: number
+      costs: number
+      conversionRate: number
+    }
+    agentPerformance: any[]
+    timeframe: string
+    lastUpdated: string
   }> {
-    const response = await apiClient.get('/dashboard/admin/stats', {
-      params: organizationId ? { organizationId } : undefined
+    const response = await apiClient.get('/api/dashboard/admin/overview', {
+      params: {
+        timeframe,
+        ...(organizationId ? { organizationId } : {})
+      }
     })
     return response.data.data
   }
@@ -66,10 +84,10 @@ class DashboardApi {
    * Get recent activity for agent
    */
   async getRecentActivity(agentId?: string, limit = 10): Promise<RecentActivity[]> {
-    const response = await apiClient.get('/dashboard/agent/activity', {
-      params: { 
+    const response = await apiClient.get('/api/dashboard/agent/activity', {
+      params: {
         agentId,
-        limit 
+        limit
       }
     })
     return response.data.data
@@ -82,10 +100,10 @@ class DashboardApi {
     period: 'today' | 'week' | 'month' = 'week',
     agentId?: string
   ): Promise<PerformanceMetrics> {
-    const response = await apiClient.get('/dashboard/performance', {
-      params: { 
+    const response = await apiClient.get('/api/dashboard/performance', {
+      params: {
         period,
-        agentId 
+        agentId
       }
     })
     return response.data.data
@@ -101,7 +119,7 @@ class DashboardApi {
     lastSync?: string
     errorMessage?: string
   }> {
-    const response = await apiClient.get('/dashboard/waba/status', {
+    const response = await apiClient.get('/api/dashboard/waba/status', {
       params: agentId ? { agentId } : undefined
     })
     return response.data.data
@@ -124,10 +142,10 @@ class DashboardApi {
       percentage: number
     }>
   }> {
-    const response = await apiClient.get('/dashboard/conversations/analytics', {
-      params: { 
+    const response = await apiClient.get('/api/dashboard/conversations/analytics', {
+      params: {
         period,
-        agentId 
+        agentId
       }
     })
     return response.data.data
@@ -152,10 +170,10 @@ class DashboardApi {
       status: string
     }>
   }> {
-    const response = await apiClient.get('/dashboard/appointments/analytics', {
-      params: { 
+    const response = await apiClient.get('/api/dashboard/appointments/analytics', {
+      params: {
         period,
-        agentId 
+        agentId
       }
     })
     return response.data.data
@@ -183,10 +201,10 @@ class DashboardApi {
       appointments: number
     }>
   }> {
-    const response = await apiClient.get('/dashboard/costs/analytics', {
-      params: { 
+    const response = await apiClient.get('/api/dashboard/costs/analytics', {
+      params: {
         period,
-        organizationId 
+        organizationId
       }
     })
     return response.data.data

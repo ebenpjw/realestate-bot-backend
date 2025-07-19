@@ -4,6 +4,7 @@ import './globals.css'
 import { Providers } from './providers'
 import { Toaster } from 'sonner'
 import { cn } from '@/lib/utils'
+import { ErrorBoundary } from '@/components/error-boundary'
 // Temporarily disable PWA components to fix deployment
 // import { PWAInstallPrompt, OfflineIndicator } from '@/components/ui/PWAInstallPrompt'
 
@@ -22,10 +23,10 @@ const fontMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'PropertyHub Command',
-    template: '%s | PropertyHub Command',
+    default: 'Outpaced',
+    template: '%s | Outpaced',
   },
-  description: 'Apple-inspired frontend for multi-tenant real estate bot system with AI-powered lead management',
+  description: 'Modern real estate bot management system with AI-powered lead management and multi-tenant WABA support',
   keywords: [
     'real estate',
     'property management',
@@ -33,26 +34,28 @@ export const metadata: Metadata = {
     'lead generation',
     'WhatsApp automation',
     'CRM',
+    'multi-tenant',
+    'WABA',
   ],
   authors: [
     {
-      name: 'PropertyHub Team',
+      name: 'Outpaced Team',
     },
   ],
-  creator: 'PropertyHub Team',
+  creator: 'Outpaced Team',
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://propertyhub-command.com',
-    title: 'PropertyHub Command',
-    description: 'Apple-inspired frontend for multi-tenant real estate bot system',
-    siteName: 'PropertyHub Command',
+    url: 'https://outpaced.com',
+    title: 'Outpaced',
+    description: 'Modern real estate bot management system with AI-powered lead management',
+    siteName: 'Outpaced',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'PropertyHub Command',
-    description: 'Apple-inspired frontend for multi-tenant real estate bot system',
-    creator: '@propertyhub',
+    title: 'Outpaced',
+    description: 'Modern real estate bot management system with AI-powered lead management',
+    creator: '@outpaced',
   },
   icons: {
     icon: '/favicon.ico',
@@ -86,25 +89,27 @@ export default function RootLayout({
           fontMono.variable
         )}
       >
-        <Providers>
-          {/* Temporarily disabled PWA components */}
-          {children}
-          <Toaster
-            position="top-right"
-            expand={true}
-            richColors
-            closeButton
-            toastOptions={{
-              duration: 4000,
-              classNames: {
-                toast: 'group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg',
-                description: 'group-[.toast]:text-muted-foreground',
-                actionButton: 'group-[.toast]:bg-primary group-[.toast]:text-primary-foreground',
-                cancelButton: 'group-[.toast]:bg-muted group-[.toast]:text-muted-foreground',
-              },
-            }}
-          />
-        </Providers>
+        <ErrorBoundary>
+          <Providers>
+            {/* Temporarily disabled PWA components */}
+            {children}
+            <Toaster
+              position="top-right"
+              expand={true}
+              richColors
+              closeButton
+              toastOptions={{
+                duration: 4000,
+                classNames: {
+                  toast: 'group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg',
+                  description: 'group-[.toast]:text-muted-foreground',
+                  actionButton: 'group-[.toast]:bg-primary group-[.toast]:text-primary-foreground',
+                  cancelButton: 'group-[.toast]:bg-muted group-[.toast]:text-muted-foreground',
+                },
+              }}
+            />
+          </Providers>
+        </ErrorBoundary>
       </body>
     </html>
   )

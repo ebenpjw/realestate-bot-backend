@@ -41,7 +41,7 @@ const config = {
   PORT: parseInteger(process.env.PORT, 8080),
 
   // Feature flags
-  ENABLE_RATE_LIMITING: parseBoolean(process.env.ENABLE_RATE_LIMITING, true),
+  ENABLE_RATE_LIMITING: false, // Completely disabled for scalability
   ENABLE_REQUEST_LOGGING: parseBoolean(process.env.ENABLE_REQUEST_LOGGING, true),
 
   // Enhanced feature flags for better control
@@ -62,7 +62,7 @@ const config = {
 
   // Authentication Configuration
   JWT_SECRET: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
-  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '24h',
+  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d', // Extended to 7 days for development
 
   // Supabase Configuration
   SUPABASE_URL: process.env.SUPABASE_URL,
@@ -71,7 +71,7 @@ const config = {
 
   // Gupshup Partner API Configuration (Primary - Multi-tenant WABA management)
   GUPSHUP_PARTNER_EMAIL: process.env.GUPSHUP_PARTNER_EMAIL,
-  GUPSHUP_PARTNER_PASSWORD: process.env.GUPSHUP_PARTNER_PASSWORD,
+  GUPSHUP_PARTNER_CLIENT_SECRET: process.env.GUPSHUP_PARTNER_CLIENT_SECRET,
   GUPSHUP_TIMEOUT: parseInteger(process.env.GUPSHUP_TIMEOUT, 30000),
 
   // Template status check configuration
@@ -121,7 +121,8 @@ const config = {
   SCRAPINGBEE_API_KEY: process.env.SCRAPINGBEE_API_KEY,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
   DEFAULT_AGENT_ID: process.env.DEFAULT_AGENT_ID,
-  OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4',
+  OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4.1',
+  OPENAI_VISION_MODEL: process.env.OPENAI_VISION_MODEL || 'gpt-4o', // Vision tasks require GPT-4o
 };
 
 // --- Configuration Validation ---
@@ -130,7 +131,7 @@ const coreRequiredConfig = {
   SUPABASE_URL: 'Database connection required',
   SUPABASE_KEY: 'Database authentication required',
   GUPSHUP_PARTNER_EMAIL: 'Gupshup Partner API email required for multi-tenant WABA management',
-  GUPSHUP_PARTNER_PASSWORD: 'Gupshup Partner API password required for multi-tenant WABA management',
+  GUPSHUP_PARTNER_CLIENT_SECRET: 'Gupshup Partner API client secret required for multi-tenant WABA management',
   OPENAI_API_KEY: 'OpenAI API access required for AI responses',
   REFRESH_TOKEN_ENCRYPTION_KEY: 'Encryption key required for secure token storage'
 };

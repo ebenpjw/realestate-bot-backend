@@ -47,7 +47,7 @@ class VisualPropertyScrapingService {
       this.useBrowser = await this._checkBrowserCompatibility();
       
       // Create scraping session record
-      const { data: session, error: sessionError } = await supabase
+      const { data: session, error: sessionError } = await databaseService.supabase
         .from('scraping_sessions')
         .insert({
           session_type: 'full_scrape',
@@ -427,7 +427,7 @@ class VisualPropertyScrapingService {
       logger.info({ property: propertyData.name }, 'Saving property data');
 
       // Insert or update property project
-      const { data: project, error: projectError } = await supabase
+      const { data: project, error: projectError } = await databaseService.supabase
         .from('property_projects')
         .upsert({
           project_name: propertyData.name,
@@ -487,7 +487,7 @@ class VisualPropertyScrapingService {
       const storagePath = `property-assets/${projectId}/${fileName}`;
 
       // Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await databaseService.supabase.storage
         .from('property-assets')
         .upload(storagePath, buffer, {
           contentType: asset.type === 'brochure' ? 'application/pdf' : 'image/jpeg',
@@ -499,12 +499,12 @@ class VisualPropertyScrapingService {
       }
 
       // Get public URL
-      const { data: publicUrlData } = supabase.storage
+      const { data: publicUrlData } = databaseService.supabase.storage
         .from('property-assets')
         .getPublicUrl(storagePath);
 
       // Save asset record to database
-      const { error: dbError } = await supabase
+      const { error: dbError } = await databaseService.supabase
         .from('visual_assets')
         .insert({
           project_id: projectId,
@@ -549,7 +549,7 @@ class VisualPropertyScrapingService {
     if (!this.sessionId) return;
 
     try {
-      await supabase
+      await databaseService.supabase
         .from('scraping_sessions')
         .update({
           projects_processed: processed,
@@ -574,7 +574,7 @@ class VisualPropertyScrapingService {
       const startTime = new Date(endTime.getTime() - (processed * this.requestDelay));
       const duration = Math.floor((endTime - startTime) / 1000);
 
-      await supabase
+      await databaseService.supabase
         .from('scraping_sessions')
         .update({
           status: 'completed',
@@ -600,7 +600,7 @@ class VisualPropertyScrapingService {
     if (!this.sessionId) return;
 
     try {
-      await supabase
+      await databaseService.supabase
         .from('scraping_sessions')
         .update({
           status: 'failed',

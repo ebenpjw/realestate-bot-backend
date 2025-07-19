@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const config = require('../config');
 const logger = require('../logger');
-const { supabase } = require('../database/supabaseClient');
+const databaseService = require('./databaseService');
 const { ExternalServiceError, ValidationError } = require('../middleware/errorHandler');
 const gupshupPartnerService = require('./gupshupPartnerService');
 const partnerTemplateService = require('./partnerTemplateService');
@@ -34,7 +34,7 @@ class MultiTenantConfigService {
       }
 
       // Fetch from database
-      const { data: agent, error } = await supabase
+      const { data: agent, error } = await databaseService.supabase
         .from('agents')
         .select(`
           *,
@@ -165,18 +165,30 @@ class MultiTenantConfigService {
       const isNewSetup = wabaConfig.setupNewWABA === true;
 
       if (isNewSetup) {
-        // Use the Agent WABA Setup Service for new setups
-        await agentWABASetupService.setupAgentWABA({
-          agentId,
-          phoneNumber: wabaConfig.wabaNumber,
-          displayName: wabaConfig.displayName,
-          botName: wabaConfig.botName
-        });
+        // First update the basic WABA info
+        const basicUpdateData = {
+          waba_phone_number: wabaConfig.wabaNumber,
+          waba_display_name: wabaConfig.displayName,
+          bot_name: wabaConfig.botName,
+          updated_at: new Date().toISOString()
+        };
+
+        const { error: basicUpdateError } = await databaseService.supabase
+          .from('agents')
+          .update(basicUpdateData)
+          .eq('id', agentId);
+
+        if (basicUpdateError) {
+          throw new ExternalServiceError('Supabase', `Failed to update basic WABA info: ${basicUpdateError.message}`, basicUpdateError);
+        }
+
+        // Then use auto-discovery to fill in the technical details
+        await agentWABASetupService.autoDiscoverAndConfigureWABA(agentId);
 
         // Clear cache
         this.configCache.delete(`agent_config_${agentId}`);
 
-        logger.info({ agentId }, 'New agent WABA setup completed through Partner API');
+        logger.info({ agentId }, 'New agent WABA setup completed through auto-discovery');
         return;
       }
 
@@ -197,7 +209,7 @@ class MultiTenantConfigService {
 
       updateData.updated_at = new Date().toISOString();
 
-      const { error } = await supabase
+      const { error } = await databaseService.supabase
         .from('agents')
         .update(updateData)
         .eq('id', agentId);
@@ -249,7 +261,7 @@ class MultiTenantConfigService {
         updateData.timezone = botConfig.timezone;
       }
 
-      const { error } = await supabase
+      const { error } = await databaseService.supabase
         .from('agents')
         .update(updateData)
         .eq('id', agentId);
@@ -291,7 +303,7 @@ class MultiTenantConfigService {
       };
 
       // Try to update existing template first
-      const { data: existingTemplate } = await supabase
+      const { data: existingTemplate } = await databaseService.supabase
         .from('waba_templates')
         .select('id')
         .eq('agent_id', agentId)
@@ -301,7 +313,7 @@ class MultiTenantConfigService {
       let result;
       if (existingTemplate) {
         // Update existing template
-        const { data, error } = await supabase
+        const { data, error } = await databaseService.supabase
           .from('waba_templates')
           .update(templateRecord)
           .eq('id', existingTemplate.id)
@@ -315,7 +327,7 @@ class MultiTenantConfigService {
       } else {
         // Create new template
         templateRecord.created_at = new Date().toISOString();
-        const { data, error } = await supabase
+        const { data, error } = await databaseService.supabase
           .from('waba_templates')
           .insert(templateRecord)
           .select()
@@ -348,7 +360,7 @@ class MultiTenantConfigService {
    */
   async getAgentByWABANumber(wabaNumber) {
     try {
-      const { data: agent, error } = await supabase
+      const { data: agent, error } = await databaseService.supabase
         .from('agents')
         .select(`
           *,
@@ -389,27 +401,22 @@ class MultiTenantConfigService {
         };
       }
 
-      // If not valid, check if we can set it up
+      // If not valid, check if we can set it up through auto-discovery
       const agent = await this.getAgentConfig(agentId);
 
-      if (!agent.phone_number) {
-        throw new ValidationError('Agent must have a phone number to setup WABA');
+      if (!agent.waba_phone_number) {
+        throw new ValidationError('Agent must have waba_phone_number set before auto-discovery can be attempted');
       }
 
-      // Setup WABA through Partner API
-      const setupResult = await agentWABASetupService.setupAgentWABA({
-        agentId,
-        phoneNumber: agent.phone_number,
-        displayName: `${agent.full_name}'s Bot`,
-        botName: agent.bot_name || 'Doro'
-      });
+      // Try auto-discovery to configure WABA
+      const setupResult = await agentWABASetupService.autoDiscoverAndConfigureWABA(agentId);
 
       // Clear cache after setup
       this.configCache.delete(`agent_config_${agentId}`);
 
       return {
-        valid: true,
-        message: 'Agent WABA setup completed successfully',
+        valid: setupResult.success,
+        message: setupResult.message,
         ...setupResult
       };
 

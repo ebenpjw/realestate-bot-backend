@@ -1,6 +1,8 @@
 const whatsappService = require('./whatsappService');
 const multiTenantConfigService = require('./multiTenantConfigService');
 const partnerTemplateService = require('./partnerTemplateService');
+const newLeadFollowUpService = require('./newLeadFollowUpService');
+const databaseService = require('./databaseService');
 const logger = require('../logger');
 const { ValidationError } = require('../middleware/errorHandler');
 
@@ -104,6 +106,9 @@ class TemplateService {
           params,
           messageId: result.messageId
         });
+
+        // Track intro message for 6-hour follow-up system
+        await this._trackIntroMessageForNewLead(phoneNumber, agentId);
 
         logger.info({
           phoneNumber,
@@ -307,7 +312,7 @@ class TemplateService {
   async _logTemplateUsage(templateData) {
     try {
       // Log template usage to database for compliance tracking
-      const { supabase } = require('../database/supabaseClient');
+      const databaseService = require('./databaseService');
 
       const logData = {
         phone_number: templateData.phoneNumber,
@@ -322,7 +327,7 @@ class TemplateService {
         }
       };
 
-      const { error } = await supabase
+      const { error } = await databaseService.supabase
         .from('template_usage_log')
         .insert(logData);
 
@@ -332,7 +337,7 @@ class TemplateService {
 
       // Update template usage count in waba_templates
       if (templateData.agentId && templateData.templateId) {
-        await supabase
+        await databaseService.supabase
           .from('waba_templates')
           .update({
             usage_count: supabase.raw('usage_count + 1'),
@@ -513,11 +518,55 @@ class TemplateService {
         messageId: result.messageId
       });
 
+      // Track intro message for 6-hour follow-up system
+      if (result.success) {
+        await this._trackIntroMessageForNewLead(phoneNumber, agentId);
+      }
+
       return result;
 
     } catch (error) {
       logger.error({ err: error, phoneNumber, agentId }, 'Failed to send agent-specific welcome template');
       throw error;
+    }
+  }
+
+  /**
+   * Track intro message for 6-hour follow-up system
+   * @private
+   */
+  async _trackIntroMessageForNewLead(phoneNumber, agentId) {
+    try {
+      // Find the lead by phone number
+      const { data: lead, error } = await databaseService.supabase
+        .from('leads')
+        .select('id, created_at')
+        .eq('phone_number', phoneNumber)
+        .single();
+
+      if (error || !lead) {
+        logger.warn({ phoneNumber, agentId }, 'Could not find lead for intro tracking');
+        return;
+      }
+
+      // Only track for new leads (created within last 5 minutes)
+      const leadAge = Date.now() - new Date(lead.created_at).getTime();
+      const fiveMinutes = 5 * 60 * 1000;
+
+      if (leadAge <= fiveMinutes) {
+        await newLeadFollowUpService.trackIntroMessageSent(
+          lead.id,
+          phoneNumber,
+          agentId
+        );
+        logger.debug({ leadId: lead.id, phoneNumber, agentId }, 'Tracked intro message for new lead');
+      } else {
+        logger.debug({ leadId: lead.id, leadAge }, 'Lead too old for intro tracking');
+      }
+
+    } catch (error) {
+      logger.error({ err: error, phoneNumber, agentId }, 'Failed to track intro message');
+      // Don't throw - this shouldn't break the main flow
     }
   }
 

@@ -23,7 +23,7 @@ async function debugLogin() {
 
     // Step 1: Find user
     logger.info('Step 1: Finding user in database...');
-    const { data: agent, error: agentError } = await supabase
+    const { data: agent, error: agentError } = await databaseService.supabase
       .from('agents')
       .select(`
         id,

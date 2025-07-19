@@ -1,4 +1,3 @@
-const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const cors = require('cors');
 const { body, validationResult } = require('express-validator');
@@ -6,40 +5,12 @@ const crypto = require('crypto');
 const logger = require('../logger');
 const config = require('../config');
 
-// Rate limiting configurations
-const createRateLimit = (windowMs, max, message) => rateLimit({
-  windowMs,
-  max,
-  message: { error: message },
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    logger.warn({
-      ip: req.ip,
-      url: req.originalUrl,
-      userAgent: req.get('User-Agent')
-    }, 'Rate limit exceeded');
-    res.status(429).json({ error: message });
-  }
-});
+// Rate limiting completely disabled for scalability
+// All rate limiting functions are now no-ops
 
-// Different rate limits for different endpoints
 const rateLimits = {
-  webhook: createRateLimit(
-    60 * 1000, // 1 minute
-    100, // 100 requests per minute per IP
-    'Too many webhook requests'
-  ),
-  api: createRateLimit(
-    15 * 60 * 1000, // 15 minutes
-    1000, // 1000 requests per 15 minutes per IP
-    'Too many API requests'
-  ),
-  // auth: createRateLimit(
-  //   15 * 60 * 1000, // 15 minutes
-  //   5, // 5 auth attempts per 15 minutes per IP
-  //   'Too many authentication attempts'
-  // )
+  webhook: (req, res, next) => next(), // No-op middleware
+  api: (req, res, next) => next(), // No-op middleware
 };
 
 // CORS configuration for unified deployment
@@ -52,7 +23,17 @@ const corsOptions = {
       ])
     : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:8080'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-hub-signature-256', 'x-hub-signature', 'X-Requested-With'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'x-hub-signature-256',
+    'x-hub-signature',
+    'X-Requested-With',
+    'X-Request-ID',
+    'x-request-id',
+    'X-Request-Time',
+    'x-request-time'
+  ],
   credentials: true, // Enable credentials for unified deployment
   maxAge: 86400, // 24 hours
   optionsSuccessStatus: 200 // For legacy browser support
@@ -196,39 +177,8 @@ const verifyWebhookSignature = (req, res, next) => {
   }
 };
 
-// Enhanced rate limiting with sliding window
-const createAdvancedRateLimit = (windowMs, max, message, keyGenerator = null) => rateLimit({
-  windowMs,
-  max,
-  message: { error: message },
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: keyGenerator || ((req) => req.ip),
-  skip: (req) => {
-    // Skip rate limiting for health checks
-    return req.originalUrl === '/health' || req.originalUrl === '/ready';
-  },
-  handler: (req, res) => {
-    logger.warn({
-      ip: req.ip,
-      url: req.originalUrl,
-      userAgent: req.get('User-Agent'),
-      key: keyGenerator ? keyGenerator(req) : req.ip
-    }, 'Advanced rate limit exceeded');
-    res.status(429).json({
-      error: message,
-      retryAfter: Math.round(windowMs / 1000)
-    });
-  }
-});
-
-// Template-specific rate limiting
-const templateRateLimit = createAdvancedRateLimit(
-  60 * 60 * 1000, // 1 hour
-  20, // 20 template messages per hour per phone number
-  'Template message rate limit exceeded',
-  (req) => req.body?.phoneNumber || req.ip
-);
+// All advanced rate limiting disabled for scalability
+const templateRateLimit = (req, res, next) => next(); // No-op middleware
 
 // IP-based suspicious activity detection
 const suspiciousActivityDetection = (req, res, next) => {
@@ -313,7 +263,6 @@ module.exports = {
   createSecurityMiddleware,
   verifyWebhookSignature,
   templateRateLimit,
-  createAdvancedRateLimit,
   suspiciousActivityDetection,
   requestSizeLimit
 };

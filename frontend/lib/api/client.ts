@@ -21,6 +21,7 @@ interface ApiError {
   message: string
   status?: number
   code?: string
+  details?: any
 }
 
 class ApiClient {
@@ -29,7 +30,7 @@ class ApiClient {
 
   constructor() {
     this.client = axios.create({
-      baseURL: `${API_BASE_URL}/api`,
+      baseURL: API_BASE_URL,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
@@ -120,7 +121,7 @@ class ApiClient {
 
   private async refreshToken(): Promise<string> {
     try {
-      const response = await this.client.post('/frontend-auth/refresh')
+      const response = await this.client.post('/api/frontend-auth/refresh')
       const newToken = response.data.token
       localStorage.setItem('auth_token', newToken)
       return newToken

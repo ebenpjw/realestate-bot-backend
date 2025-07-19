@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useMemo } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { authApi } from './authApi'
 import { toast } from 'sonner'
@@ -101,7 +101,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const isTokenExpired = (token: string): boolean => {
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]))
+      const parts = token.split('.')
+      if (parts.length !== 3) return true
+      const payload = JSON.parse(atob(parts[1]))
       const currentTime = Date.now() / 1000
       // Check if token expires within 5 minutes
       return payload.exp < (currentTime + 300)
@@ -112,7 +114,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const setupTokenRefresh = (token: string) => {
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]))
+      const parts = token.split('.')
+      if (parts.length !== 3) return
+      const payload = JSON.parse(atob(parts[1]))
       const currentTime = Date.now() / 1000
       const timeUntilRefresh = (payload.exp - currentTime - 300) * 1000 // Refresh 5 minutes before expiry
 

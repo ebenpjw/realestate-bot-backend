@@ -78,7 +78,7 @@ Add the following to your `.env` file:
 ```bash
 # Gupshup Partner API (for template management)
 GUPSHUP_PARTNER_EMAIL=your-gupshup-partner-email@example.com
-GUPSHUP_PARTNER_PASSWORD=your-gupshup-partner-password
+GUPSHUP_PARTNER_CLIENT_SECRET=your-generated-client-secret-from-partner-portal
 GUPSHUP_APP_ID=your-default-gupshup-app-id
 ```
 

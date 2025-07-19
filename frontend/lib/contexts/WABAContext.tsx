@@ -1,8 +1,8 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 import { useAuth } from '@/lib/auth/AuthContext'
-import { integrationsApi, WABAIntegration } from '@/lib/api/services/integrationsApi'
+import { integrationsApi, type WABAIntegration } from '@/lib/api/services/integrationsApi'
 import { toast } from 'sonner'
 
 interface WABATemplate {

@@ -3,6 +3,7 @@ const router = express.Router();
 const logger = require('../logger');
 const databaseService = require('../services/databaseService');
 const config = require('../config');
+// Note: Use databaseService.supabase instead of direct import
 const intelligentFollowUpService = require('../services/intelligentFollowUpService');
 const followUpAnalyticsService = require('../services/followUpAnalyticsService');
 const followUpScheduler = require('../services/followUpScheduler');

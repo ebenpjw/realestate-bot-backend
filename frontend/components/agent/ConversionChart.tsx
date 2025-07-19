@@ -102,3 +102,5 @@ export function ConversionChart({ data }: ConversionChartProps) {
     </div>
   )
 }
+
+export default ConversionChart
