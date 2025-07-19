@@ -8,6 +8,11 @@ const multiTenantConfigService = require('./multiTenantConfigService');
 const { whatsappService } = require('./whatsappService');
 const aiTemplateGenerationService = require('./aiTemplateGenerationService');
 const automaticTemplateApprovalService = require('./automaticTemplateApprovalService');
+const newsIntelligenceService = require('./newsIntelligenceService');
+const dynamicIntelligenceFollowUpService = require('./dynamicIntelligenceFollowUpService');
+const mobileMessageFormatter = require('../utils/mobileMessageFormatter');
+const hybridTemplateStrategy = require('./hybridTemplateStrategy');
+const supabase = databaseService.supabase;
 
 /**
  * INTELLIGENT FOLLOW-UP SERVICE
@@ -253,23 +258,16 @@ class IntelligentFollowUpService {
         return { success: false, skipped: true, reason: 'pdpa_blocked' };
       }
 
-      // Get appropriate template for lead state and sequence stage
-      const template = await this.templateService.getTemplateForLeadState(
-        followUp.assigned_agent_id,
-        followUp.current_state,
-        followUp.sequence_stage
-      );
+      // Get recent conversation history for context
+      const { data: conversationHistory } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('lead_id', followUp.lead_id)
+        .order('created_at', { ascending: false })
+        .limit(20);
 
-      if (!template) {
-        logger.error({ sequenceId: followUp.id }, 'No template available for follow-up');
-        await this.sequenceEngine.updateSequenceStatus(followUp.id, 'failed', {
-          delivery_error_message: 'No template available'
-        });
-        return { success: false, reason: 'no_template' };
-      }
-
-      // Personalize template content
       const leadData = {
+        id: followUp.lead_id,
         full_name: followUp.full_name,
         budget: followUp.budget,
         location_preference: followUp.location_preference,
@@ -277,17 +275,64 @@ class IntelligentFollowUpService {
         timeline: followUp.timeline
       };
 
-      const personalizedMessage = this.templateService.personalizeTemplate(template, leadData);
+      // Use AI-First Hybrid Template Strategy
+      logger.info({ leadId: followUp.lead_id }, 'Using AI-First Hybrid Template Strategy');
+
+      const strategyDecision = await hybridTemplateStrategy.determineTemplateStrategy(
+        followUp,
+        leadData,
+        conversationHistory || [],
+        followUp.assigned_agent_id
+      );
+
+      logger.info({
+        leadId: followUp.lead_id,
+        strategy: strategyDecision.strategy,
+        reasoning: strategyDecision.reasoning
+      }, 'Template strategy determined');
+
+      // Execute the chosen strategy
+      const strategyResult = await hybridTemplateStrategy.executeStrategy(
+        strategyDecision,
+        followUp,
+        leadData,
+        conversationHistory || [],
+        followUp.assigned_agent_id
+      );
+
+      if (!strategyResult || (!strategyResult.template && !strategyResult.content)) {
+        logger.error({ sequenceId: followUp.id }, 'Strategy execution failed - no content generated');
+        await this.sequenceEngine.updateSequenceStatus(followUp.id, 'failed', {
+          delivery_error_message: 'Strategy execution failed'
+        });
+        return { success: false, reason: 'strategy_execution_failed' };
+      }
+
+      // Extract message content and template info
+      const personalizedMessage = strategyResult.content ||
+        (strategyResult.template ? await this._personalizeTemplateMessage(strategyResult.template, leadData) : null);
+
+      const template = strategyResult.template;
+      const messageType = strategyResult.messageType;
+
+      if (!personalizedMessage) {
+        logger.error({ sequenceId: followUp.id }, 'No personalized message generated');
+        await this.sequenceEngine.updateSequenceStatus(followUp.id, 'failed', {
+          delivery_error_message: 'No message content generated'
+        });
+        return { success: false, reason: 'no_message_content' };
+      }
 
       // Get agent WABA configuration
       const agentConfig = await this.configService.getAgentWABAConfig(followUp.assigned_agent_id);
 
-      // Send message using appropriate WABA
+      // Send message using appropriate method based on strategy
       const sendResult = await this._sendFollowUpMessage(
         followUp.phone_number,
         personalizedMessage,
         template,
-        agentConfig
+        agentConfig,
+        messageType
       );
 
       // Update sequence status
@@ -323,13 +368,61 @@ class IntelligentFollowUpService {
    * Send follow-up message using appropriate WABA
    * @private
    */
-  async _sendFollowUpMessage(phoneNumber, message, template, agentConfig) {
+  async _sendFollowUpMessage(phoneNumber, message, template, agentConfig, messageType) {
     try {
       // Configure WhatsApp service for this agent
       whatsappService.updateConfiguration(agentConfig);
 
-      // Determine if we should use template or free-form message
-      if (template.is_waba_template) {
+      // Determine sending method based on message type
+      if (messageType === 'free_form') {
+        // Send free-form message (within 24-hour window)
+        logger.info({ phoneNumber }, 'Sending super-intelligent free-form follow-up');
+
+        const result = await whatsappService.sendMessage({
+          phoneNumber,
+          message
+        });
+
+        return {
+          success: result.success,
+          messageId: result.messageId,
+          error: result.error,
+          messageType: 'free_form_intelligent'
+        };
+      } else if (messageType === 'ai_template' && template) {
+        // Send AI-generated template message
+        logger.info({ phoneNumber, messageType }, 'Sending AI-generated template follow-up');
+
+        if (template.is_waba_template || template.elementName) {
+          // Use WABA template
+          const result = await whatsappService.sendTemplateMessage({
+            phoneNumber,
+            templateName: template.elementName || template.waba_template_name,
+            languageCode: template.languageCode || template.language_code || 'en',
+            parameters: this._extractTemplateParameters(message, template)
+          });
+
+          return {
+            success: result.success,
+            messageId: result.messageId,
+            error: result.error,
+            messageType: 'ai_generated_template'
+          };
+        } else {
+          // Fallback to free-form if template not ready
+          const result = await whatsappService.sendMessage({
+            phoneNumber,
+            message
+          });
+
+          return {
+            success: result.success,
+            messageId: result.messageId,
+            error: result.error,
+            messageType: 'ai_template_fallback'
+          };
+        }
+      } else if (template && template.is_waba_template) {
         // Use WABA template
         const result = await whatsappService.sendTemplateMessage({
           phoneNumber,
@@ -341,10 +434,11 @@ class IntelligentFollowUpService {
         return {
           success: result.success,
           messageId: result.messageId,
-          error: result.error
+          error: result.error,
+          messageType: 'waba_template'
         };
       } else {
-        // Use free-form message (within 24-hour window)
+        // Use regular template message
         const result = await whatsappService.sendMessage({
           phoneNumber,
           message
@@ -353,7 +447,8 @@ class IntelligentFollowUpService {
         return {
           success: result.success,
           messageId: result.messageId,
-          error: result.error
+          error: result.error,
+          messageType: 'template_based'
         };
       }
 
@@ -547,6 +642,77 @@ class IntelligentFollowUpService {
   }
 
   /**
+   * Personalize message with intelligent insights
+   * @private
+   */
+  async _personalizeMessageWithInsights(template, leadData, intelligentInsights) {
+    try {
+      // If we have dynamic intelligence insights, use them directly
+      if (intelligentInsights && intelligentInsights.success && intelligentInsights.type !== 'news') {
+        return intelligentInsights.message; // Dynamic intelligence generates complete messages
+      }
+
+      // Start with basic template personalization
+      let message = this.templateService.personalizeTemplate(template, leadData);
+
+      // Add news insights if available and relevant
+      if (intelligentInsights && intelligentInsights.success && intelligentInsights.type === 'news') {
+        const newsInsights = intelligentInsights.insights;
+        if (newsInsights.insights.length > 0 && newsInsights.leadRelevance > 0.7) {
+          const topInsight = newsInsights.insights[0];
+
+          // Create insight message based on category
+          const insightMessage = this._formatInsightMessage(topInsight, leadData);
+
+          if (insightMessage) {
+            // Append insight to the message
+            message += `\n\n${insightMessage}`;
+          }
+        }
+      }
+
+      return message;
+
+    } catch (error) {
+      logger.error({ err: error }, 'Error personalizing message with insights');
+      // Fallback to basic personalization
+      return this.templateService.personalizeTemplate(template, leadData);
+    }
+  }
+
+  /**
+   * Format insight message for lead
+   * @private
+   */
+  _formatInsightMessage(insight, leadData) {
+    try {
+      // Use mobile formatter for consistent, readable messages
+      return mobileMessageFormatter.formatNewsInsight(insight, leadData);
+
+    } catch (error) {
+      logger.error({ err: error }, 'Error formatting insight message');
+      return null;
+    }
+  }
+
+  /**
+   * Get appropriate link text based on news category
+   * @private
+   */
+  _getLinkText(category) {
+    const linkTexts = {
+      POLICY: 'You can read the full details here:',
+      MARKET: 'Check out the full market analysis here:',
+      INFRASTRUCTURE: 'More details on this development here:',
+      INTEREST_RATES: 'See the latest rates and packages here:',
+      AREAS: 'Read more about this area update here:',
+      GENERAL: 'You can check it out here:'
+    };
+
+    return linkTexts[category] || 'You can check it out here:';
+  }
+
+  /**
    * Stop enhanced services
    */
   stopEnhancedServices() {
@@ -556,6 +722,39 @@ class IntelligentFollowUpService {
       logger.info('Enhanced AI template services stopped');
     } catch (error) {
       logger.error({ err: error }, 'Error stopping enhanced services');
+    }
+  }
+
+  /**
+   * Personalize template message with lead data
+   * @private
+   */
+  async _personalizeTemplateMessage(template, leadData) {
+    try {
+      if (!template || !template.content) {
+        return null;
+      }
+
+      let personalizedContent = template.content;
+
+      // Replace common variables
+      const variables = {
+        '{{1}}': leadData.full_name?.split(' ')[0] || 'there',
+        '{{2}}': leadData.property_type || 'property',
+        '{{3}}': leadData.location_preference || 'your preferred area',
+        '{{4}}': 'How does this sound?'
+      };
+
+      // Replace variables in content
+      Object.entries(variables).forEach(([placeholder, value]) => {
+        personalizedContent = personalizedContent.replace(new RegExp(placeholder, 'g'), value);
+      });
+
+      return personalizedContent;
+
+    } catch (error) {
+      logger.error({ err: error }, 'Error personalizing template message');
+      return template.content || 'Hi! Hope you\'re doing well. Let\'s continue our property discussion.';
     }
   }
 }
