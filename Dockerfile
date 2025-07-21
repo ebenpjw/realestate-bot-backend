@@ -16,7 +16,7 @@ COPY . .
 
 # Install frontend dependencies and build
 RUN cd frontend && \
-    npm ci --no-audit --no-fund && \
+    npm install --no-audit --no-fund && \
     npm run build
 
 # Set production environment
