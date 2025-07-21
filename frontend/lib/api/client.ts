@@ -9,10 +9,11 @@ const getApiBaseUrl = () => {
     return process.env.NEXT_PUBLIC_API_URL ||
            (window.location.hostname === 'localhost'
              ? 'http://localhost:8080'
-             : `${window.location.protocol}//${window.location.hostname}:8080`)
+             : `${window.location.protocol}//${window.location.host}`)
   }
   // Server-side: use environment variable or default
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+  return process.env.NEXT_PUBLIC_API_URL ||
+         (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8080')
 }
 
 const API_BASE_URL = getApiBaseUrl()

@@ -3,3 +3,9 @@ node_modules
 
 # Local Netlify folder
 .netlify
+
+# Next.js
+frontend/.next/
+frontend/out/
+frontend/.next/cache/
+frontend/.next/standalone/

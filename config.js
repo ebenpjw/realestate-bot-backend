@@ -51,7 +51,7 @@ const config = {
   ENABLE_FOLLOW_UP_SYSTEM: parseBoolean(process.env.ENABLE_FOLLOW_UP_SYSTEM, false), // Disabled until Gupshup Partner API approved
 
   // SAFETY FLAGS - Prevent real messages during testing/development
-  // DEFAULT TO SAFE MODE IN DEVELOPMENT
+  // DEFAULT TO SAFE MODE IN DEVELOPMENT, PRODUCTION MODE IN PRODUCTION
   DISABLE_WHATSAPP_SENDING: parseBoolean(process.env.DISABLE_WHATSAPP_SENDING, process.env.NODE_ENV === 'development'),
   TESTING_MODE: parseBoolean(process.env.TESTING_MODE, process.env.NODE_ENV === 'development'),
   DRY_RUN_MODE: parseBoolean(process.env.DRY_RUN_MODE, process.env.NODE_ENV === 'development'),

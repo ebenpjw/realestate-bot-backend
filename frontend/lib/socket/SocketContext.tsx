@@ -51,7 +51,23 @@ export function SocketProvider({ children }: SocketProviderProps) {
     }
 
     // Initialize socket connection
-    const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8080'
+    const getWsUrl = () => {
+      if (process.env.NEXT_PUBLIC_WS_URL) {
+        return process.env.NEXT_PUBLIC_WS_URL
+      }
+
+      if (typeof window !== 'undefined') {
+        if (window.location.hostname === 'localhost') {
+          return 'ws://localhost:8080'
+        }
+        // For production, use same domain with wss protocol
+        return `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+      }
+
+      return 'ws://localhost:8080'
+    }
+
+    const WS_URL = getWsUrl()
     const token = localStorage.getItem('auth_token')
 
     const newSocket = io(WS_URL, {

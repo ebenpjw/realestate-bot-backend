@@ -23,7 +23,9 @@ function initializeSocketIO(server) {
           'http://localhost:3000',
           'http://localhost:8080',
           'https://localhost:3000',
-          'https://localhost:8080'
+          'https://localhost:8080',
+          /^https:\/\/.*\.railway\.app$/,
+          /^https:\/\/.*\.up\.railway\.app$/
         ],
         methods: ['GET', 'POST'],
         credentials: true,
