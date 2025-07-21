@@ -5,8 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000 --turbo",
-    "build": "node scripts/build-for-railway.js",
-    "build:standard": "NODE_ENV=production next build",
+    "build": "NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint --fix",
     "lint:check": "next lint",

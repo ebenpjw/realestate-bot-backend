@@ -15,10 +15,7 @@ const nextConfig = {
   output: 'standalone', // Enable standalone build for Railway deployment
   trailingSlash: false, // Disable trailing slash to prevent routing issues
   serverExternalPackages: ['@supabase/supabase-js', 'socket.io-client'],
-  env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'production' ? process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : '' : 'http://localhost:8080'),
-    NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || (process.env.NODE_ENV === 'production' ? process.env.RAILWAY_PUBLIC_DOMAIN ? `wss://${process.env.RAILWAY_PUBLIC_DOMAIN}` : '' : 'ws://localhost:8080'),
-  },
+  // Environment variables will be set via Railway environment variables
   images: {
     formats: ['image/avif', 'image/webp'],
     dangerouslyAllowSVG: true,

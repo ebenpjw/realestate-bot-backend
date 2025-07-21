@@ -61,8 +61,8 @@ typings/
 .cache
 .parcel-cache
 
-# next.js build output
-.next
+# next.js build output (keep for production)
+# .next
 
 # nuxt.js build output
 .nuxt
