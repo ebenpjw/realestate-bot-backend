@@ -102,10 +102,11 @@ const setupBackendRoutes = () => {
 const setupFrontend = () => {
   try {
     console.log('📱 Setting up frontend static serving...');
-    
+
     const frontendBuildPath = path.join(__dirname, '../frontend/.next');
     const frontendStaticPath = path.join(frontendBuildPath, 'static');
     const frontendPublicPath = path.join(__dirname, '../frontend/public');
+    const frontendServerPath = path.join(frontendBuildPath, 'server');
 
     // Serve Next.js static files
     if (fs.existsSync(frontendStaticPath)) {
@@ -119,47 +120,51 @@ const setupFrontend = () => {
       console.log('✅ Public assets configured');
     }
 
-    // For all other routes, serve a simple landing page
-    app.get('*', (req, res) => {
+    // Try to serve Next.js pages
+    let nextHandler = null;
+    try {
+      // Try to load Next.js server-side rendering
+      const nextServer = require('next')({
+        dev: false,
+        dir: path.join(__dirname, '../frontend'),
+        conf: {
+          distDir: '.next'
+        }
+      });
+
+      nextHandler = nextServer.getRequestHandler();
+      console.log('✅ Next.js server handler loaded');
+    } catch (error) {
+      console.log('⚠️ Next.js server handler not available, using static fallback');
+    }
+
+    // For all other routes, try Next.js handler first, then fallback
+    app.get('*', async (req, res) => {
       // Skip API routes
       if (req.path.startsWith('/api/') || req.path === '/health') {
         return res.status(404).json({ error: 'API endpoint not found' });
       }
 
-      // Serve a simple landing page for now
-      res.send(`
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>PropertyHub Command</title>
-          <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-            .container { text-align: center; max-width: 600px; }
-            h1 { font-size: 3rem; margin-bottom: 1rem; }
-            p { font-size: 1.2rem; margin-bottom: 2rem; opacity: 0.9; }
-            .status { background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; margin: 20px 0; }
-            .api-link { color: #fff; text-decoration: underline; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <h1>🏠 PropertyHub Command</h1>
-            <p>Real Estate Bot System - Backend API</p>
-            <div class="status">
-              <h3>✅ System Status: Online</h3>
-              <p>Backend API is running successfully</p>
-              <p><a href="/health" class="api-link">Health Check</a> | <a href="/api/test/diagnostics" class="api-link">Diagnostics</a></p>
-            </div>
-            <p><small>Environment: ${NODE_ENV} | Port: ${PORT}</small></p>
-          </div>
-        </body>
-        </html>
-      `);
+      // Try Next.js handler first
+      if (nextHandler) {
+        try {
+          return await nextHandler(req, res);
+        } catch (error) {
+          console.log('⚠️ Next.js handler failed, falling back to static page');
+        }
+      }
+
+      // Fallback to serving the main HTML file if it exists
+      const indexPath = path.join(frontendBuildPath, 'server/app/page.html');
+      if (fs.existsSync(indexPath)) {
+        return res.sendFile(indexPath);
+      }
+
+      // Final fallback - redirect to login
+      res.redirect('/auth/login');
     });
 
-    console.log('✅ Frontend fallback configured');
+    console.log('✅ Frontend routing configured');
   } catch (error) {
     console.error('❌ Failed to setup frontend:', error);
     // Continue without frontend - API-only mode
