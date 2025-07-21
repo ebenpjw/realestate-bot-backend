@@ -539,8 +539,10 @@ try {
   logger.warn('⚠️ Socket.IO initialization failed, continuing without WebSocket support:', error.message);
 }
 
-// Start server
-server.listen(PORT, async () => {
+// Only start server if this file is run directly (not imported as module)
+if (require.main === module) {
+  // Start server
+  server.listen(PORT, async () => {
   logger.info({
     port: PORT,
     environment: config.NODE_ENV,
@@ -562,10 +564,13 @@ server.listen(PORT, async () => {
     logger.warn({ err: error }, '⚠️ Visual property services not available - continuing with basic functionality');
     // Don't fail the entire app if visual services can't start
   }
-});
+  });
 
-// Handle shutdown signals
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  // Handle shutdown signals
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+} else {
+  logger.info('index.js loaded as module - server not started');
+}
 
 module.exports = app;
