@@ -114,46 +114,45 @@ const setupFrontendServing = () => {
       logger.info('✅ Public assets configured');
     }
 
-    // Next.js standalone server integration
-    let nextHandler = null;
-    const serverJsPath = path.join(STANDALONE_PATH, 'server.js');
-    
-    if (fs.existsSync(serverJsPath)) {
-      try {
-        // Load Next.js standalone server
-        const NextServer = require(serverJsPath);
-        if (typeof NextServer === 'function') {
-          nextHandler = NextServer;
-          logger.info('✅ Next.js standalone server loaded');
-        }
-      } catch (error) {
-        logger.warn('⚠️ Failed to load Next.js standalone server:', error.message);
-      }
-    }
+    // Serve Next.js static build files directly (no standalone server)
+    // The standalone server.js tries to start its own HTTP server, causing EADDRINUSE
+    logger.info('✅ Next.js static build serving configured (no standalone server)');
 
-    // Handle all frontend routes (catch-all)
+    // Handle all frontend routes (catch-all) - serve index.html for client-side routing
     app.get('*', async (req, res, next) => {
       // Skip API routes and health check
       if (req.path.startsWith('/api/') || req.path === '/health') {
         return next();
       }
 
-      // Try Next.js handler first
-      if (nextHandler) {
-        try {
-          return await nextHandler(req, res);
-        } catch (error) {
-          logger.warn('⚠️ Next.js handler error:', error.message);
-        }
+      // Serve index.html for all frontend routes (SPA routing)
+      const indexPath = path.join(PUBLIC_PATH, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        // Fallback: serve a basic HTML response
+        res.status(200).send(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Outpaced - Real Estate Bot</title>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+            </head>
+            <body>
+              <div id="__next">
+                <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif;">
+                  <div style="text-align: center;">
+                    <h1>Outpaced</h1>
+                    <p>Intelligent Real Estate Lead Management System</p>
+                    <p>Loading...</p>
+                  </div>
+                </div>
+              </div>
+            </body>
+          </html>
+        `);
       }
-
-      // Fallback: serve a proper 404 response (no redirects)
-      res.status(404).json({
-        error: 'Page not found',
-        message: 'The requested page could not be found.',
-        path: req.path,
-        timestamp: new Date().toISOString()
-      });
     });
 
     logger.info('✅ Frontend serving configured');
@@ -224,14 +223,22 @@ const startServer = async () => {
       });
     });
 
-    // Handle server errors
+    // Handle server errors with detailed debugging
     server.on('error', (err) => {
+      logger.error('❌ Server error occurred:', {
+        error: err.message,
+        code: err.code,
+        port: err.port,
+        address: err.address,
+        stack: err.stack
+      });
+
       if (err.code === 'EADDRINUSE') {
-        logger.error(`❌ Port ${PORT} is already in use`);
-        logger.info('🔄 Railway will handle container restart');
+        logger.error(`❌ Port ${PORT} is already in use - this suggests server.listen() was called twice`);
+        logger.error('🔍 Stack trace for debugging:', err.stack);
         process.exit(1);
       } else {
-        logger.error('❌ Server error:', err);
+        logger.error('❌ Other server error:', err);
         process.exit(1);
       }
     });
