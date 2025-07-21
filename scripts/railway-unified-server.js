@@ -185,8 +185,18 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Prevent multiple server instances
+let serverStarted = false;
+
 // Initialize server
 const startServer = async () => {
+  if (serverStarted) {
+    logger.warn('⚠️ Server already started, ignoring duplicate start request');
+    return;
+  }
+
+  serverStarted = true;
+
   try {
     logger.info('🚀 Starting Railway Unified Server...');
     logger.info(`📍 Environment: ${NODE_ENV}`);
@@ -202,22 +212,43 @@ const startServer = async () => {
     // Setup WebSocket
     setupWebSocket(server);
 
-    // Start listening
+    // Start listening with Railway-optimized configuration
     server.listen(PORT, '0.0.0.0', () => {
       logger.info(`🎉 Server running on port ${PORT}`);
-      logger.info(`🌐 Health check: http://localhost:${PORT}/health`);
-      logger.info(`📱 Frontend: http://localhost:${PORT}`);
-      logger.info(`🔌 API: http://localhost:${PORT}/api`);
+      logger.info(`🌐 Health check: http://0.0.0.0:${PORT}/health`);
+      logger.info(`📱 Frontend: http://0.0.0.0:${PORT}`);
+      logger.info(`🔌 API: http://0.0.0.0:${PORT}/api`);
     });
 
-    // Graceful shutdown
-    process.on('SIGTERM', () => {
-      logger.info('🛑 SIGTERM received, shutting down gracefully...');
+    // Handle server errors
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        logger.error(`❌ Port ${PORT} is already in use`);
+        logger.info('🔄 Railway will handle container restart');
+        process.exit(1);
+      } else {
+        logger.error('❌ Server error:', err);
+        process.exit(1);
+      }
+    });
+
+    // Railway-compatible graceful shutdown
+    const gracefulShutdown = (signal) => {
+      logger.info(`🛑 ${signal} received, shutting down gracefully...`);
       server.close(() => {
-        logger.info('✅ Server closed');
+        logger.info('✅ Server closed gracefully');
         process.exit(0);
       });
-    });
+
+      // Force exit after 5 seconds for Railway compatibility
+      setTimeout(() => {
+        logger.warn('⚠️ Forcing exit after 5 seconds');
+        process.exit(0);
+      }, 5000);
+    };
+
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
   } catch (error) {
     logger.error('❌ Failed to start server:', error);
