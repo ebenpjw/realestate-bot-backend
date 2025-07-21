@@ -26,6 +26,10 @@ const app = express();
 // Trust proxy for Railway
 app.set('trust proxy', 1);
 
+// Setup essential middleware immediately (before server starts)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 // Health check endpoint (highest priority)
 app.get('/health', (req, res) => {
   const healthStatus = {
@@ -44,16 +48,12 @@ app.get('/health', (req, res) => {
   res.status(200).json(healthStatus);
 });
 
-// Setup backend routes
+// Setup backend routes (called after server is listening)
 const setupBackendRoutes = () => {
   try {
     logger.info('🔧 Setting up backend API routes...');
-    
-    // Middleware
-    app.use(express.json({ limit: '10mb' }));
-    app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-    // API Routes
+    // API Routes (middleware already setup)
     const routes = [
       { path: '/api/gupshup', module: '../api/gupshup' },
       { path: '/api/meta', module: '../api/meta' },
@@ -202,22 +202,26 @@ const startServer = async () => {
     logger.info(`📍 Environment: ${NODE_ENV}`);
     logger.info(`🔌 Port: ${PORT}`);
 
-    // Setup routes
-    setupBackendRoutes();
-    setupFrontendServing();
-
-    // Create HTTP server
+    // Create HTTP server FIRST
     const server = http.createServer(app);
 
-    // Setup WebSocket
-    setupWebSocket(server);
-
-    // Start listening with Railway-optimized configuration
+    // Start listening IMMEDIATELY to claim the port and pass Railway healthcheck
     server.listen(PORT, '0.0.0.0', () => {
       logger.info(`🎉 Server running on port ${PORT}`);
       logger.info(`🌐 Health check: http://0.0.0.0:${PORT}/health`);
       logger.info(`📱 Frontend: http://0.0.0.0:${PORT}`);
       logger.info(`🔌 API: http://0.0.0.0:${PORT}/api`);
+
+      // Initialize services in background to avoid blocking Railway healthcheck
+      setImmediate(() => {
+        logger.info('🔧 Initializing backend services...');
+        setupBackendRoutes();
+        logger.info('📱 Initializing frontend serving...');
+        setupFrontendServing();
+        logger.info('🔌 Initializing WebSocket...');
+        setupWebSocket(server);
+        logger.info('✅ All services initialized successfully');
+      });
     });
 
     // Handle server errors
