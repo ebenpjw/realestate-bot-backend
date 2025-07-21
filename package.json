@@ -7,7 +7,7 @@
     "npm": ">=9.0.0"
   },
   "scripts": {
-    "start": "node scripts/start-nextjs-standalone.js",
+    "start": "node scripts/railway-unified-server.js",
     "dev": "nodemon index.js | pino-pretty",
     "lint": "eslint . --ext .js",
     "lint:fix": "eslint . --ext .js --fix",
