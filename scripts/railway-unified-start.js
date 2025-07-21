@@ -8,12 +8,9 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const { createProxyMiddleware } = require('http-proxy-middleware');
-const { spawn } = require('child_process');
 const logger = require('../logger');
 
 const PORT = process.env.PORT || 8080;
-const FRONTEND_PORT = 3001; // Internal port for Next.js
 const NODE_ENV = process.env.NODE_ENV || 'production';
 
 console.log('🚀 Starting PropertyHub Command for Railway deployment...');
@@ -189,10 +186,10 @@ const startNextServer = () => {
   });
 };
 
-// Setup frontend serving (direct Next.js static files + fallback)
-const setupFrontend = (nextProcess) => {
+// Setup frontend serving - serve your Next.js build directly
+const setupFrontend = () => {
   try {
-    console.log('📱 Setting up frontend serving...');
+    console.log('📱 Setting up Next.js frontend serving...');
 
     const frontendBuildPath = path.join(__dirname, '../frontend/.next');
     const frontendStaticPath = path.join(frontendBuildPath, 'static');
@@ -210,80 +207,66 @@ const setupFrontend = (nextProcess) => {
       console.log('✅ Public assets configured');
     }
 
-    // If we have a Next.js process running, proxy to it
-    if (nextProcess) {
-      console.log('📱 Setting up proxy to Next.js server...');
-
-      const frontendProxy = createProxyMiddleware({
-        target: `http://127.0.0.1:${FRONTEND_PORT}`,
-        changeOrigin: true,
-        ws: false,
-        logLevel: 'silent',
-        onError: (err, req, res) => {
-          console.error('🔥 Frontend proxy error:', err.message);
-          // Fallback to serving static files
-          serveStaticFallback(req, res);
-        }
+    // Try to use Next.js built-in server functionality
+    let nextApp = null;
+    try {
+      const next = require('next');
+      nextApp = next({
+        dev: false,
+        dir: path.join(__dirname, '../frontend'),
+        quiet: true
       });
 
-      app.use((req, res, next) => {
-        if (req.path.startsWith('/api/') || req.path === '/health') {
-          return next();
-        }
-        frontendProxy(req, res, next);
-      });
-
-      console.log('✅ Frontend proxy configured');
-    } else {
-      console.log('📱 Setting up static file serving (no Next.js server)...');
-
-      // Serve static files directly
-      app.get('*', (req, res, next) => {
-        if (req.path.startsWith('/api/') || req.path === '/health') {
-          return next();
-        }
-        serveStaticFallback(req, res);
-      });
-
-      console.log('✅ Static frontend serving configured');
+      console.log('✅ Next.js app initialized');
+    } catch (error) {
+      console.log('⚠️ Next.js app initialization failed:', error.message);
     }
+
+    // Handle all frontend routes
+    app.get('*', async (req, res, next) => {
+      // Skip API routes and health check
+      if (req.path.startsWith('/api/') || req.path === '/health') {
+        return next();
+      }
+
+      // Try Next.js handler if available
+      if (nextApp) {
+        try {
+          const handle = nextApp.getRequestHandler();
+          return await handle(req, res);
+        } catch (error) {
+          console.log('⚠️ Next.js handler error:', error.message);
+        }
+      }
+
+      // Fallback: serve index.html for client-side routing (no redirect loop)
+      try {
+        const indexPath = path.join(standalonePath, 'server.js');
+        if (fs.existsSync(indexPath)) {
+          // Let Next.js standalone handle the route
+          return res.status(404).json({
+            error: 'Page not found',
+            message: 'The requested page could not be found.',
+            path: req.path
+          });
+        } else {
+          return res.status(503).json({
+            error: 'Service unavailable',
+            message: 'Frontend service is not ready. Please try again in a moment.'
+          });
+        }
+      } catch (error) {
+        console.error('❌ Fallback handler error:', error);
+        return res.status(500).json({
+          error: 'Internal server error',
+          message: 'An unexpected error occurred.'
+        });
+      }
+    });
+
+    console.log('✅ Frontend serving configured');
   } catch (error) {
     console.error('❌ Failed to setup frontend:', error);
-  }
-};
-
-// Fallback to serve your original Next.js app statically
-const serveStaticFallback = (req, res) => {
-  // For now, redirect all frontend routes to the root
-  // This will be handled by your Next.js client-side routing
-  const indexPath = path.join(__dirname, '../frontend/.next/server/app/page.js');
-
-  if (fs.existsSync(indexPath)) {
-    // Try to serve the built page
-    res.redirect('/');
-  } else {
-    // Final fallback - serve a loading page that will retry
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Outpaced - Loading</title>
-          <meta http-equiv="refresh" content="3">
-          <style>
-            body { font-family: system-ui; text-align: center; padding: 50px; background: #f8fafc; }
-            .loading { animation: pulse 2s infinite; }
-            @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-          </style>
-        </head>
-        <body>
-          <div class="loading">
-            <h1>🏠 Outpaced</h1>
-            <p>Loading your application...</p>
-            <p><small>This page will refresh automatically</small></p>
-          </div>
-        </body>
-      </html>
-    `);
   }
 };
 
@@ -306,19 +289,8 @@ const initializeServices = async () => {
 const startServer = async () => {
   try {
     await initializeServices();
-
-    // Start Next.js server first
-    let nextProcess = null;
-    try {
-      nextProcess = await startNextServer();
-      console.log('✅ Next.js server started successfully');
-    } catch (error) {
-      console.warn('⚠️ Next.js server failed to start:', error.message);
-      console.warn('⚠️ Continuing with API-only mode');
-    }
-
     setupBackendRoutes();
-    setupFrontend(nextProcess);
+    setupFrontend();
 
     // Error handling
     app.use((err, req, res, next) => {
