@@ -93,7 +93,7 @@ const setupBackendRoutes = () => {
 };
 
 // Setup frontend serving
-const setupFrontendServing = () => {
+const setupFrontendServing = async () => {
   try {
     logger.info('📱 Setting up Next.js frontend serving...');
 
@@ -114,45 +114,50 @@ const setupFrontendServing = () => {
       logger.info('✅ Public assets configured');
     }
 
-    // Serve Next.js static build files directly (no standalone server)
-    // The standalone server.js tries to start its own HTTP server, causing EADDRINUSE
-    logger.info('✅ Next.js static build serving configured (no standalone server)');
+    // Initialize Next.js app properly without starting its own server
+    let nextApp = null;
+    try {
+      const next = require('next');
+      const nextAppInstance = next({
+        dev: false,
+        dir: path.join(__dirname, '../frontend'),
+        conf: {
+          // Prevent Next.js from starting its own server
+          distDir: '.next'
+        }
+      });
 
-    // Handle all frontend routes (catch-all) - serve index.html for client-side routing
+      // Prepare Next.js app (this doesn't start a server)
+      await nextAppInstance.prepare();
+      nextApp = nextAppInstance;
+      logger.info('✅ Next.js app initialized (no server started)');
+    } catch (error) {
+      logger.warn('⚠️ Failed to initialize Next.js app:', error.message);
+    }
+
+    // Handle all frontend routes with Next.js request handler
     app.get('*', async (req, res, next) => {
       // Skip API routes and health check
       if (req.path.startsWith('/api/') || req.path === '/health') {
         return next();
       }
 
-      // Serve index.html for all frontend routes (SPA routing)
-      const indexPath = path.join(PUBLIC_PATH, 'index.html');
-      if (fs.existsSync(indexPath)) {
-        res.sendFile(indexPath);
-      } else {
-        // Fallback: serve a basic HTML response
-        res.status(200).send(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>Outpaced - Real Estate Bot</title>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1">
-            </head>
-            <body>
-              <div id="__next">
-                <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif;">
-                  <div style="text-align: center;">
-                    <h1>Outpaced</h1>
-                    <p>Intelligent Real Estate Lead Management System</p>
-                    <p>Loading...</p>
-                  </div>
-                </div>
-              </div>
-            </body>
-          </html>
-        `);
+      // Use Next.js request handler for dynamic rendering
+      if (nextApp) {
+        try {
+          const handle = nextApp.getRequestHandler();
+          return await handle(req, res);
+        } catch (error) {
+          logger.warn('⚠️ Next.js handler error:', error.message);
+        }
       }
+
+      // Fallback if Next.js is not available
+      res.status(503).json({
+        error: 'Frontend service unavailable',
+        message: 'Next.js application is not ready. Please try again in a moment.',
+        timestamp: new Date().toISOString()
+      });
     });
 
     logger.info('✅ Frontend serving configured');
@@ -212,11 +217,11 @@ const startServer = async () => {
       logger.info(`🔌 API: http://0.0.0.0:${PORT}/api`);
 
       // Initialize services in background to avoid blocking Railway healthcheck
-      setImmediate(() => {
+      setImmediate(async () => {
         logger.info('🔧 Initializing backend services...');
         setupBackendRoutes();
         logger.info('📱 Initializing frontend serving...');
-        setupFrontendServing();
+        await setupFrontendServing();
         logger.info('🔌 Initializing WebSocket...');
         setupWebSocket(server);
         logger.info('✅ All services initialized successfully');
