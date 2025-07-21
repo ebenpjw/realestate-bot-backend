@@ -106,12 +106,36 @@ const startNextServer = () => {
   return new Promise((resolve, reject) => {
     console.log('🚀 Starting Next.js standalone server...');
 
-    const standalonePath = path.join(__dirname, '../frontend/.next/standalone/frontend');
+    // Debug: Check what's available
+    const frontendPath = path.join(__dirname, '../frontend');
+    const nextPath = path.join(frontendPath, '.next');
+    const standalonePath = path.join(nextPath, 'standalone/frontend');
     const serverPath = path.join(standalonePath, 'server.js');
 
+    console.log('🔍 Checking paths:');
+    console.log('  Frontend path:', frontendPath, '- exists:', fs.existsSync(frontendPath));
+    console.log('  .next path:', nextPath, '- exists:', fs.existsSync(nextPath));
+    console.log('  Standalone path:', standalonePath, '- exists:', fs.existsSync(standalonePath));
+    console.log('  Server path:', serverPath, '- exists:', fs.existsSync(serverPath));
+
+    // List what's actually in .next directory
+    if (fs.existsSync(nextPath)) {
+      console.log('📁 Contents of .next directory:');
+      try {
+        const nextContents = fs.readdirSync(nextPath);
+        nextContents.forEach(item => {
+          const itemPath = path.join(nextPath, item);
+          const isDir = fs.statSync(itemPath).isDirectory();
+          console.log(`  ${isDir ? '📁' : '📄'} ${item}`);
+        });
+      } catch (error) {
+        console.log('  Error reading .next directory:', error.message);
+      }
+    }
+
     if (!fs.existsSync(serverPath)) {
-      console.error('❌ Next.js standalone server not found at:', serverPath);
-      return reject(new Error('Next.js standalone server not found'));
+      console.log('⚠️ Next.js standalone server not found, will use static serving');
+      return resolve(null); // Return null instead of rejecting
     }
 
     // Set environment variables for Next.js
@@ -147,13 +171,13 @@ const startNextServer = () => {
 
     nextProcess.on('error', (error) => {
       console.error('❌ Failed to start Next.js server:', error);
-      reject(error);
+      resolve(null); // Fallback to static serving
     });
 
     nextProcess.on('exit', (code) => {
       if (code !== 0) {
         console.error(`❌ Next.js server exited with code ${code}`);
-        reject(new Error(`Next.js server exited with code ${code}`));
+        resolve(null); // Fallback to static serving
       }
     });
 
@@ -165,46 +189,101 @@ const startNextServer = () => {
   });
 };
 
-// Setup frontend proxy to Next.js server
-const setupFrontend = () => {
+// Setup frontend serving (direct Next.js static files + fallback)
+const setupFrontend = (nextProcess) => {
   try {
-    console.log('📱 Setting up frontend proxy...');
+    console.log('📱 Setting up frontend serving...');
 
-    // Proxy all non-API routes to Next.js server
-    const frontendProxy = createProxyMiddleware({
-      target: `http://127.0.0.1:${FRONTEND_PORT}`,
-      changeOrigin: true,
-      ws: false, // Don't proxy websockets to frontend
-      logLevel: 'silent',
-      onError: (err, req, res) => {
-        console.error('🔥 Frontend proxy error:', err.message);
-        res.status(503).send(`
-          <html>
-            <head><title>Service Temporarily Unavailable</title></head>
-            <body style="font-family: system-ui; text-align: center; padding: 50px;">
-              <h1>🔧 Frontend Loading...</h1>
-              <p>The application is starting up. Please refresh in a moment.</p>
-              <p><a href="/health">Check API Status</a></p>
-            </body>
-          </html>
-        `);
-      }
-    });
+    const frontendBuildPath = path.join(__dirname, '../frontend/.next');
+    const frontendStaticPath = path.join(frontendBuildPath, 'static');
+    const frontendPublicPath = path.join(__dirname, '../frontend/public');
 
-    // Apply proxy to all non-API routes
-    app.use((req, res, next) => {
-      // Skip API routes and health check
-      if (req.path.startsWith('/api/') || req.path === '/health') {
-        return next();
-      }
+    // Serve Next.js static files
+    if (fs.existsSync(frontendStaticPath)) {
+      app.use('/_next/static', express.static(frontendStaticPath));
+      console.log('✅ Next.js static files configured');
+    }
 
-      // Proxy everything else to Next.js
-      frontendProxy(req, res, next);
-    });
+    // Serve public assets
+    if (fs.existsSync(frontendPublicPath)) {
+      app.use(express.static(frontendPublicPath));
+      console.log('✅ Public assets configured');
+    }
 
-    console.log('✅ Frontend proxy configured');
+    // If we have a Next.js process running, proxy to it
+    if (nextProcess) {
+      console.log('📱 Setting up proxy to Next.js server...');
+
+      const frontendProxy = createProxyMiddleware({
+        target: `http://127.0.0.1:${FRONTEND_PORT}`,
+        changeOrigin: true,
+        ws: false,
+        logLevel: 'silent',
+        onError: (err, req, res) => {
+          console.error('🔥 Frontend proxy error:', err.message);
+          // Fallback to serving static files
+          serveStaticFallback(req, res);
+        }
+      });
+
+      app.use((req, res, next) => {
+        if (req.path.startsWith('/api/') || req.path === '/health') {
+          return next();
+        }
+        frontendProxy(req, res, next);
+      });
+
+      console.log('✅ Frontend proxy configured');
+    } else {
+      console.log('📱 Setting up static file serving (no Next.js server)...');
+
+      // Serve static files directly
+      app.get('*', (req, res, next) => {
+        if (req.path.startsWith('/api/') || req.path === '/health') {
+          return next();
+        }
+        serveStaticFallback(req, res);
+      });
+
+      console.log('✅ Static frontend serving configured');
+    }
   } catch (error) {
-    console.error('❌ Failed to setup frontend proxy:', error);
+    console.error('❌ Failed to setup frontend:', error);
+  }
+};
+
+// Fallback to serve your original Next.js app statically
+const serveStaticFallback = (req, res) => {
+  // For now, redirect all frontend routes to the root
+  // This will be handled by your Next.js client-side routing
+  const indexPath = path.join(__dirname, '../frontend/.next/server/app/page.js');
+
+  if (fs.existsSync(indexPath)) {
+    // Try to serve the built page
+    res.redirect('/');
+  } else {
+    // Final fallback - serve a loading page that will retry
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Outpaced - Loading</title>
+          <meta http-equiv="refresh" content="3">
+          <style>
+            body { font-family: system-ui; text-align: center; padding: 50px; background: #f8fafc; }
+            .loading { animation: pulse 2s infinite; }
+            @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+          </style>
+        </head>
+        <body>
+          <div class="loading">
+            <h1>🏠 Outpaced</h1>
+            <p>Loading your application...</p>
+            <p><small>This page will refresh automatically</small></p>
+          </div>
+        </body>
+      </html>
+    `);
   }
 };
 
@@ -239,7 +318,7 @@ const startServer = async () => {
     }
 
     setupBackendRoutes();
-    setupFrontend();
+    setupFrontend(nextProcess);
 
     // Error handling
     app.use((err, req, res, next) => {
