@@ -9,15 +9,15 @@ import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { 
-  MessageSquare, 
-  Send, 
-  Users, 
-  Eye, 
-  AlertCircle, 
-  CheckCircle, 
+import {
+  MessageSquare,
+  Send,
+  Users,
+  Eye,
+  AlertCircle,
+  CheckCircle,
   Loader2,
-  Template,
+  FileText,
   Hash
 } from 'lucide-react'
 import { Template as TemplateType } from '@/lib/api/services/messagesApi'
@@ -144,7 +144,7 @@ export function MessageComposer({
         </CardHeader>
         <CardContent>
           <div className="text-center py-12 text-muted-foreground">
-            <Template className="h-16 w-16 mx-auto mb-4 opacity-50" />
+            <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
             <p className="text-lg font-medium mb-2">No Template Selected</p>
             <p className="text-sm">
               Choose a template from the left panel to start composing your message
@@ -287,7 +287,7 @@ export function MessageComposer({
                           data-testid={`param-input-${index + 1}`}
                         />
                         <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Will replace: {{`{{${index + 1}}}`}}</span>
+                          <span>Will replace: {`{{${index + 1}}}`}</span>
                           <span>{paramValue.length}/100</span>
                         </div>
                       </div>

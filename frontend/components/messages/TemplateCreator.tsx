@@ -170,7 +170,7 @@ export function TemplateCreator({ onTemplateCreated, className }: TemplateCreato
             <strong>Template Guidelines:</strong>
             <ul className="list-disc list-inside mt-2 space-y-1">
               <li>Templates must be approved by WhatsApp before use</li>
-              <li>Use parameters like {{1}}, {{2}} for dynamic content</li>
+              <li>Use parameters like {'{1}'}, {'{2}'} for dynamic content</li>
               <li>Marketing templates require opt-in from recipients</li>
               <li>Keep content professional and compliant</li>
             </ul>
@@ -261,7 +261,7 @@ export function TemplateCreator({ onTemplateCreated, className }: TemplateCreato
               {parameters.map((param, index) => (
                 <div key={index} className="flex items-center space-x-2">
                   <Badge variant="outline" className="min-w-12 justify-center">
-                    {{`{{${index + 1}}}`}}
+                    {`{{${index + 1}}}`}
                   </Badge>
                   <Input
                     placeholder={`Description for parameter ${index + 1}`}
@@ -342,7 +342,7 @@ export function TemplateCreator({ onTemplateCreated, className }: TemplateCreato
                   {parameters.map((param, index) => (
                     <div key={index} className="flex items-center space-x-2 text-xs">
                       <Badge variant="secondary" className="min-w-12 justify-center">
-                        {{`{{${index + 1}}}`}}
+                        {`{{${index + 1}}}`}
                       </Badge>
                       <span className="text-muted-foreground">
                         {param || `Parameter ${index + 1}`}

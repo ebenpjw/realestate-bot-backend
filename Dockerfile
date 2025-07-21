@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-COPY frontend/package*.json ./frontend/
+COPY frontend/package.json ./frontend/
 
 # Clean npm cache and install backend dependencies
 RUN npm cache clean --force && \

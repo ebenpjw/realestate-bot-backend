@@ -184,11 +184,19 @@ export default function ConversationsPage() {
       // Send via socket for real-time updates
       if (socket && connected) {
         socket.emit('send_message', {
-        conversationId: selectedConversation.id,
-        leadId: selectedConversation.leadId,
-        message,
-        agentId: user?.id
-      })
+          conversationId: selectedConversation.id,
+          leadId: selectedConversation.leadId,
+          message,
+          agentId: user?.id
+        });
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to send message. Please try again.',
+        variant: 'destructive'
+      });
     }
   }
 

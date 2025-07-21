@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Search, Template, Eye, Filter, RefreshCw } from 'lucide-react'
+import { Search, FileText, Eye, Filter, RefreshCw } from 'lucide-react'
 import { Template as TemplateType } from '@/lib/api/services/messagesApi'
 import { cn } from '@/lib/utils'
 
@@ -69,7 +69,7 @@ export function TemplateSelector({
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center space-x-2">
-              <Template className="h-5 w-5" />
+              <FileText className="h-5 w-5" />
               <span>Select Template</span>
             </CardTitle>
             <CardDescription>
@@ -135,7 +135,7 @@ export function TemplateSelector({
             ) : filteredTemplates.length === 0 ? (
               // Empty state
               <div className="text-center py-8 text-muted-foreground">
-                <Template className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p className="font-medium">No templates found</p>
                 <p className="text-sm">
                   {searchTerm || categoryFilter !== 'all' 
@@ -274,7 +274,7 @@ export function TemplateSelector({
                   <div className="space-y-1">
                     {previewTemplate.parameters.map((param, index) => (
                       <div key={index} className="text-xs bg-yellow-50 px-2 py-1 rounded">
-                        {{`{{${index + 1}}}`}} - Parameter {index + 1}
+                        {`{{${index + 1}}}`} - Parameter {index + 1}
                       </div>
                     ))}
                   </div>
