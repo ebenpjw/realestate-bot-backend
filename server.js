@@ -110,59 +110,39 @@ if (fs.existsSync(PUBLIC_PATH)) {
   console.log('✅ Public assets configured');
 }
 
-// Initialize Next.js handler for dynamic routes
-let nextHandler = null;
-if (fs.existsSync(STANDALONE_PATH)) {
-  try {
-    // Try to initialize Next.js app for request handling
-    const next = require('next');
-    const nextApp = next({
-      dev: false,
-      dir: path.join(__dirname, 'frontend'),
-      quiet: true
-    });
-
-    nextHandler = nextApp.getRequestHandler();
-    console.log('✅ Next.js request handler initialized');
-  } catch (error) {
-    console.warn('⚠️ Next.js request handler not available:', error.message);
-  }
-}
-
-// Handle all frontend routes
-app.get('*', async (req, res, next) => {
+// Handle all frontend routes - serve static files for SPA
+app.get('*', (req, res, next) => {
   // Skip API routes and health check
   if (req.path.startsWith('/api/') || req.path === '/health') {
     return next();
   }
 
-  // Use Next.js request handler if available
-  if (nextHandler) {
-    try {
-      return await nextHandler(req, res);
-    } catch (error) {
-      console.warn('⚠️ Next.js handler error:', error.message);
-    }
-  }
-
-  // Fallback: serve index.html for SPA routing
-  const indexPath = path.join(STANDALONE_PATH, 'frontend/index.html');
+  // For all other routes, serve the main index.html (SPA routing)
+  const indexPath = path.join(PUBLIC_PATH, 'index.html');
   if (fs.existsSync(indexPath)) {
     return res.sendFile(indexPath);
   }
 
-  // Fallback to public index.html
-  const publicIndexPath = path.join(PUBLIC_PATH, 'index.html');
-  if (fs.existsSync(publicIndexPath)) {
-    return res.sendFile(publicIndexPath);
-  }
-
-  // Final fallback
-  res.status(503).json({
-    error: 'Frontend service unavailable',
-    message: 'Next.js application is not ready. Please try again in a moment.',
-    timestamp: new Date().toISOString()
-  });
+  // If no index.html, return a simple response
+  res.status(200).send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Outpaced - Loading...</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+      </head>
+      <body>
+        <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif;">
+          <div style="text-align: center;">
+            <h1>Outpaced</h1>
+            <p>Application is starting up...</p>
+            <p>Please refresh in a moment.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `);
 });
 
 // Error handling middleware
