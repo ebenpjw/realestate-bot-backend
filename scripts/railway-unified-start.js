@@ -120,51 +120,110 @@ const setupFrontend = () => {
       console.log('✅ Public assets configured');
     }
 
-    // Try to serve Next.js pages
-    let nextHandler = null;
-    try {
-      // Try to load Next.js server-side rendering
-      const nextServer = require('next')({
-        dev: false,
-        dir: path.join(__dirname, '../frontend'),
-        conf: {
-          distDir: '.next'
-        }
-      });
-
-      nextHandler = nextServer.getRequestHandler();
-      console.log('✅ Next.js server handler loaded');
-    } catch (error) {
-      console.log('⚠️ Next.js server handler not available, using static fallback');
-    }
-
-    // For all other routes, try Next.js handler first, then fallback
-    app.get('*', async (req, res) => {
+    // For all other routes, serve a working frontend page
+    app.get('*', (req, res) => {
       // Skip API routes
       if (req.path.startsWith('/api/') || req.path === '/health') {
         return res.status(404).json({ error: 'API endpoint not found' });
       }
 
-      // Try Next.js handler first
-      if (nextHandler) {
-        try {
-          return await nextHandler(req, res);
-        } catch (error) {
-          console.log('⚠️ Next.js handler failed, falling back to static page');
-        }
-      }
+      // Serve a proper login page that works
+      res.send(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Outpaced - Login</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+          </style>
+        </head>
+        <body class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+          <div class="max-w-md w-full space-y-8">
+            <div class="text-center">
+              <h1 class="text-4xl font-bold text-gray-900 mb-2">🏠 Outpaced</h1>
+              <p class="text-lg text-gray-600">Intelligent Real Estate Lead Management System</p>
+            </div>
 
-      // Fallback to serving the main HTML file if it exists
-      const indexPath = path.join(frontendBuildPath, 'server/app/page.html');
-      if (fs.existsSync(indexPath)) {
-        return res.sendFile(indexPath);
-      }
+            <div class="bg-white rounded-xl shadow-lg p-8">
+              <form class="space-y-6" onsubmit="handleLogin(event)">
+                <div>
+                  <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <input type="email" id="email" name="email" required
+                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                         placeholder="Enter your email">
+                </div>
 
-      // Final fallback - redirect to login
-      res.redirect('/auth/login');
+                <div>
+                  <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                  <input type="password" id="password" name="password" required
+                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                         placeholder="Enter your password">
+                </div>
+
+                <button type="submit"
+                        class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200">
+                  Sign In
+                </button>
+              </form>
+
+              <div class="mt-6 text-center">
+                <div class="text-sm text-gray-500">
+                  <a href="#" class="text-blue-600 hover:text-blue-500">Privacy Policy</a> |
+                  <a href="#" class="text-blue-600 hover:text-blue-500">Terms of Service</a>
+                </div>
+              </div>
+            </div>
+
+            <div class="text-center text-sm text-gray-500">
+              <p>System Status: <span class="text-green-600 font-medium">Online</span></p>
+              <p>Environment: ${NODE_ENV} | Port: ${PORT}</p>
+            </div>
+          </div>
+
+          <script>
+            async function handleLogin(event) {
+              event.preventDefault();
+              const formData = new FormData(event.target);
+              const email = formData.get('email');
+              const password = formData.get('password');
+
+              try {
+                const response = await fetch('/api/frontend-auth/login', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ email, password }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                  // Store token and redirect based on role
+                  localStorage.setItem('token', data.token);
+                  if (data.user.role === 'admin') {
+                    window.location.href = '/admin/dashboard';
+                  } else {
+                    window.location.href = '/agent/dashboard';
+                  }
+                } else {
+                  alert(data.error || 'Login failed');
+                }
+              } catch (error) {
+                console.error('Login error:', error);
+                alert('Login failed. Please try again.');
+              }
+            }
+          </script>
+        </body>
+        </html>
+      `);
     });
 
-    console.log('✅ Frontend routing configured');
+    console.log('✅ Frontend login page configured');
   } catch (error) {
     console.error('❌ Failed to setup frontend:', error);
     // Continue without frontend - API-only mode
