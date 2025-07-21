@@ -502,6 +502,10 @@ class AuthApi {
         });
         return response.data;
     }
+    async register(data) {
+        const response = await __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$api$2f$client$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["apiClient"].post('/api/frontend-auth/register', data);
+        return response.data;
+    }
     async logout() {
         await __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$api$2f$client$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["apiClient"].post('/api/frontend-auth/logout');
     }
@@ -719,6 +723,33 @@ function AuthProvider(param) {
     }["AuthProvider.useCallback[login]"], [
         router
     ]);
+    const register = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
+        "AuthProvider.useCallback[register]": async (data)=>{
+            try {
+                setLoading(true);
+                const response = await __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$auth$2f$authApi$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["authApi"].register(data);
+                __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$sonner$2f$dist$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["toast"].success('Registration successful!', {
+                    description: response.message
+                });
+                return {
+                    success: true,
+                    message: response.message
+                };
+            } catch (error) {
+                var _error_response_data, _error_response;
+                const errorMessage = ((_error_response = error.response) === null || _error_response === void 0 ? void 0 : (_error_response_data = _error_response.data) === null || _error_response_data === void 0 ? void 0 : _error_response_data.error) || error.message || 'Registration failed';
+                __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$sonner$2f$dist$2f$index$2e$mjs__$5b$app$2d$client$5d$__$28$ecmascript$29$__["toast"].error('Registration failed', {
+                    description: errorMessage
+                });
+                return {
+                    success: false,
+                    message: errorMessage
+                };
+            } finally{
+                setLoading(false);
+            }
+        }
+    }["AuthProvider.useCallback[register]"], []);
     const logout = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useCallback"])({
         "AuthProvider.useCallback[logout]": async ()=>{
             try {
@@ -769,6 +800,7 @@ function AuthProvider(param) {
                 user,
                 loading,
                 login,
+                register,
                 logout,
                 refreshUser,
                 isAuthenticated: !!user,
@@ -780,6 +812,7 @@ function AuthProvider(param) {
         user,
         loading,
         login,
+        register,
         logout,
         refreshUser,
         hasPermission
@@ -789,11 +822,11 @@ function AuthProvider(param) {
         children: children
     }, void 0, false, {
         fileName: "[project]/lib/auth/AuthContext.tsx",
-        lineNumber: 234,
+        lineNumber: 257,
         columnNumber: 5
     }, this);
 }
-_s1(AuthProvider, "KGw7WRhec2pdKLrg8f14soE30vU=", false, function() {
+_s1(AuthProvider, "AfwP4p2Pnos+DSjkbbaf4OFAl0E=", false, function() {
     return [
         __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRouter"]
     ];

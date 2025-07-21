@@ -1,11 +1,10 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
-  "/admin/agents/[agentId]/costs/page": "app/admin/agents/[agentId]/costs/page.js",
-  "/admin/agents/[agentId]/waba/page": "app/admin/agents/[agentId]/waba/page.js",
-  "/admin/agents/page": "app/admin/agents/page.js",
-  "/admin/costs/page": "app/admin/costs/page.js",
   "/admin/dashboard/page": "app/admin/dashboard/page.js",
-  "/admin/waba/page": "app/admin/waba/page.js",
+  "/agent/dashboard/page": "app/agent/dashboard/page.js",
+  "/agent/settings/page": "app/agent/settings/page.js",
   "/auth/login/page": "app/auth/login/page.js",
-  "/page": "app/page.js"
+  "/page": "app/page.js",
+  "/privacy-policy/page": "app/privacy-policy/page.js",
+  "/terms-of-service/page": "app/terms-of-service/page.js"
 }

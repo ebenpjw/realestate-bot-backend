@@ -988,26 +988,56 @@ router.get('/integrations/status', authenticateToken, async (req, res) => {
       wabaStatus.errorMessage = error.message;
     }
 
-    // Placeholder for other integrations
+    // Get Google Calendar integration status
+    let googleStatus = {
+      status: 'disconnected',
+      email: null,
+      calendarId: null,
+      lastSync: null,
+      errorMessage: null,
+      permissions: []
+    };
+
+    try {
+      const { data: agent, error: agentError } = await databaseService.supabase
+        .from('agents')
+        .select('google_email, google_calendar_id, google_refresh_token_encrypted, google_token_status, google_token_last_error, google_token_error_at')
+        .eq('id', agentId)
+        .single();
+
+      if (!agentError && agent) {
+        if (agent.google_email && agent.google_refresh_token_encrypted) {
+          googleStatus = {
+            status: agent.google_token_status === 'needs_refresh' ? 'error' : 'connected',
+            email: agent.google_email,
+            calendarId: agent.google_calendar_id || 'primary',
+            lastSync: new Date().toISOString(),
+            errorMessage: agent.google_token_last_error || null,
+            permissions: ['calendar.readonly', 'calendar.events']
+          };
+        }
+      }
+    } catch (error) {
+      logger.error({ err: error, agentId }, 'Error getting Google Calendar status');
+      googleStatus.status = 'error';
+      googleStatus.errorMessage = 'Failed to check Google Calendar connection';
+    }
+
+    // Get Zoom integration status (placeholder - will be removed)
+    let zoomStatus = {
+      status: 'disconnected',
+      userId: null,
+      email: null,
+      personalMeetingId: null,
+      lastSync: null,
+      errorMessage: null,
+      meetingSettings: null
+    };
+
     const integrationStatus = {
       waba: wabaStatus,
-      google: {
-        status: 'disconnected',
-        email: null,
-        calendarId: null,
-        lastSync: null,
-        errorMessage: null,
-        permissions: []
-      },
-      zoom: {
-        status: 'disconnected',
-        userId: null,
-        email: null,
-        personalMeetingId: null,
-        lastSync: null,
-        errorMessage: null,
-        meetingSettings: null
-      },
+      google: googleStatus,
+      zoom: zoomStatus,
       metaBusiness: {
         status: 'disconnected',
         businessId: null,

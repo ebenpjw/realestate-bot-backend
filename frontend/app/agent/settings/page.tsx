@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth/AuthContext'
+import { useGoogleIntegration } from '@/lib/hooks/useIntegrations'
+import { toast } from 'sonner'
 import {
   User,
   Bell,
@@ -13,8 +15,9 @@ import {
   Key,
   Settings as SettingsIcon,
   Calendar,
-  Video,
   Save,
+  CheckCircle,
+  ExternalLink,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -81,6 +84,9 @@ export default function SettingsPage() {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [activeSection, setActiveSection] = useState('profile')
+
+  // Use React Query hook for Google Calendar integration status
+  const { data: googleIntegration, isLoading: googleLoading, refetch: refetchGoogle } = useGoogleIntegration(user?.id)
   const [formData, setFormData] = useState({
     fullName: user?.full_name || 'Agent',
     email: user?.email || '',
@@ -118,6 +124,72 @@ export default function SettingsPage() {
     await new Promise(resolve => setTimeout(resolve, 1500))
     setLoading(false)
   }
+
+  // Integration handlers
+  const handleGoogleConnect = async () => {
+    if (!user?.id) {
+      toast.error('User not authenticated')
+      return
+    }
+
+    try {
+      // Directly open the Google OAuth URL since the endpoint returns a redirect
+      const authUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/auth/google?agentId=${user.id}`
+      const authWindow = window.open(authUrl, 'google-auth', 'width=500,height=600,scrollbars=yes,resizable=yes')
+
+      if (!authWindow) {
+        toast.error('Popup blocked', {
+          description: 'Please allow popups for this site and try again'
+        })
+        return
+      }
+
+      toast.success('Google Calendar authentication initiated', {
+        description: 'Complete the authentication in the popup window'
+      })
+
+      // Listen for messages from the OAuth popup
+      const handleMessage = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return
+
+        if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
+          toast.success('Google Calendar connected successfully!')
+          refetchGoogle() // Refresh the integration status
+          window.removeEventListener('message', handleMessage)
+        } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
+          toast.error('Google Calendar authentication failed', {
+            description: event.data.error || 'Please try again'
+          })
+          window.removeEventListener('message', handleMessage)
+        }
+      }
+
+      window.addEventListener('message', handleMessage)
+
+      // Fallback: Listen for the popup to close and refresh integration status
+      const checkClosed = setInterval(() => {
+        if (authWindow.closed) {
+          clearInterval(checkClosed)
+          window.removeEventListener('message', handleMessage)
+
+          // Refresh status after popup closes (in case message wasn't received)
+          setTimeout(() => {
+            refetchGoogle()
+          }, 1000)
+
+          toast.info('Authentication window closed', {
+            description: 'Checking connection status...'
+          })
+        }
+      }, 1000)
+
+    } catch (error) {
+      console.error('Google auth error:', error)
+      toast.error('Failed to initiate Google Calendar authentication')
+    }
+  }
+
+
 
   const renderProfileSettings = () => (
     <div className="space-y-6">
@@ -346,11 +418,11 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle>Integrations</CardTitle>
               <CardDescription>
-                Connect your Google Calendar and Zoom account for seamless appointment booking
+                Connect your Google Calendar for seamless appointment booking
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6">
                 <Card>
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
@@ -359,24 +431,42 @@ export default function SettingsPage() {
                         <div>
                           <h3 className="font-medium">Google Calendar</h3>
                           <p className="text-sm text-muted-foreground">Sync appointments and availability</p>
+                          {googleIntegration?.status === 'connected' && googleIntegration?.email && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <CheckCircle className="h-3 w-3 text-green-600" />
+                              <span className="text-xs text-green-600">{googleIntegration.email}</span>
+                            </div>
+                          )}
+                          {googleIntegration?.status === 'error' && googleIntegration?.errorMessage && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <ExternalLink className="h-3 w-3 text-red-600" />
+                              <span className="text-xs text-red-600">Connection error</span>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <Button variant="outline">Connect</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Video className="h-8 w-8 text-blue-500" />
-                        <div>
-                          <h3 className="font-medium">Zoom</h3>
-                          <p className="text-sm text-muted-foreground">Generate meeting links automatically</p>
-                        </div>
-                      </div>
-                      <Button variant="outline">Connect</Button>
+                      <Button
+                        variant="outline"
+                        onClick={handleGoogleConnect}
+                        disabled={googleLoading}
+                      >
+                        {googleLoading ? (
+                          <>
+                            <LoadingSpinner size="sm" className="mr-2" />
+                            Loading...
+                          </>
+                        ) : googleIntegration?.status === 'connected' ? (
+                          <>
+                            <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+                            Connected
+                          </>
+                        ) : (
+                          <>
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Connect
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>

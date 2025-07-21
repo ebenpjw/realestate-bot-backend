@@ -315,6 +315,56 @@ class AppointmentsApi {
     })
     return response.data.data
   }
+
+  /**
+   * Get calendar events (Google Calendar + Database appointments)
+   */
+  async getCalendarEvents(
+    agentId?: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<{
+    events: CalendarEvent[]
+    googleEventsCount: number
+    appointmentsCount: number
+    totalEvents: number
+    dateRange: {
+      start: string
+      end: string
+    }
+  }> {
+    const response = await apiClient.get('/api/appointments/calendar-events', {
+      params: {
+        agentId,
+        startDate,
+        endDate
+      }
+    })
+    return response.data.data
+  }
+}
+
+export interface CalendarEvent {
+  id: string
+  title: string
+  description?: string
+  start: string
+  end: string
+  location?: string
+  attendees?: string[]
+  status?: string
+  type?: string
+  leadId?: string
+  leadName?: string
+  phoneNumber?: string
+  zoomJoinUrl?: string
+  htmlLink?: string
+  isAllDay: boolean
+  source: 'google_calendar' | 'database_appointment'
+  created?: string
+  updated?: string
+  creator?: string
+  organizer?: string
 }
 
 export const appointmentsApi = new AppointmentsApi()

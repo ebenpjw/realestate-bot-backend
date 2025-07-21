@@ -260,6 +260,7 @@ app.use('/api/appointments', require('./api/appointments'));
 app.use('/api/conversations', require('./api/conversations'));
 app.use('/api/integrations', require('./api/integrations'));
 app.use('/api/agents', require('./api/agents'));
+app.use('/api/messages', require('./api/messages'));
 app.use('/api/cost-tracking', require('./api/costTracking'));
 app.use('/api/cost-tracking-dashboard', require('./api/costTrackingDashboard'));
 // Optional feature loading with better error handling and feature flags

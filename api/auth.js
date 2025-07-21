@@ -11,14 +11,25 @@ const logger = require('../logger');
 const { encrypt } = require('./authHelper'); // Import from helper
 
 function getRedirectUri() {
-    return config.NODE_ENV === 'production' ? config.PRODUCTION_REDIRECT_URI : config.GOOGLE_REDIRECT_URI;
+    const redirectUri = config.NODE_ENV === 'production' ? config.PRODUCTION_REDIRECT_URI : config.GOOGLE_REDIRECT_URI;
+    logger.info({
+      nodeEnv: config.NODE_ENV,
+      redirectUri,
+      productionUri: config.PRODUCTION_REDIRECT_URI,
+      localUri: config.GOOGLE_REDIRECT_URI,
+      envGoogleRedirectUri: process.env.GOOGLE_REDIRECT_URI,
+      envProductionRedirectUri: process.env.PRODUCTION_REDIRECT_URI
+    }, 'OAuth redirect URI determined');
+    return redirectUri;
 }
 
-const oauth2Client = new google.auth.OAuth2(
-  config.GOOGLE_CLIENT_ID,
-  config.GOOGLE_CLIENT_SECRET,
-  getRedirectUri()
-);
+function getOAuth2Client() {
+    return new google.auth.OAuth2(
+        config.GOOGLE_CLIENT_ID,
+        config.GOOGLE_CLIENT_SECRET,
+        getRedirectUri()
+    );
+}
 
 const scopes = [
   'https://www.googleapis.com/auth/calendar.events',
@@ -69,6 +80,7 @@ router.get('/google', (req, res) => {
       sessionId: req.sessionID || 'no-session' // Session tracking
     };
 
+    const oauth2Client = getOAuth2Client();
     const url = oauth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: scopes,
@@ -96,7 +108,18 @@ router.get('/google/callback', async (req, res, next) => {
   try {
     const { code, state } = req.query;
     if (!code || !state) {
-      return res.status(400).send('Authorization code or state not found.');
+      const errorHtml = `
+        <html><head><title>Error</title></head><body>
+          <h1>Error</h1><p>Authorization code or state not found.</p>
+          <script>
+            if (window.opener) {
+              window.opener.postMessage({type: 'GOOGLE_AUTH_ERROR', error: 'Authorization code or state not found'}, window.location.origin);
+            }
+            setTimeout(() => window.close(), 2000);
+          </script>
+        </body></html>
+      `;
+      return res.status(400).send(errorHtml);
     }
 
     let parsedState;
@@ -104,18 +127,54 @@ router.get('/google/callback', async (req, res, next) => {
         parsedState = JSON.parse(Buffer.from(state, 'base64').toString('utf8'));
     } catch (parseError) {
         logger.error({ err: parseError }, 'Error parsing state parameter');
-        return res.status(400).send('Invalid state parameter.');
+        const errorHtml = `
+          <html><head><title>Error</title></head><body>
+            <h1>Error</h1><p>Invalid state parameter.</p>
+            <script>
+              if (window.opener) {
+                window.opener.postMessage({type: 'GOOGLE_AUTH_ERROR', error: 'Invalid state parameter'}, window.location.origin);
+              }
+              setTimeout(() => window.close(), 2000);
+            </script>
+          </body></html>
+        `;
+        return res.status(400).send(errorHtml);
     }
 
     const agentId = parsedState.agentId;
-    if (!agentId) return res.status(400).send('Agent ID missing in state parameter.');
+    if (!agentId) {
+      const errorHtml = `
+        <html><head><title>Error</title></head><body>
+          <h1>Error</h1><p>Agent ID missing in state parameter.</p>
+          <script>
+            if (window.opener) {
+              window.opener.postMessage({type: 'GOOGLE_AUTH_ERROR', error: 'Agent ID missing'}, window.location.origin);
+            }
+            setTimeout(() => window.close(), 2000);
+          </script>
+        </body></html>
+      `;
+      return res.status(400).send(errorHtml);
+    }
 
+    const oauth2Client = getOAuth2Client();
     const { tokens } = await oauth2Client.getToken(code);
     const refreshToken = tokens.refresh_token;
 
     if (!refreshToken) {
         logger.warn({ agentId }, "No refresh token received for agent. This might happen if consent was previously granted without 'prompt: consent'.");
-        return res.status(400).send('Refresh token not received. Please try connecting again.');
+        const errorHtml = `
+          <html><head><title>Error</title></head><body>
+            <h1>Error</h1><p>Refresh token not received. Please try connecting again.</p>
+            <script>
+              if (window.opener) {
+                window.opener.postMessage({type: 'GOOGLE_AUTH_ERROR', error: 'Refresh token not received. Please try connecting again.'}, window.location.origin);
+              }
+              setTimeout(() => window.close(), 2000);
+            </script>
+          </body></html>
+        `;
+        return res.status(400).send(errorHtml);
     }
     
     logger.info({ agentId }, `Google Refresh Token Received for Agent.`);
@@ -147,7 +206,7 @@ router.get('/google/callback', async (req, res, next) => {
 
     logger.info({ agentId, updateData: { ...updateData, google_refresh_token_encrypted: '[ENCRYPTED]' } }, 'Attempting to save Google auth data');
 
-    const { data, error } = await supabase.from('agents')
+    const { data, error } = await databaseService.supabase.from('agents')
         .update(updateData)
         .eq('id', agentId)
         .select();
@@ -158,10 +217,87 @@ router.get('/google/callback', async (req, res, next) => {
     }
 
     logger.info({ agentId, updatedAgent: data }, 'Google refresh token saved successfully.');
-    res.send('<h1>Success!</h1><p>Your Google Calendar has been connected. You can close this tab.</p>');
+
+    // Send success message to parent window and close popup
+    const successHtml = `
+      <html>
+        <head>
+          <title>Google Calendar Connected</title>
+          <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
+            .success { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
+            .success h1 { color: #22c55e; margin-bottom: 10px; }
+            .success p { color: #666; margin-bottom: 20px; }
+            .loading { color: #999; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="success">
+            <h1>✅ Success!</h1>
+            <p>Your Google Calendar has been connected successfully.</p>
+            <p class="loading">Closing window...</p>
+          </div>
+          <script>
+            // Send success message to parent window
+            if (window.opener) {
+              window.opener.postMessage({
+                type: 'GOOGLE_AUTH_SUCCESS',
+                agentId: '${agentId}'
+              }, window.location.origin);
+            }
+
+            // Close the popup after a short delay
+            setTimeout(() => {
+              window.close();
+            }, 2000);
+          </script>
+        </body>
+      </html>
+    `;
+
+    res.send(successHtml);
 
   } catch (error) {
-    next(error); // Pass error to the centralized handler
+    logger.error({ err: error, agentId: req.query.state }, 'Google OAuth callback failed');
+
+    // Send error message to parent window
+    const errorHtml = `
+      <html>
+        <head>
+          <title>Google Calendar Connection Failed</title>
+          <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
+            .error { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
+            .error h1 { color: #ef4444; margin-bottom: 10px; }
+            .error p { color: #666; margin-bottom: 20px; }
+            .loading { color: #999; font-size: 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="error">
+            <h1>❌ Connection Failed</h1>
+            <p>Failed to connect your Google Calendar. Please try again.</p>
+            <p class="loading">Closing window...</p>
+          </div>
+          <script>
+            // Send error message to parent window
+            if (window.opener) {
+              window.opener.postMessage({
+                type: 'GOOGLE_AUTH_ERROR',
+                error: '${error.message || 'Authentication failed'}'
+              }, window.location.origin);
+            }
+
+            // Close the popup after a short delay
+            setTimeout(() => {
+              window.close();
+            }, 3000);
+          </script>
+        </body>
+      </html>
+    `;
+
+    res.status(500).send(errorHtml);
   }
 });
 

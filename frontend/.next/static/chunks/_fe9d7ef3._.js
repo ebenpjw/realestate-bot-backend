@@ -60,6 +60,7 @@ __turbopack_context__.s({
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/jsx-dev-runtime.js [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/compiled/react/index.js [app-client] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/navigation.js [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$auth$2f$AuthContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/auth/AuthContext.tsx [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$hooks$2f$useRealTimeNotifications$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/lib/hooks/useRealTimeNotifications.ts [app-client] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$LoadingSpinner$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/ui/LoadingSpinner.tsx [app-client] (ecmascript)");
@@ -81,6 +82,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$re
 var _s = __turbopack_context__.k.signature();
 'use client';
 const dynamic = 'force-dynamic';
+;
 ;
 ;
 ;
@@ -159,6 +161,7 @@ const mockDashboardData = {
 function AgentDashboard() {
     var _dashboardData_growth, _dashboardData_growth1, _dashboardData_growth2, _dashboardData_growth3, _dashboardData_growth4, _dashboardData_growth5, _dashboardData_growth6, _user_full_name;
     _s();
+    const router = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRouter"])();
     const { user } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$auth$2f$AuthContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useAuth"])();
     const { metrics: realTimeMetrics, connected } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$hooks$2f$useRealTimeNotifications$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRealTimeNotifications"])();
     const [dashboardData, setDashboardData] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])(mockDashboardData);
@@ -223,6 +226,16 @@ function AgentDashboard() {
         if (change.startsWith('-')) return 'negative';
         return 'neutral';
     };
+    // Navigation handlers
+    const handleViewAllLeads = ()=>{
+        router.push('/agent/leads');
+    };
+    const handleViewAnalytics = ()=>{
+        router.push('/agent/analytics');
+    };
+    const handleViewCalendar = ()=>{
+        router.push('/agent/calendar');
+    };
     const metrics = [
         {
             name: 'Total Leads',
@@ -278,12 +291,12 @@ function AgentDashboard() {
                 size: "lg"
             }, void 0, false, {
                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                lineNumber: 209,
+                lineNumber: 224,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/app/agent/dashboard/page.tsx",
-            lineNumber: 208,
+            lineNumber: 223,
             columnNumber: 7
         }, this);
     }
@@ -304,7 +317,7 @@ function AgentDashboard() {
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/agent/dashboard/page.tsx",
-                            lineNumber: 219,
+                            lineNumber: 234,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -318,18 +331,18 @@ function AgentDashboard() {
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/agent/dashboard/page.tsx",
-                            lineNumber: 222,
+                            lineNumber: 237,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/agent/dashboard/page.tsx",
-                    lineNumber: 218,
+                    lineNumber: 233,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                lineNumber: 217,
+                lineNumber: 232,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -351,7 +364,7 @@ function AgentDashboard() {
                                                     children: metric.name
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                    lineNumber: 239,
+                                                    lineNumber: 254,
                                                     columnNumber: 21
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -359,13 +372,13 @@ function AgentDashboard() {
                                                     children: metric.value
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                    lineNumber: 240,
+                                                    lineNumber: 255,
                                                     columnNumber: 21
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/app/agent/dashboard/page.tsx",
-                                            lineNumber: 238,
+                                            lineNumber: 253,
                                             columnNumber: 19
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -374,18 +387,18 @@ function AgentDashboard() {
                                                 className: "h-6 w-6 text-primary"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                lineNumber: 243,
+                                                lineNumber: 258,
                                                 columnNumber: 21
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/app/agent/dashboard/page.tsx",
-                                            lineNumber: 242,
+                                            lineNumber: 257,
                                             columnNumber: 19
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/agent/dashboard/page.tsx",
-                                    lineNumber: 237,
+                                    lineNumber: 252,
                                     columnNumber: 17
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -395,7 +408,7 @@ function AgentDashboard() {
                                             className: "h-4 w-4 mr-1 ".concat(metric.changeType === 'positive' ? 'text-green-600' : 'text-red-600')
                                         }, void 0, false, {
                                             fileName: "[project]/app/agent/dashboard/page.tsx",
-                                            lineNumber: 248,
+                                            lineNumber: 263,
                                             columnNumber: 21
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -403,30 +416,30 @@ function AgentDashboard() {
                                             children: metric.change
                                         }, void 0, false, {
                                             fileName: "[project]/app/agent/dashboard/page.tsx",
-                                            lineNumber: 252,
+                                            lineNumber: 267,
                                             columnNumber: 19
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/agent/dashboard/page.tsx",
-                                    lineNumber: 246,
+                                    lineNumber: 261,
                                     columnNumber: 17
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/agent/dashboard/page.tsx",
-                            lineNumber: 236,
+                            lineNumber: 251,
                             columnNumber: 15
                         }, this)
                     }, metric.name, false, {
                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                        lineNumber: 235,
+                        lineNumber: 250,
                         columnNumber: 13
                     }, this);
                 })
             }, void 0, false, {
                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                lineNumber: 229,
+                lineNumber: 244,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -444,27 +457,28 @@ function AgentDashboard() {
                                                 children: "Recent Leads"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                lineNumber: 275,
+                                                lineNumber: 290,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
                                                 variant: "ghost",
                                                 size: "sm",
+                                                onClick: handleViewAllLeads,
                                                 children: "View all"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                lineNumber: 276,
+                                                lineNumber: 291,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                                        lineNumber: 274,
+                                        lineNumber: 289,
                                         columnNumber: 15
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/app/agent/dashboard/page.tsx",
-                                    lineNumber: 273,
+                                    lineNumber: 288,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -483,12 +497,12 @@ function AgentDashboard() {
                                                                     children: lead.name.charAt(0)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                                    lineNumber: 285,
+                                                                    lineNumber: 300,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                                lineNumber: 284,
+                                                                lineNumber: 299,
                                                                 columnNumber: 23
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -498,7 +512,7 @@ function AgentDashboard() {
                                                                         children: lead.name
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                                        lineNumber: 290,
+                                                                        lineNumber: 305,
                                                                         columnNumber: 25
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -506,7 +520,7 @@ function AgentDashboard() {
                                                                         children: lead.phone
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                                        lineNumber: 291,
+                                                                        lineNumber: 306,
                                                                         columnNumber: 25
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -514,19 +528,19 @@ function AgentDashboard() {
                                                                         children: lead.lastMessage
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                                        lineNumber: 292,
+                                                                        lineNumber: 307,
                                                                         columnNumber: 25
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                                lineNumber: 289,
+                                                                lineNumber: 304,
                                                                 columnNumber: 23
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                        lineNumber: 283,
+                                                        lineNumber: 298,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -537,7 +551,7 @@ function AgentDashboard() {
                                                                 children: lead.status
                                                             }, void 0, false, {
                                                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                                lineNumber: 296,
+                                                                lineNumber: 311,
                                                                 columnNumber: 23
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -545,40 +559,40 @@ function AgentDashboard() {
                                                                 children: lead.timestamp
                                                             }, void 0, false, {
                                                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                                lineNumber: 299,
+                                                                lineNumber: 314,
                                                                 columnNumber: 23
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                        lineNumber: 295,
+                                                        lineNumber: 310,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, lead.id, true, {
                                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                lineNumber: 282,
+                                                lineNumber: 297,
                                                 columnNumber: 19
                                             }, this))
                                     }, void 0, false, {
                                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                                        lineNumber: 280,
+                                        lineNumber: 295,
                                         columnNumber: 15
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/app/agent/dashboard/page.tsx",
-                                    lineNumber: 279,
+                                    lineNumber: 294,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/agent/dashboard/page.tsx",
-                            lineNumber: 272,
+                            lineNumber: 287,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                        lineNumber: 271,
+                        lineNumber: 286,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -590,12 +604,12 @@ function AgentDashboard() {
                                             children: "Upcoming Appointments"
                                         }, void 0, false, {
                                             fileName: "[project]/app/agent/dashboard/page.tsx",
-                                            lineNumber: 312,
+                                            lineNumber: 327,
                                             columnNumber: 15
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                                        lineNumber: 311,
+                                        lineNumber: 326,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -613,7 +627,7 @@ function AgentDashboard() {
                                                                         children: appointment.leadName
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                                        lineNumber: 319,
+                                                                        lineNumber: 334,
                                                                         columnNumber: 23
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
@@ -621,13 +635,13 @@ function AgentDashboard() {
                                                                         children: appointment.status
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                                        lineNumber: 320,
+                                                                        lineNumber: 335,
                                                                         columnNumber: 23
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                                lineNumber: 318,
+                                                                lineNumber: 333,
                                                                 columnNumber: 21
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -637,7 +651,7 @@ function AgentDashboard() {
                                                                         className: "h-4 w-4 mr-1"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                                        lineNumber: 325,
+                                                                        lineNumber: 340,
                                                                         columnNumber: 23
                                                                     }, this),
                                                                     appointment.time,
@@ -646,7 +660,7 @@ function AgentDashboard() {
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                                lineNumber: 324,
+                                                                lineNumber: 339,
                                                                 columnNumber: 21
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -656,7 +670,7 @@ function AgentDashboard() {
                                                                         className: "h-4 w-4 mr-1"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                                        lineNumber: 329,
+                                                                        lineNumber: 344,
                                                                         columnNumber: 23
                                                                     }, this),
                                                                     appointment.type,
@@ -664,39 +678,40 @@ function AgentDashboard() {
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                                lineNumber: 328,
+                                                                lineNumber: 343,
                                                                 columnNumber: 21
                                                             }, this)
                                                         ]
                                                     }, appointment.id, true, {
                                                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                        lineNumber: 317,
+                                                        lineNumber: 332,
                                                         columnNumber: 19
                                                     }, this))
                                             }, void 0, false, {
                                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                lineNumber: 315,
+                                                lineNumber: 330,
                                                 columnNumber: 15
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
                                                 variant: "secondary",
                                                 className: "w-full mt-4",
+                                                onClick: handleViewCalendar,
                                                 children: "View Calendar"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                lineNumber: 335,
+                                                lineNumber: 350,
                                                 columnNumber: 15
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                                        lineNumber: 314,
+                                        lineNumber: 329,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                lineNumber: 310,
+                                lineNumber: 325,
                                 columnNumber: 11
                             }, this),
                             connected && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
@@ -705,29 +720,29 @@ function AgentDashboard() {
                                     className: "p-6",
                                     children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$RealTimeStatus$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["LiveActivityFeed"], {}, void 0, false, {
                                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                                        lineNumber: 345,
+                                        lineNumber: 360,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/app/agent/dashboard/page.tsx",
-                                    lineNumber: 344,
+                                    lineNumber: 359,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                lineNumber: 343,
+                                lineNumber: 358,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                        lineNumber: 309,
+                        lineNumber: 324,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                lineNumber: 269,
+                lineNumber: 284,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -735,6 +750,7 @@ function AgentDashboard() {
                 children: [
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
                         className: "hover:shadow-md transition-shadow cursor-pointer",
+                        onClick: handleViewAllLeads,
                         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
                             className: "p-6",
                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -746,12 +762,12 @@ function AgentDashboard() {
                                             className: "h-6 w-6 text-green-600"
                                         }, void 0, false, {
                                             fileName: "[project]/app/agent/dashboard/page.tsx",
-                                            lineNumber: 358,
+                                            lineNumber: 373,
                                             columnNumber: 17
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                                        lineNumber: 357,
+                                        lineNumber: 372,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -762,7 +778,7 @@ function AgentDashboard() {
                                                 children: "View All Leads"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                lineNumber: 361,
+                                                lineNumber: 376,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -770,33 +786,34 @@ function AgentDashboard() {
                                                 children: "Manage your lead pipeline"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                lineNumber: 362,
+                                                lineNumber: 377,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                                        lineNumber: 360,
+                                        lineNumber: 375,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                lineNumber: 356,
+                                lineNumber: 371,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/app/agent/dashboard/page.tsx",
-                            lineNumber: 355,
+                            lineNumber: 370,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                        lineNumber: 354,
+                        lineNumber: 369,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
                         className: "hover:shadow-md transition-shadow cursor-pointer",
+                        onClick: handleViewAnalytics,
                         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
                             className: "p-6",
                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -808,12 +825,12 @@ function AgentDashboard() {
                                             className: "h-6 w-6 text-purple-600"
                                         }, void 0, false, {
                                             fileName: "[project]/app/agent/dashboard/page.tsx",
-                                            lineNumber: 372,
+                                            lineNumber: 387,
                                             columnNumber: 17
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                                        lineNumber: 371,
+                                        lineNumber: 386,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -824,7 +841,7 @@ function AgentDashboard() {
                                                 children: "View Analytics"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                lineNumber: 375,
+                                                lineNumber: 390,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -832,46 +849,47 @@ function AgentDashboard() {
                                                 children: "Track your performance"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                                lineNumber: 376,
+                                                lineNumber: 391,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                                        lineNumber: 374,
+                                        lineNumber: 389,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                                lineNumber: 370,
+                                lineNumber: 385,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/app/agent/dashboard/page.tsx",
-                            lineNumber: 369,
+                            lineNumber: 384,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/app/agent/dashboard/page.tsx",
-                        lineNumber: 368,
+                        lineNumber: 383,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/agent/dashboard/page.tsx",
-                lineNumber: 353,
+                lineNumber: 368,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/agent/dashboard/page.tsx",
-        lineNumber: 215,
+        lineNumber: 230,
         columnNumber: 5
     }, this);
 }
-_s(AgentDashboard, "WMi7oAnkyOT4BkXdPhH5KvSYJ8A=", false, function() {
+_s(AgentDashboard, "ks5CjfO9kyF1CXJVNvpf1/5SDjE=", false, function() {
     return [
+        __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRouter"],
         __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$auth$2f$AuthContext$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useAuth"],
         __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$hooks$2f$useRealTimeNotifications$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRealTimeNotifications"]
     ];

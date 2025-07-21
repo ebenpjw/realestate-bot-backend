@@ -34,10 +34,11 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { toast } from 'sonner'
 
 interface Agent {
   id: string
@@ -108,6 +109,8 @@ export default function AgentsPage() {
     bot_name: ''
   })
   const [saving, setSaving] = useState(false)
+  const [approvingAgent, setApprovingAgent] = useState<string | null>(null)
+  const [rejectingAgent, setRejectingAgent] = useState<string | null>(null)
 
   // Check admin permission
   if (!hasPermission('manage_system')) {
@@ -129,33 +132,37 @@ export default function AgentsPage() {
       setLoading(true)
       setError(null)
 
-      // Get admin overview which includes agent performance data
-      const response = await apiClient.get('/api/dashboard/admin/overview')
+      // Get all agents from the dedicated agents API
+      const response = await apiClient.get('/api/agents', {
+        params: {
+          limit: 100, // Get more agents
+          sortBy: 'created_at',
+          sortOrder: 'desc'
+        }
+      })
 
-      const { agentPerformance } = response.data.data || {}
+      const { agents } = response.data.data || {}
 
-      if (!agentPerformance || !Array.isArray(agentPerformance)) {
-        throw new Error('No agent performance data available')
+      if (!agents || !Array.isArray(agents)) {
+        throw new Error('No agents data available')
       }
 
       // Transform the data to match our interface
-      const transformedAgents: Agent[] = agentPerformance.map((agent: any) => {
-        // The backend spreads ...agent which includes database fields like full_name, email, etc.
-        const agentName = agent.full_name || agent.agentName || agent.name || 'Unknown Agent'
-        const agentEmail = agent.email || `${agentName.toLowerCase().replace(/\s+/g, '.')}@propertyhub.sg`
-
+      const transformedAgents: Agent[] = agents.map((agent: any) => {
         return {
-          id: agent.id || agent.agentId,
-          full_name: agentName,
-          email: agentEmail,
-          status: agent.status || 'active',
-          last_active: agent.last_active || agent.lastActive || agent.updated_at,
-          waba_phone_number: agent.waba_phone_number || agent.wabaPhone,
-          created_at: agent.created_at || agent.joinedAt || new Date().toISOString(),
-          totalConversations: agent.leadsCount || agent.totalLeads || 0,
-          conversionRate: agent.conversionRate || 0,
-          monthlyCost: Math.round((agent.totalCost || 0) * 30), // Estimate monthly cost
-          wabaConnected: !!(agent.waba_phone_number || agent.wabaPhone || agent.wabaConnected),
+          id: agent.id,
+          full_name: agent.full_name || 'Unknown Agent',
+          email: agent.email || '',
+          status: agent.status || 'inactive',
+          last_active: agent.last_active || agent.updated_at,
+          waba_phone_number: agent.waba_phone_number,
+          waba_display_name: agent.waba_display_name,
+          bot_name: agent.bot_name,
+          created_at: agent.created_at,
+          totalConversations: 0, // Will be populated from performance data if needed
+          conversionRate: 0, // Will be populated from performance data if needed
+          monthlyCost: 0, // Will be populated from performance data if needed
+          wabaConnected: !!(agent.waba_phone_number && agent.gupshup_app_id),
           wabaStatusLoading: false,
           wabaStatusError: null
         }
@@ -278,6 +285,56 @@ export default function AgentsPage() {
       waba_display_name: '',
       bot_name: ''
     })
+  }
+
+  const handleApproveAgent = async (agentId: string) => {
+    try {
+      setApprovingAgent(agentId)
+
+      const response = await apiClient.post(`/api/agents/${agentId}/approve`)
+
+      if (response.data.success) {
+        // Update the agent status in the list
+        setAgents(prev => prev.map(agent =>
+          agent.id === agentId
+            ? { ...agent, status: 'active' as const }
+            : agent
+        ))
+
+        // Show success toast
+        toast.success('Agent approved successfully!', {
+          description: 'The agent can now login and access the system.'
+        })
+      }
+    } catch (error: any) {
+      console.error('Error approving agent:', error)
+      showErrorToast(error.response?.data?.error || 'Failed to approve agent')
+    } finally {
+      setApprovingAgent(null)
+    }
+  }
+
+  const handleRejectAgent = async (agentId: string, reason?: string) => {
+    try {
+      setRejectingAgent(agentId)
+
+      const response = await apiClient.post(`/api/agents/${agentId}/reject`, { reason })
+
+      if (response.data.success) {
+        // Remove the agent from the list
+        setAgents(prev => prev.filter(agent => agent.id !== agentId))
+
+        // Show success toast
+        toast.success('Agent registration rejected', {
+          description: 'The agent registration has been rejected and removed.'
+        })
+      }
+    } catch (error: any) {
+      console.error('Error rejecting agent:', error)
+      showErrorToast(error.response?.data?.error || 'Failed to reject agent')
+    } finally {
+      setRejectingAgent(null)
+    }
   }
 
   if (loading) {
@@ -490,6 +547,27 @@ export default function AgentsPage() {
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        {agent.status === 'inactive' ? (
+                          <>
+                            <DropdownMenuItem
+                              onClick={() => handleApproveAgent(agent.id)}
+                              disabled={approvingAgent === agent.id}
+                              className="text-green-600 hover:text-green-700"
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              {approvingAgent === agent.id ? 'Approving...' : 'Approve Registration'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleRejectAgent(agent.id)}
+                              disabled={rejectingAgent === agent.id}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <XCircle className="h-4 w-4 mr-2" />
+                              {rejectingAgent === agent.id ? 'Rejecting...' : 'Reject Registration'}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                          </>
+                        ) : null}
                         <DropdownMenuItem onClick={() => handleEditAgent(agent)}>
                           <Edit className="h-4 w-4 mr-2" />
                           Edit Agent

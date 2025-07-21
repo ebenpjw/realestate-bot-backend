@@ -24,10 +24,14 @@ class DashboardApi {
     /**
    * Get admin dashboard statistics
    */ async getAdminStats(organizationId) {
-        const response = await __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$api$2f$client$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["apiClient"].get('/api/dashboard/admin/stats', {
-            params: organizationId ? {
-                organizationId
-            } : undefined
+        let timeframe = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : '7d';
+        const response = await __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$api$2f$client$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["apiClient"].get('/api/dashboard/admin/overview', {
+            params: {
+                timeframe,
+                ...organizationId ? {
+                    organizationId
+                } : {}
+            }
         });
         return response.data.data;
     }
@@ -518,6 +522,18 @@ class AppointmentsApi {
             params: {
                 agentId,
                 date
+            }
+        });
+        return response.data.data;
+    }
+    /**
+   * Get calendar events (Google Calendar + Database appointments)
+   */ async getCalendarEvents(agentId, startDate, endDate) {
+        const response = await __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$api$2f$client$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["apiClient"].get('/api/appointments/calendar-events', {
+            params: {
+                agentId,
+                startDate,
+                endDate
             }
         });
         return response.data.data;

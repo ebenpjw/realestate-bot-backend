@@ -8,7 +8,7 @@ const { decrypt } = require('./authHelper'); // Correctly import from helper
 async function getAgentWithToken(agentId) {
     logger.info({ agentId }, 'Looking up agent with Google credentials');
 
-    const { data: agent, error } = await supabase
+    const { data: agent, error } = await databaseService.supabase
         .from('agents')
         .select('id, google_email, google_refresh_token_encrypted')
         .eq('id', agentId)
@@ -73,7 +73,7 @@ async function getAuthenticatedClient(agentId) {
                 const { encrypt } = require('./authHelper');
                 const encryptedToken = encrypt(tokens.refresh_token);
 
-                await supabase.from('agents').update({
+                await databaseService.supabase.from('agents').update({
                     google_refresh_token_encrypted: encryptedToken.encryptedData,
                     google_token_iv: encryptedToken.iv,
                     google_token_tag: encryptedToken.tag,
@@ -175,7 +175,7 @@ async function checkAvailability(agentId, startTimeISO, endTimeISO, retryCount =
 
             // Mark agent's Google token as needing refresh
             try {
-                await supabase.from('agents').update({
+                await databaseService.supabase.from('agents').update({
                     google_token_status: 'needs_refresh',
                     google_token_last_error: error.message,
                     google_token_error_at: new Date().toISOString()
@@ -292,7 +292,7 @@ async function createEvent(agentId, eventDetails) {
 
             // Mark agent's Google token as needing refresh
             try {
-                await supabase.from('agents').update({
+                await databaseService.supabase.from('agents').update({
                     google_token_status: 'needs_refresh',
                     google_token_last_error: error.message,
                     google_token_error_at: new Date().toISOString()
@@ -445,7 +445,7 @@ async function deleteEvent(agentId, eventId) {
 
             // Mark agent's Google token as needing refresh
             try {
-                await supabase.from('agents').update({
+                await databaseService.supabase.from('agents').update({
                     google_token_status: 'needs_refresh',
                     google_token_last_error: error.message,
                     google_token_error_at: new Date().toISOString()
@@ -539,6 +539,78 @@ async function updateEvent(agentId, eventId, eventDetails) {
     }
 }
 
+/**
+ * Get calendar events for a specific date range
+ * @param {string} agentId - Agent ID
+ * @param {string} startTimeISO - Start time in ISO format
+ * @param {string} endTimeISO - End time in ISO format
+ * @returns {Promise<Array>} Array of calendar events
+ */
+async function getCalendarEvents(agentId, startTimeISO, endTimeISO) {
+    try {
+        logger.info({
+            agentId,
+            startTimeISO,
+            endTimeISO
+        }, 'Fetching Google Calendar events');
+
+        const { authClient } = await getAuthenticatedClient(agentId);
+        if (!authClient) {
+            logger.warn({ agentId }, 'Could not authenticate with Google Calendar - returning empty events');
+            return [];
+        }
+
+        const calendar = google.calendar({ version: 'v3', auth: authClient });
+
+        const response = await calendar.events.list({
+            calendarId: 'primary',
+            timeMin: startTimeISO,
+            timeMax: endTimeISO,
+            singleEvents: true,
+            orderBy: 'startTime',
+            maxResults: 250 // Get up to 250 events
+        });
+
+        const events = response.data.items || [];
+
+        logger.info({
+            agentId,
+            eventCount: events.length,
+            dateRange: `${startTimeISO} to ${endTimeISO}`
+        }, 'Successfully fetched Google Calendar events');
+
+        // Transform events to match frontend expectations
+        return events.map(event => ({
+            id: event.id,
+            title: event.summary || 'Untitled Event',
+            description: event.description || '',
+            start: event.start?.dateTime || event.start?.date,
+            end: event.end?.dateTime || event.end?.date,
+            location: event.location || '',
+            attendees: event.attendees?.map(attendee => attendee.email) || [],
+            htmlLink: event.htmlLink,
+            status: event.status,
+            created: event.created,
+            updated: event.updated,
+            creator: event.creator?.email,
+            organizer: event.organizer?.email,
+            isAllDay: !event.start?.dateTime, // If no dateTime, it's an all-day event
+            source: 'google_calendar'
+        }));
+
+    } catch (error) {
+        logger.error({
+            err: error,
+            agentId,
+            startTimeISO,
+            endTimeISO
+        }, 'Error fetching Google Calendar events');
+
+        // Return empty array on error to prevent calendar from breaking
+        return [];
+    }
+}
+
 module.exports = {
     getAuthenticatedClient,
     checkAvailability,
@@ -546,4 +618,5 @@ module.exports = {
     deleteEvent,
     updateEvent,
     testCalendarIntegration,
+    getCalendarEvents
 };

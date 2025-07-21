@@ -218,6 +218,14 @@ router.get('/google', authenticateToken, async (req, res) => {
   try {
     const { agentId } = req.query;
     const effectiveAgentId = agentId || req.user.id;
+
+    logger.info({
+      requestedAgentId: agentId,
+      effectiveAgentId,
+      userRole: req.user.role,
+      userId: req.user.id
+    }, 'Google integration status request');
+
     verifyAgentAccess(req, effectiveAgentId);
 
     const { data: agent, error } = await databaseService.supabase
@@ -247,7 +255,22 @@ router.get('/google', authenticateToken, async (req, res) => {
     });
 
   } catch (error) {
-    logger.error({ err: error, agentId: req.query.agentId }, 'Error getting Google integration');
+    logger.error({
+      err: error,
+      agentId: req.query.agentId,
+      userId: req.user?.id,
+      userRole: req.user?.role,
+      errorMessage: error.message
+    }, 'Error getting Google integration');
+
+    if (error.message === 'Access denied') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied - you can only access your own integration status',
+        error: error.message
+      });
+    }
+
     res.status(500).json({
       success: false,
       error: 'Failed to get Google integration'

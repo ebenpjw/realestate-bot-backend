@@ -4,6 +4,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth/AuthContext'
 import { useRealTimeNotifications } from '@/lib/hooks/useRealTimeNotifications'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
@@ -90,6 +91,7 @@ const mockDashboardData = {
 }
 
 export default function AgentDashboard() {
+  const router = useRouter()
   const { user } = useAuth()
   const { metrics: realTimeMetrics, connected } = useRealTimeNotifications()
   const [dashboardData, setDashboardData] = useState(mockDashboardData)
@@ -151,6 +153,19 @@ export default function AgentDashboard() {
     if (change.startsWith('+')) return 'positive'
     if (change.startsWith('-')) return 'negative'
     return 'neutral'
+  }
+
+  // Navigation handlers
+  const handleViewAllLeads = () => {
+    router.push('/agent/leads')
+  }
+
+  const handleViewAnalytics = () => {
+    router.push('/agent/analytics')
+  }
+
+  const handleViewCalendar = () => {
+    router.push('/agent/calendar')
   }
 
   const metrics = [
@@ -273,7 +288,7 @@ export default function AgentDashboard() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Recent Leads</CardTitle>
-                <Button variant="ghost" size="sm">View all</Button>
+                <Button variant="ghost" size="sm" onClick={handleViewAllLeads}>View all</Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -332,7 +347,7 @@ export default function AgentDashboard() {
                   </div>
                 ))}
               </div>
-              <Button variant="secondary" className="w-full mt-4">
+              <Button variant="secondary" className="w-full mt-4" onClick={handleViewCalendar}>
                 View Calendar
               </Button>
             </CardContent>
@@ -351,7 +366,7 @@ export default function AgentDashboard() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="hover:shadow-md transition-shadow cursor-pointer">
+        <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={handleViewAllLeads}>
           <CardContent className="p-6">
             <div className="flex items-center">
               <div className="p-2 bg-green-100 rounded-lg">
@@ -365,7 +380,7 @@ export default function AgentDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="hover:shadow-md transition-shadow cursor-pointer">
+        <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={handleViewAnalytics}>
           <CardContent className="p-6">
             <div className="flex items-center">
               <div className="p-2 bg-purple-100 rounded-lg">

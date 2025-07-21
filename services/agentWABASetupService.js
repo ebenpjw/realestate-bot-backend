@@ -219,22 +219,44 @@ Feel free to let me know, I'll do my best to help!`,
         found: false
       };
 
-      // Try each app to find one that has this phone number
+      // Try each app to find one that matches this phone number
       for (const app of apps) {
         try {
-          // Try to get app token - if successful, this app is accessible
-          const appToken = await gupshupPartnerService.getAppAccessToken(app.id);
+          // Normalize both phone numbers for comparison
+          const normalizePhone = (phone) => {
+            if (!phone) return '';
+            // Remove all non-digits and add +65 prefix if needed
+            const digits = phone.replace(/\D/g, '');
+            if (digits.startsWith('65')) {
+              return '+' + digits;
+            } else if (digits.length === 8) {
+              return '+65' + digits;
+            }
+            return '+' + digits;
+          };
 
-          // TODO: In a full implementation, we would check if this specific phone number
-          // is registered to this app. For now, we'll use the first accessible app.
-          // Ideally, Gupshup Partner API should have an endpoint to query apps by phone number.
+          const normalizedInputPhone = normalizePhone(phoneNumber);
+          const normalizedAppPhone = normalizePhone(app.phone);
 
-          if (!discoveredDetails.found) {
+          logger.debug({
+            inputPhone: phoneNumber,
+            normalizedInputPhone,
+            appPhone: app.phone,
+            normalizedAppPhone,
+            appId: app.id,
+            appName: app.name
+          }, 'Comparing phone numbers for WABA discovery');
+
+          // Check if this app's phone number matches the requested phone number
+          if (normalizedInputPhone === normalizedAppPhone) {
+            // Try to get app token - if successful, this app is accessible
+            const appToken = await gupshupPartnerService.getAppAccessToken(app.id);
+
             discoveredDetails = {
               phoneNumber,
-              displayName: app.name || `WABA ${phoneNumber}`, // Use app name as display name fallback
+              displayName: app.name || `WABA ${phoneNumber}`,
               appId: app.id,
-              apiKey: appToken, // This would be encrypted before storage
+              apiKey: appToken,
               found: true,
               appName: app.name,
               appHealthy: app.healthy,

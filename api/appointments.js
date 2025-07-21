@@ -3,6 +3,7 @@ const router = express.Router();
 const logger = require('../logger');
 const databaseService = require('../services/databaseService');
 const { authenticateToken } = require('../middleware/auth');
+const { getCalendarEvents } = require('./googleCalendarService');
 
 /**
  * APPOINTMENTS API
@@ -104,6 +105,115 @@ router.get('/', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to get appointments'
+    });
+  }
+});
+
+/**
+ * GET /api/appointments/calendar-events
+ * Get Google Calendar events for the authenticated agent
+ */
+router.get('/calendar-events', authenticateToken, async (req, res) => {
+  try {
+    const {
+      agentId,
+      startDate,
+      endDate
+    } = req.query;
+
+    const effectiveAgentId = agentId || req.user.id;
+
+    // Verify agent access
+    if (req.user.role !== 'admin' && req.user.role !== 'agent') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied'
+      });
+    }
+
+    if (req.user.role === 'agent' && req.user.id !== effectiveAgentId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied'
+      });
+    }
+
+    // Default to current month if no dates provided
+    const now = new Date();
+    const defaultStartDate = startDate || new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const defaultEndDate = endDate || new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+    logger.info({
+      agentId: effectiveAgentId,
+      startDate: defaultStartDate,
+      endDate: defaultEndDate
+    }, 'Fetching Google Calendar events for agent');
+
+    // Fetch Google Calendar events
+    const googleEvents = await getCalendarEvents(effectiveAgentId, defaultStartDate, defaultEndDate);
+
+    // Also fetch database appointments to merge with Google Calendar events
+    let query = databaseService.supabase
+      .from('appointments')
+      .select(`
+        *,
+        leads!inner(full_name, phone_number),
+        agents!inner(full_name)
+      `)
+      .eq('agent_id', effectiveAgentId)
+      .gte('appointment_time', defaultStartDate)
+      .lte('appointment_time', defaultEndDate);
+
+    const { data: appointments, error } = await query;
+
+    if (error) {
+      logger.error({ err: error, agentId: effectiveAgentId }, 'Error fetching appointments');
+    }
+
+    // Transform database appointments to calendar events format
+    const appointmentEvents = (appointments || []).map(apt => ({
+      id: `appointment_${apt.id}`,
+      title: `${apt.leads?.full_name || 'Unknown'} - ${apt.type || 'Consultation'}`,
+      description: apt.consultation_notes || apt.notes || '',
+      start: apt.appointment_time,
+      end: new Date(new Date(apt.appointment_time).getTime() + (apt.duration_minutes || 60) * 60000).toISOString(),
+      location: apt.location || (apt.zoom_join_url ? 'Zoom Meeting' : ''),
+      attendees: [apt.leads?.full_name].filter(Boolean),
+      status: apt.status,
+      type: apt.type || 'consultation',
+      leadId: apt.lead_id,
+      leadName: apt.leads?.full_name,
+      phoneNumber: apt.leads?.phone_number,
+      zoomJoinUrl: apt.zoom_join_url,
+      isAllDay: false,
+      source: 'database_appointment'
+    }));
+
+    // Combine Google Calendar events and database appointments
+    const allEvents = [...googleEvents, ...appointmentEvents];
+
+    // Sort by start time
+    allEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
+
+    res.json({
+      success: true,
+      data: {
+        events: allEvents,
+        googleEventsCount: googleEvents.length,
+        appointmentsCount: appointmentEvents.length,
+        totalEvents: allEvents.length,
+        dateRange: {
+          start: defaultStartDate,
+          end: defaultEndDate
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error({ err: error, agentId: req.query.agentId }, 'Error getting calendar events');
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get calendar events'
     });
   }
 });

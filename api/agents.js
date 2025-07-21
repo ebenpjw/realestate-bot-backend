@@ -201,6 +201,143 @@ router.patch('/:id', authenticateToken, requireRole(['admin']), async (req, res)
 });
 
 /**
+ * POST /api/agents/:id/approve
+ * Approve pending agent registration
+ */
+router.post('/:id/approve', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body;
+
+    // Validate agent exists and belongs to organization
+    const { data: existingAgent, error: fetchError } = await databaseService.supabase
+      .from('agents')
+      .select('*')
+      .eq('id', id)
+      .eq('organization_id', req.user.organization_id)
+      .single();
+
+    if (fetchError || !existingAgent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Agent not found'
+      });
+    }
+
+    // Check if agent is in pending status
+    if (existingAgent.status !== 'inactive') {
+      return res.status(400).json({
+        success: false,
+        message: 'Agent is not in pending approval status'
+      });
+    }
+
+    // Update agent status to active
+    const { data: agent, error } = await databaseService.supabase
+      .from('agents')
+      .update({
+        status: 'active',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    logger.info({
+      agentId: id,
+      approvedBy: req.user.id,
+      agentEmail: existingAgent.email
+    }, 'Agent registration approved');
+
+    // TODO: Send approval email notification to agent
+    // This will be implemented in the email notification system
+
+    res.json({
+      success: true,
+      data: agent,
+      message: 'Agent approved successfully'
+    });
+
+  } catch (error) {
+    logger.error({ err: error, agentId: req.params.id }, 'Error approving agent');
+    res.status(500).json({
+      success: false,
+      error: 'Failed to approve agent'
+    });
+  }
+});
+
+/**
+ * POST /api/agents/:id/reject
+ * Reject pending agent registration
+ */
+router.post('/:id/reject', authenticateToken, requireRole(['admin']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    // Validate agent exists and belongs to organization
+    const { data: existingAgent, error: fetchError } = await databaseService.supabase
+      .from('agents')
+      .select('*')
+      .eq('id', id)
+      .eq('organization_id', req.user.organization_id)
+      .single();
+
+    if (fetchError || !existingAgent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Agent not found'
+      });
+    }
+
+    // Check if agent is in pending status
+    if (existingAgent.status !== 'inactive') {
+      return res.status(400).json({
+        success: false,
+        message: 'Agent is not in pending approval status'
+      });
+    }
+
+    // Delete the agent record (hard delete for rejected registrations)
+    const { error } = await databaseService.supabase
+      .from('agents')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw error;
+    }
+
+    logger.info({
+      agentId: id,
+      rejectedBy: req.user.id,
+      agentEmail: existingAgent.email,
+      reason
+    }, 'Agent registration rejected');
+
+    // TODO: Send rejection email notification to agent
+    // This will be implemented in the email notification system
+
+    res.json({
+      success: true,
+      message: 'Agent registration rejected'
+    });
+
+  } catch (error) {
+    logger.error({ err: error, agentId: req.params.id }, 'Error rejecting agent');
+    res.status(500).json({
+      success: false,
+      error: 'Failed to reject agent'
+    });
+  }
+});
+
+/**
  * DELETE /api/agents/:id
  * Delete agent (soft delete by setting status to inactive)
  */

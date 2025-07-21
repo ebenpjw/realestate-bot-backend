@@ -443,7 +443,9 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$dropdown
 var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$LoadingSpinner$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/ui/LoadingSpinner.tsx [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$label$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/ui/label.tsx [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/ui/select.tsx [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$sonner$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/sonner/dist/index.mjs [app-ssr] (ecmascript)");
 'use client';
+;
 ;
 ;
 ;
@@ -479,7 +481,7 @@ const getStatusIcon = (status)=>{
                 className: "h-4 w-4"
             }, void 0, false, {
                 fileName: "[project]/app/admin/agents/page.tsx",
-                lineNumber: 81,
+                lineNumber: 82,
                 columnNumber: 14
             }, ("TURBOPACK compile-time value", void 0));
         case 'inactive':
@@ -487,7 +489,7 @@ const getStatusIcon = (status)=>{
                 className: "h-4 w-4"
             }, void 0, false, {
                 fileName: "[project]/app/admin/agents/page.tsx",
-                lineNumber: 83,
+                lineNumber: 84,
                 columnNumber: 14
             }, ("TURBOPACK compile-time value", void 0));
         case 'pending':
@@ -495,7 +497,7 @@ const getStatusIcon = (status)=>{
                 className: "h-4 w-4"
             }, void 0, false, {
                 fileName: "[project]/app/admin/agents/page.tsx",
-                lineNumber: 85,
+                lineNumber: 86,
                 columnNumber: 14
             }, ("TURBOPACK compile-time value", void 0));
         case 'suspended':
@@ -503,7 +505,7 @@ const getStatusIcon = (status)=>{
                 className: "h-4 w-4"
             }, void 0, false, {
                 fileName: "[project]/app/admin/agents/page.tsx",
-                lineNumber: 87,
+                lineNumber: 88,
                 columnNumber: 14
             }, ("TURBOPACK compile-time value", void 0));
         default:
@@ -511,7 +513,7 @@ const getStatusIcon = (status)=>{
                 className: "h-4 w-4"
             }, void 0, false, {
                 fileName: "[project]/app/admin/agents/page.tsx",
-                lineNumber: 89,
+                lineNumber: 90,
                 columnNumber: 14
             }, ("TURBOPACK compile-time value", void 0));
     }
@@ -534,6 +536,8 @@ function AgentsPage() {
         bot_name: ''
     });
     const [saving, setSaving] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
+    const [approvingAgent, setApprovingAgent] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(null);
+    const [rejectingAgent, setRejectingAgent] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(null);
     // Check admin permission
     if (!hasPermission('manage_system')) {
         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -547,7 +551,7 @@ function AgentsPage() {
                             children: "Access Denied"
                         }, void 0, false, {
                             fileName: "[project]/app/admin/agents/page.tsx",
-                            lineNumber: 118,
+                            lineNumber: 121,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -555,23 +559,23 @@ function AgentsPage() {
                             children: "You don't have permission to manage agents."
                         }, void 0, false, {
                             fileName: "[project]/app/admin/agents/page.tsx",
-                            lineNumber: 119,
+                            lineNumber: 122,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/admin/agents/page.tsx",
-                    lineNumber: 117,
+                    lineNumber: 120,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/app/admin/agents/page.tsx",
-                lineNumber: 116,
+                lineNumber: 119,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/app/admin/agents/page.tsx",
-            lineNumber: 115,
+            lineNumber: 118,
             columnNumber: 7
         }, this);
     }
@@ -580,29 +584,34 @@ function AgentsPage() {
         try {
             setLoading(true);
             setError(null);
-            // Get admin overview which includes agent performance data
-            const response = await __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$api$2f$client$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["apiClient"].get('/api/dashboard/admin/overview');
-            const { agentPerformance } = response.data.data || {};
-            if (!agentPerformance || !Array.isArray(agentPerformance)) {
-                throw new Error('No agent performance data available');
+            // Get all agents from the dedicated agents API
+            const response = await __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$api$2f$client$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["apiClient"].get('/api/agents', {
+                params: {
+                    limit: 100,
+                    sortBy: 'created_at',
+                    sortOrder: 'desc'
+                }
+            });
+            const { agents } = response.data.data || {};
+            if (!agents || !Array.isArray(agents)) {
+                throw new Error('No agents data available');
             }
             // Transform the data to match our interface
-            const transformedAgents = agentPerformance.map((agent)=>{
-                // The backend spreads ...agent which includes database fields like full_name, email, etc.
-                const agentName = agent.full_name || agent.agentName || agent.name || 'Unknown Agent';
-                const agentEmail = agent.email || `${agentName.toLowerCase().replace(/\s+/g, '.')}@propertyhub.sg`;
+            const transformedAgents = agents.map((agent)=>{
                 return {
-                    id: agent.id || agent.agentId,
-                    full_name: agentName,
-                    email: agentEmail,
-                    status: agent.status || 'active',
-                    last_active: agent.last_active || agent.lastActive || agent.updated_at,
-                    waba_phone_number: agent.waba_phone_number || agent.wabaPhone,
-                    created_at: agent.created_at || agent.joinedAt || new Date().toISOString(),
-                    totalConversations: agent.leadsCount || agent.totalLeads || 0,
-                    conversionRate: agent.conversionRate || 0,
-                    monthlyCost: Math.round((agent.totalCost || 0) * 30),
-                    wabaConnected: !!(agent.waba_phone_number || agent.wabaPhone || agent.wabaConnected),
+                    id: agent.id,
+                    full_name: agent.full_name || 'Unknown Agent',
+                    email: agent.email || '',
+                    status: agent.status || 'inactive',
+                    last_active: agent.last_active || agent.updated_at,
+                    waba_phone_number: agent.waba_phone_number,
+                    waba_display_name: agent.waba_display_name,
+                    bot_name: agent.bot_name,
+                    created_at: agent.created_at,
+                    totalConversations: 0,
+                    conversionRate: 0,
+                    monthlyCost: 0,
+                    wabaConnected: !!(agent.waba_phone_number && agent.gupshup_app_id),
                     wabaStatusLoading: false,
                     wabaStatusError: null
                 };
@@ -701,6 +710,49 @@ function AgentsPage() {
             bot_name: ''
         });
     };
+    const handleApproveAgent = async (agentId)=>{
+        try {
+            setApprovingAgent(agentId);
+            const response = await __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$api$2f$client$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["apiClient"].post(`/api/agents/${agentId}/approve`);
+            if (response.data.success) {
+                // Update the agent status in the list
+                setAgents((prev)=>prev.map((agent)=>agent.id === agentId ? {
+                            ...agent,
+                            status: 'active'
+                        } : agent));
+                // Show success toast
+                __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$sonner$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["toast"].success('Agent approved successfully!', {
+                    description: 'The agent can now login and access the system.'
+                });
+            }
+        } catch (error) {
+            console.error('Error approving agent:', error);
+            (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$utils$2f$errorHandling$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["showErrorToast"])(error.response?.data?.error || 'Failed to approve agent');
+        } finally{
+            setApprovingAgent(null);
+        }
+    };
+    const handleRejectAgent = async (agentId, reason)=>{
+        try {
+            setRejectingAgent(agentId);
+            const response = await __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$api$2f$client$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["apiClient"].post(`/api/agents/${agentId}/reject`, {
+                reason
+            });
+            if (response.data.success) {
+                // Remove the agent from the list
+                setAgents((prev)=>prev.filter((agent)=>agent.id !== agentId));
+                // Show success toast
+                __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$sonner$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["toast"].success('Agent registration rejected', {
+                    description: 'The agent registration has been rejected and removed.'
+                });
+            }
+        } catch (error) {
+            console.error('Error rejecting agent:', error);
+            (0, __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$utils$2f$errorHandling$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["showErrorToast"])(error.response?.data?.error || 'Failed to reject agent');
+        } finally{
+            setRejectingAgent(null);
+        }
+    };
     if (loading) {
         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
             className: "flex items-center justify-center h-64",
@@ -708,12 +760,12 @@ function AgentsPage() {
                 size: "lg"
             }, void 0, false, {
                 fileName: "[project]/app/admin/agents/page.tsx",
-                lineNumber: 286,
+                lineNumber: 343,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/app/admin/agents/page.tsx",
-            lineNumber: 285,
+            lineNumber: 342,
             columnNumber: 7
         }, this);
     }
@@ -729,7 +781,7 @@ function AgentsPage() {
                             children: "Error Loading Agents"
                         }, void 0, false, {
                             fileName: "[project]/app/admin/agents/page.tsx",
-                            lineNumber: 296,
+                            lineNumber: 353,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -737,7 +789,7 @@ function AgentsPage() {
                             children: error
                         }, void 0, false, {
                             fileName: "[project]/app/admin/agents/page.tsx",
-                            lineNumber: 297,
+                            lineNumber: 354,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -745,23 +797,23 @@ function AgentsPage() {
                             children: "Try Again"
                         }, void 0, false, {
                             fileName: "[project]/app/admin/agents/page.tsx",
-                            lineNumber: 298,
+                            lineNumber: 355,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/admin/agents/page.tsx",
-                    lineNumber: 295,
+                    lineNumber: 352,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/app/admin/agents/page.tsx",
-                lineNumber: 294,
+                lineNumber: 351,
                 columnNumber: 9
             }, this)
         }, void 0, false, {
             fileName: "[project]/app/admin/agents/page.tsx",
-            lineNumber: 293,
+            lineNumber: 350,
             columnNumber: 7
         }, this);
     }
@@ -778,7 +830,7 @@ function AgentsPage() {
                                 children: "Agent Management"
                             }, void 0, false, {
                                 fileName: "[project]/app/admin/agents/page.tsx",
-                                lineNumber: 310,
+                                lineNumber: 367,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -786,13 +838,13 @@ function AgentsPage() {
                                 children: "Manage and monitor all Outpaced agents"
                             }, void 0, false, {
                                 fileName: "[project]/app/admin/agents/page.tsx",
-                                lineNumber: 311,
+                                lineNumber: 368,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/admin/agents/page.tsx",
-                        lineNumber: 309,
+                        lineNumber: 366,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -806,7 +858,7 @@ function AgentsPage() {
                                     className: "mr-2"
                                 }, void 0, false, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 322,
+                                    lineNumber: 379,
                                     columnNumber: 15
                                 }, this),
                                 "Sending..."
@@ -817,7 +869,7 @@ function AgentsPage() {
                                     className: "h-4 w-4 mr-2"
                                 }, void 0, false, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 327,
+                                    lineNumber: 384,
                                     columnNumber: 15
                                 }, this),
                                 "Invite Agent"
@@ -825,13 +877,13 @@ function AgentsPage() {
                         }, void 0, true)
                     }, void 0, false, {
                         fileName: "[project]/app/admin/agents/page.tsx",
-                        lineNumber: 315,
+                        lineNumber: 372,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/admin/agents/page.tsx",
-                lineNumber: 308,
+                lineNumber: 365,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -848,7 +900,7 @@ function AgentsPage() {
                                         className: "absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400"
                                     }, void 0, false, {
                                         fileName: "[project]/app/admin/agents/page.tsx",
-                                        lineNumber: 339,
+                                        lineNumber: 396,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -859,18 +911,18 @@ function AgentsPage() {
                                         className: "pl-10"
                                     }, void 0, false, {
                                         fileName: "[project]/app/admin/agents/page.tsx",
-                                        lineNumber: 340,
+                                        lineNumber: 397,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/app/admin/agents/page.tsx",
-                                lineNumber: 338,
+                                lineNumber: 395,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/app/admin/agents/page.tsx",
-                            lineNumber: 337,
+                            lineNumber: 394,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -886,7 +938,7 @@ function AgentsPage() {
                                             children: "All Status"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 355,
+                                            lineNumber: 412,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
@@ -894,7 +946,7 @@ function AgentsPage() {
                                             children: "Active"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 356,
+                                            lineNumber: 413,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
@@ -902,7 +954,7 @@ function AgentsPage() {
                                             children: "Inactive"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 357,
+                                            lineNumber: 414,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
@@ -910,7 +962,7 @@ function AgentsPage() {
                                             children: "Pending"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 358,
+                                            lineNumber: 415,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("option", {
@@ -918,13 +970,13 @@ function AgentsPage() {
                                             children: "Suspended"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 359,
+                                            lineNumber: 416,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 350,
+                                    lineNumber: 407,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -935,31 +987,31 @@ function AgentsPage() {
                                             className: "h-4 w-4 mr-2"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 362,
+                                            lineNumber: 419,
                                             columnNumber: 15
                                         }, this),
                                         "More Filters"
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 361,
+                                    lineNumber: 418,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/admin/agents/page.tsx",
-                            lineNumber: 349,
+                            lineNumber: 406,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/admin/agents/page.tsx",
-                    lineNumber: 336,
+                    lineNumber: 393,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/app/admin/agents/page.tsx",
-                lineNumber: 335,
+                lineNumber: 392,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -978,7 +1030,7 @@ function AgentsPage() {
                                             children: "Agent"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 375,
+                                            lineNumber: 432,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
@@ -986,7 +1038,7 @@ function AgentsPage() {
                                             children: "Status"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 378,
+                                            lineNumber: 435,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
@@ -994,7 +1046,7 @@ function AgentsPage() {
                                             children: "Performance"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 381,
+                                            lineNumber: 438,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
@@ -1002,7 +1054,7 @@ function AgentsPage() {
                                             children: "Cost"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 384,
+                                            lineNumber: 441,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
@@ -1010,7 +1062,7 @@ function AgentsPage() {
                                             children: "WABA"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 387,
+                                            lineNumber: 444,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
@@ -1018,7 +1070,7 @@ function AgentsPage() {
                                             children: "Last Active"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 390,
+                                            lineNumber: 447,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
@@ -1028,23 +1080,23 @@ function AgentsPage() {
                                                 children: "Actions"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/admin/agents/page.tsx",
-                                                lineNumber: 394,
+                                                lineNumber: 451,
                                                 columnNumber: 19
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 393,
+                                            lineNumber: 450,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 374,
+                                    lineNumber: 431,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/app/admin/agents/page.tsx",
-                                lineNumber: 373,
+                                lineNumber: 430,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("tbody", {
@@ -1064,12 +1116,12 @@ function AgentsPage() {
                                                                 children: agent.full_name.charAt(0)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/app/admin/agents/page.tsx",
-                                                                lineNumber: 404,
+                                                                lineNumber: 461,
                                                                 columnNumber: 25
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                                            lineNumber: 403,
+                                                            lineNumber: 460,
                                                             columnNumber: 23
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1080,7 +1132,7 @@ function AgentsPage() {
                                                                     children: agent.full_name
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                                                    lineNumber: 409,
+                                                                    lineNumber: 466,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1088,24 +1140,24 @@ function AgentsPage() {
                                                                     children: agent.email
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                                                    lineNumber: 412,
+                                                                    lineNumber: 469,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                                            lineNumber: 408,
+                                                            lineNumber: 465,
                                                             columnNumber: 23
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                                    lineNumber: 402,
+                                                    lineNumber: 459,
                                                     columnNumber: 21
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/app/admin/agents/page.tsx",
-                                                lineNumber: 401,
+                                                lineNumber: 458,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("td", {
@@ -1119,18 +1171,18 @@ function AgentsPage() {
                                                             children: agent.status
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                                            lineNumber: 421,
+                                                            lineNumber: 478,
                                                             columnNumber: 23
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                                    lineNumber: 419,
+                                                    lineNumber: 476,
                                                     columnNumber: 21
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/app/admin/agents/page.tsx",
-                                                lineNumber: 418,
+                                                lineNumber: 475,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("td", {
@@ -1145,7 +1197,7 @@ function AgentsPage() {
                                                                     className: "h-4 w-4 text-gray-400 mr-1"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                                                    lineNumber: 427,
+                                                                    lineNumber: 484,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 agent.totalConversations,
@@ -1153,7 +1205,7 @@ function AgentsPage() {
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                                            lineNumber: 426,
+                                                            lineNumber: 483,
                                                             columnNumber: 23
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1164,18 +1216,18 @@ function AgentsPage() {
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                                            lineNumber: 430,
+                                                            lineNumber: 487,
                                                             columnNumber: 23
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                                    lineNumber: 425,
+                                                    lineNumber: 482,
                                                     columnNumber: 21
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/app/admin/agents/page.tsx",
-                                                lineNumber: 424,
+                                                lineNumber: 481,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("td", {
@@ -1188,7 +1240,7 @@ function AgentsPage() {
                                                             className: "h-4 w-4 text-gray-400 mr-1"
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                                            lineNumber: 440,
+                                                            lineNumber: 497,
                                                             columnNumber: 23
                                                         }, this),
                                                         "S$",
@@ -1197,12 +1249,12 @@ function AgentsPage() {
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                                    lineNumber: 436,
+                                                    lineNumber: 493,
                                                     columnNumber: 21
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/app/admin/agents/page.tsx",
-                                                lineNumber: 435,
+                                                lineNumber: 492,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("td", {
@@ -1216,7 +1268,7 @@ function AgentsPage() {
                                                                 children: agent.wabaStatusLoading ? 'Checking...' : agent.wabaStatusError ? 'Error' : agent.wabaConnected ? 'Connected' : 'Disconnected'
                                                             }, void 0, false, {
                                                                 fileName: "[project]/app/admin/agents/page.tsx",
-                                                                lineNumber: 446,
+                                                                lineNumber: 503,
                                                                 columnNumber: 23
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -1228,18 +1280,18 @@ function AgentsPage() {
                                                                     className: `h-3 w-3 ${agent.wabaStatusLoading ? 'animate-spin' : ''}`
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                                                    lineNumber: 470,
+                                                                    lineNumber: 527,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/app/admin/agents/page.tsx",
-                                                                lineNumber: 464,
+                                                                lineNumber: 521,
                                                                 columnNumber: 23
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/app/admin/agents/page.tsx",
-                                                        lineNumber: 445,
+                                                        lineNumber: 502,
                                                         columnNumber: 21
                                                     }, this),
                                                     agent.wabaStatusError && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1248,13 +1300,13 @@ function AgentsPage() {
                                                         children: agent.wabaStatusError.length > 30 ? `${agent.wabaStatusError.substring(0, 30)}...` : agent.wabaStatusError
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/admin/agents/page.tsx",
-                                                        lineNumber: 474,
+                                                        lineNumber: 531,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/app/admin/agents/page.tsx",
-                                                lineNumber: 444,
+                                                lineNumber: 501,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("td", {
@@ -1262,7 +1314,7 @@ function AgentsPage() {
                                                 children: agent.last_active ? new Date(agent.last_active).toLocaleString() : 'Never'
                                             }, void 0, false, {
                                                 fileName: "[project]/app/admin/agents/page.tsx",
-                                                lineNumber: 482,
+                                                lineNumber: 539,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("td", {
@@ -1277,22 +1329,69 @@ function AgentsPage() {
                                                                     className: "h-5 w-5"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                                                    lineNumber: 489,
+                                                                    lineNumber: 546,
                                                                     columnNumber: 27
                                                                 }, this)
                                                             }, void 0, false, {
                                                                 fileName: "[project]/app/admin/agents/page.tsx",
-                                                                lineNumber: 488,
+                                                                lineNumber: 545,
                                                                 columnNumber: 25
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                                            lineNumber: 487,
+                                                            lineNumber: 544,
                                                             columnNumber: 23
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DropdownMenuContent"], {
                                                             align: "end",
                                                             children: [
+                                                                agent.status === 'inactive' ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
+                                                                    children: [
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DropdownMenuItem"], {
+                                                                            onClick: ()=>handleApproveAgent(agent.id),
+                                                                            disabled: approvingAgent === agent.id,
+                                                                            className: "text-green-600 hover:text-green-700",
+                                                                            children: [
+                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$circle$2d$check$2d$big$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__CheckCircle$3e$__["CheckCircle"], {
+                                                                                    className: "h-4 w-4 mr-2"
+                                                                                }, void 0, false, {
+                                                                                    fileName: "[project]/app/admin/agents/page.tsx",
+                                                                                    lineNumber: 557,
+                                                                                    columnNumber: 31
+                                                                                }, this),
+                                                                                approvingAgent === agent.id ? 'Approving...' : 'Approve Registration'
+                                                                            ]
+                                                                        }, void 0, true, {
+                                                                            fileName: "[project]/app/admin/agents/page.tsx",
+                                                                            lineNumber: 552,
+                                                                            columnNumber: 29
+                                                                        }, this),
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DropdownMenuItem"], {
+                                                                            onClick: ()=>handleRejectAgent(agent.id),
+                                                                            disabled: rejectingAgent === agent.id,
+                                                                            className: "text-red-600 hover:text-red-700",
+                                                                            children: [
+                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$circle$2d$x$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__XCircle$3e$__["XCircle"], {
+                                                                                    className: "h-4 w-4 mr-2"
+                                                                                }, void 0, false, {
+                                                                                    fileName: "[project]/app/admin/agents/page.tsx",
+                                                                                    lineNumber: 565,
+                                                                                    columnNumber: 31
+                                                                                }, this),
+                                                                                rejectingAgent === agent.id ? 'Rejecting...' : 'Reject Registration'
+                                                                            ]
+                                                                        }, void 0, true, {
+                                                                            fileName: "[project]/app/admin/agents/page.tsx",
+                                                                            lineNumber: 560,
+                                                                            columnNumber: 29
+                                                                        }, this),
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DropdownMenuSeparator"], {}, void 0, false, {
+                                                                            fileName: "[project]/app/admin/agents/page.tsx",
+                                                                            lineNumber: 568,
+                                                                            columnNumber: 29
+                                                                        }, this)
+                                                                    ]
+                                                                }, void 0, true) : null,
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DropdownMenuItem"], {
                                                                     onClick: ()=>handleEditAgent(agent),
                                                                     children: [
@@ -1300,14 +1399,14 @@ function AgentsPage() {
                                                                             className: "h-4 w-4 mr-2"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                                                            lineNumber: 494,
+                                                                            lineNumber: 572,
                                                                             columnNumber: 27
                                                                         }, this),
                                                                         "Edit Agent"
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                                                    lineNumber: 493,
+                                                                    lineNumber: 571,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DropdownMenuItem"], {
@@ -1317,14 +1416,14 @@ function AgentsPage() {
                                                                             className: "h-4 w-4 mr-2"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                                                            lineNumber: 498,
+                                                                            lineNumber: 576,
                                                                             columnNumber: 27
                                                                         }, this),
                                                                         "View Costs"
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                                                    lineNumber: 497,
+                                                                    lineNumber: 575,
                                                                     columnNumber: 25
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$dropdown$2d$menu$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DropdownMenuItem"], {
@@ -1334,58 +1433,58 @@ function AgentsPage() {
                                                                             className: "h-4 w-4 mr-2"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                                                            lineNumber: 502,
+                                                                            lineNumber: 580,
                                                                             columnNumber: 27
                                                                         }, this),
                                                                         "WABA Settings"
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                                                    lineNumber: 501,
+                                                                    lineNumber: 579,
                                                                     columnNumber: 25
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                                            lineNumber: 492,
+                                                            lineNumber: 549,
                                                             columnNumber: 23
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                                    lineNumber: 486,
+                                                    lineNumber: 543,
                                                     columnNumber: 21
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/app/admin/agents/page.tsx",
-                                                lineNumber: 485,
+                                                lineNumber: 542,
                                                 columnNumber: 19
                                             }, this)
                                         ]
                                     }, agent.id, true, {
                                         fileName: "[project]/app/admin/agents/page.tsx",
-                                        lineNumber: 400,
+                                        lineNumber: 457,
                                         columnNumber: 17
                                     }, this))
                             }, void 0, false, {
                                 fileName: "[project]/app/admin/agents/page.tsx",
-                                lineNumber: 398,
+                                lineNumber: 455,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/admin/agents/page.tsx",
-                        lineNumber: 372,
+                        lineNumber: 429,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/app/admin/agents/page.tsx",
-                    lineNumber: 371,
+                    lineNumber: 428,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/app/admin/agents/page.tsx",
-                lineNumber: 370,
+                lineNumber: 427,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1401,7 +1500,7 @@ function AgentsPage() {
                                     children: agents.filter((a)=>a.status === 'active').length
                                 }, void 0, false, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 519,
+                                    lineNumber: 597,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1409,18 +1508,18 @@ function AgentsPage() {
                                     children: "Active Agents"
                                 }, void 0, false, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 522,
+                                    lineNumber: 600,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/admin/agents/page.tsx",
-                            lineNumber: 518,
+                            lineNumber: 596,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/app/admin/agents/page.tsx",
-                        lineNumber: 517,
+                        lineNumber: 595,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -1433,7 +1532,7 @@ function AgentsPage() {
                                     children: agents.filter((a)=>a.status === 'pending').length
                                 }, void 0, false, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 527,
+                                    lineNumber: 605,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1441,18 +1540,18 @@ function AgentsPage() {
                                     children: "Pending Invites"
                                 }, void 0, false, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 530,
+                                    lineNumber: 608,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/admin/agents/page.tsx",
-                            lineNumber: 526,
+                            lineNumber: 604,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/app/admin/agents/page.tsx",
-                        lineNumber: 525,
+                        lineNumber: 603,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -1468,7 +1567,7 @@ function AgentsPage() {
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 535,
+                                    lineNumber: 613,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1476,18 +1575,18 @@ function AgentsPage() {
                                     children: "Total Monthly Cost"
                                 }, void 0, false, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 538,
+                                    lineNumber: 616,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/admin/agents/page.tsx",
-                            lineNumber: 534,
+                            lineNumber: 612,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/app/admin/agents/page.tsx",
-                        lineNumber: 533,
+                        lineNumber: 611,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
@@ -1503,7 +1602,7 @@ function AgentsPage() {
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 543,
+                                    lineNumber: 621,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1511,24 +1610,24 @@ function AgentsPage() {
                                     children: "Avg Conversion Rate"
                                 }, void 0, false, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 546,
+                                    lineNumber: 624,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/admin/agents/page.tsx",
-                            lineNumber: 542,
+                            lineNumber: 620,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/app/admin/agents/page.tsx",
-                        lineNumber: 541,
+                        lineNumber: 619,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/app/admin/agents/page.tsx",
-                lineNumber: 516,
+                lineNumber: 594,
                 columnNumber: 7
             }, this),
             editingAgent && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1544,7 +1643,7 @@ function AgentsPage() {
                                     children: "Edit Agent"
                                 }, void 0, false, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 556,
+                                    lineNumber: 634,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1552,13 +1651,13 @@ function AgentsPage() {
                                     children: "Update agent information and settings."
                                 }, void 0, false, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 557,
+                                    lineNumber: 635,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/admin/agents/page.tsx",
-                            lineNumber: 555,
+                            lineNumber: 633,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1573,7 +1672,7 @@ function AgentsPage() {
                                             children: "Name"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 561,
+                                            lineNumber: 639,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -1586,13 +1685,13 @@ function AgentsPage() {
                                             className: "col-span-3"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 564,
+                                            lineNumber: 642,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 560,
+                                    lineNumber: 638,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1604,7 +1703,7 @@ function AgentsPage() {
                                             children: "Email"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 572,
+                                            lineNumber: 650,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -1618,13 +1717,13 @@ function AgentsPage() {
                                             className: "col-span-3"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 575,
+                                            lineNumber: 653,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 571,
+                                    lineNumber: 649,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1636,7 +1735,7 @@ function AgentsPage() {
                                             children: "Status"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 584,
+                                            lineNumber: 662,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Select"], {
@@ -1650,12 +1749,12 @@ function AgentsPage() {
                                                     className: "col-span-3",
                                                     children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectValue"], {}, void 0, false, {
                                                         fileName: "[project]/app/admin/agents/page.tsx",
-                                                        lineNumber: 592,
+                                                        lineNumber: 670,
                                                         columnNumber: 19
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                                    lineNumber: 591,
+                                                    lineNumber: 669,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -1665,7 +1764,7 @@ function AgentsPage() {
                                                             children: "Active"
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                                            lineNumber: 595,
+                                                            lineNumber: 673,
                                                             columnNumber: 19
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -1673,7 +1772,7 @@ function AgentsPage() {
                                                             children: "Inactive"
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                                            lineNumber: 596,
+                                                            lineNumber: 674,
                                                             columnNumber: 19
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SelectItem"], {
@@ -1681,25 +1780,25 @@ function AgentsPage() {
                                                             children: "Pending"
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                                            lineNumber: 597,
+                                                            lineNumber: 675,
                                                             columnNumber: 19
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                                    lineNumber: 594,
+                                                    lineNumber: 672,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 587,
+                                            lineNumber: 665,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 583,
+                                    lineNumber: 661,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1711,7 +1810,7 @@ function AgentsPage() {
                                             children: "WABA Phone"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 602,
+                                            lineNumber: 680,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -1725,13 +1824,13 @@ function AgentsPage() {
                                             placeholder: "+65xxxxxxxx"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 605,
+                                            lineNumber: 683,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 601,
+                                    lineNumber: 679,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1743,7 +1842,7 @@ function AgentsPage() {
                                             children: "Display Name"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 614,
+                                            lineNumber: 692,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -1757,13 +1856,13 @@ function AgentsPage() {
                                             placeholder: "Business Display Name"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 617,
+                                            lineNumber: 695,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 613,
+                                    lineNumber: 691,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1775,7 +1874,7 @@ function AgentsPage() {
                                             children: "Bot Name"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 626,
+                                            lineNumber: 704,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -1789,19 +1888,19 @@ function AgentsPage() {
                                             placeholder: "Bot Name"
                                         }, void 0, false, {
                                             fileName: "[project]/app/admin/agents/page.tsx",
-                                            lineNumber: 629,
+                                            lineNumber: 707,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 625,
+                                    lineNumber: 703,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/admin/agents/page.tsx",
-                            lineNumber: 559,
+                            lineNumber: 637,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1814,7 +1913,7 @@ function AgentsPage() {
                                     children: "Cancel"
                                 }, void 0, false, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 639,
+                                    lineNumber: 717,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -1827,7 +1926,7 @@ function AgentsPage() {
                                                 className: "mr-2"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/admin/agents/page.tsx",
-                                                lineNumber: 645,
+                                                lineNumber: 723,
                                                 columnNumber: 21
                                             }, this),
                                             "Saving..."
@@ -1835,30 +1934,30 @@ function AgentsPage() {
                                     }, void 0, true) : 'Save Changes'
                                 }, void 0, false, {
                                     fileName: "[project]/app/admin/agents/page.tsx",
-                                    lineNumber: 642,
+                                    lineNumber: 720,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/admin/agents/page.tsx",
-                            lineNumber: 638,
+                            lineNumber: 716,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/admin/agents/page.tsx",
-                    lineNumber: 554,
+                    lineNumber: 632,
                     columnNumber: 11
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/app/admin/agents/page.tsx",
-                lineNumber: 553,
+                lineNumber: 631,
                 columnNumber: 9
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/admin/agents/page.tsx",
-        lineNumber: 306,
+        lineNumber: 363,
         columnNumber: 5
     }, this);
 }

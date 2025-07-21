@@ -2,7 +2,7 @@ import React from 'react';
 import {
   Home, MessageSquare, Users, Settings,
   BarChart3, DollarSign, Phone, ChevronRight, ChevronLeft,
-  Building2, UserCheck
+  Building2, UserCheck, Send
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -39,6 +39,11 @@ export function Sidebar({ isCollapsed, onToggle, className }: SidebarProps) {
       title: 'Conversations',
       icon: MessageSquare,
       href: '/agent/conversations',
+    },
+    {
+      title: 'Messages',
+      icon: Send,
+      href: '/agent/messages',
     },
     {
       title: 'Leads',

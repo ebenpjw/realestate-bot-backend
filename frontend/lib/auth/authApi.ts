@@ -12,9 +12,33 @@ export interface LoginRequest {
   password: string
 }
 
+export interface RegisterRequest {
+  email: string
+  password: string
+  phone_number: string
+  waba_phone_number?: string
+}
+
+export interface RegisterResponse {
+  success: boolean
+  message: string
+  data: {
+    id: string
+    email: string
+    full_name: string
+    status: string
+    waba_configured: boolean
+  }
+}
+
 class AuthApi {
   async login(email: string, password: string): Promise<LoginResponse> {
     const response = await apiClient.post('/api/frontend-auth/login', { email, password })
+    return response.data
+  }
+
+  async register(data: RegisterRequest): Promise<RegisterResponse> {
+    const response = await apiClient.post('/api/frontend-auth/register', data)
     return response.data
   }
 

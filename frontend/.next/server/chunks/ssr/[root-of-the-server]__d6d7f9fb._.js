@@ -612,6 +612,10 @@ class AuthApi {
         });
         return response.data;
     }
+    async register(data) {
+        const response = await __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$api$2f$client$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["apiClient"].post('/api/frontend-auth/register', data);
+        return response.data;
+    }
     async logout() {
         await __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$api$2f$client$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["apiClient"].post('/api/frontend-auth/logout');
     }
@@ -799,6 +803,30 @@ function AuthProvider({ children }) {
     }, [
         router
     ]);
+    const register = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])(async (data)=>{
+        try {
+            setLoading(true);
+            const response = await __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$auth$2f$authApi$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["authApi"].register(data);
+            __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$sonner$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["toast"].success('Registration successful!', {
+                description: response.message
+            });
+            return {
+                success: true,
+                message: response.message
+            };
+        } catch (error) {
+            const errorMessage = error.response?.data?.error || error.message || 'Registration failed';
+            __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$sonner$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["toast"].error('Registration failed', {
+                description: errorMessage
+            });
+            return {
+                success: false,
+                message: errorMessage
+            };
+        } finally{
+            setLoading(false);
+        }
+    }, []);
     const logout = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])(async ()=>{
         try {
             await __TURBOPACK__imported__module__$5b$project$5d2f$lib$2f$auth$2f$authApi$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["authApi"].logout();
@@ -842,6 +870,7 @@ function AuthProvider({ children }) {
             user,
             loading,
             login,
+            register,
             logout,
             refreshUser,
             isAuthenticated: !!user,
@@ -852,6 +881,7 @@ function AuthProvider({ children }) {
         user,
         loading,
         login,
+        register,
         logout,
         refreshUser,
         hasPermission
@@ -861,7 +891,7 @@ function AuthProvider({ children }) {
         children: children
     }, void 0, false, {
         fileName: "[project]/lib/auth/AuthContext.tsx",
-        lineNumber: 234,
+        lineNumber: 257,
         columnNumber: 5
     }, this);
 }

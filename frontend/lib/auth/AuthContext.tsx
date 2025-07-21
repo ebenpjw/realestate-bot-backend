@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { authApi } from './authApi'
+import { authApi, type RegisterRequest } from './authApi'
 import { toast } from 'sonner'
 
 export interface User {
@@ -21,6 +21,7 @@ interface AuthContextType {
   user: User | null
   loading: boolean
   login: (email: string, password: string) => Promise<void>
+  register: (data: RegisterRequest) => Promise<{ success: boolean; message: string }>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
   isAuthenticated: boolean
@@ -182,6 +183,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [router])
 
+  const register = useCallback(async (data: RegisterRequest) => {
+    try {
+      setLoading(true)
+      const response = await authApi.register(data)
+
+      toast.success('Registration successful!', {
+        description: response.message,
+      })
+
+      return { success: true, message: response.message }
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.error || error.message || 'Registration failed'
+      toast.error('Registration failed', {
+        description: errorMessage,
+      })
+      return { success: false, message: errorMessage }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   const logout = useCallback(async () => {
     try {
       await authApi.logout()
@@ -222,13 +244,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     user,
     loading,
     login,
+    register,
     logout,
     refreshUser,
     isAuthenticated: !!user,
     hasPermission,
     isAgent: user?.role === 'agent',
     isAdmin: user?.role === 'admin',
-  }), [user, loading, login, logout, refreshUser, hasPermission])
+  }), [user, loading, login, register, logout, refreshUser, hasPermission])
 
   return (
     <AuthContext.Provider value={value}>
