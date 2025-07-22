@@ -25,6 +25,7 @@ const PUBLIC_PATH = path.join(__dirname, 'frontend/public');
 console.log('🚀 Starting Outpaced Railway Server...');
 console.log(`📊 Environment: ${NODE_ENV}`);
 console.log(`🌐 Port: ${PORT}`);
+console.log(`🔧 Rebuild triggered to fix environment variables`);
 
 // Create Express app
 const app = express();
