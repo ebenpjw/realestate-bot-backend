@@ -7,9 +7,8 @@
     "npm": ">=9.0.0"
   },
   "scripts": {
-    "build": "cd frontend && npm install && npm run build",
-    "start": "npm run build && node server.js",
-    "railway:unified:start": "node server.js",
+    "start": "node server.js",
+    "build": "echo 'Backend build complete - no frontend build needed'",
     "dev": "nodemon index.js | pino-pretty",
     "lint": "eslint . --ext .js",
     "lint:fix": "eslint . --ext .js --fix",

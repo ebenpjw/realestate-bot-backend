@@ -1,68 +1,147 @@
 #!/usr/bin/env node
 
 /**
- * Simple Railway Production Server
- * Serves Next.js standalone build and API routes on a single port
- * Follows Railway best practices for 2025
+ * Outpaced Backend API Server
+ * Serves API routes, WebSocket connections, and backend services
+ * Optimized for Railway deployment as backend-only service
  */
 
 const express = require('express');
-const path = require('path');
-const fs = require('fs');
 const http = require('http');
+const cors = require('cors');
 const logger = require('./logger');
 
 // Configuration
 const PORT = process.env.PORT || 8080;
 const NODE_ENV = process.env.NODE_ENV || 'production';
+const FRONTEND_URL = process.env.FRONTEND_URL || process.env.CORS_ORIGINS;
 
-// Paths
-const FRONTEND_BUILD_PATH = path.join(__dirname, 'frontend/.next');
-const STANDALONE_PATH = path.join(FRONTEND_BUILD_PATH, 'standalone');
-const STATIC_PATH = path.join(FRONTEND_BUILD_PATH, 'static');
-const PUBLIC_PATH = path.join(__dirname, 'frontend/public');
-
-console.log('🚀 Starting Outpaced Railway Server...');
+console.log('🚀 Starting Outpaced Backend API Server...');
 console.log(`📊 Environment: ${NODE_ENV}`);
 console.log(`🌐 Port: ${PORT}`);
-console.log(`🔧 Rebuild triggered to fix environment variables`);
+console.log(`🔗 Frontend URL: ${FRONTEND_URL || 'Auto-detect Railway domains'}`);
 
 // Create Express app
 const app = express();
 
-// Trust proxy for Railway
-app.set('trust proxy', 1);
+// Trust proxy for Railway deployment
+app.set('trust proxy', true);
 
-// Essential middleware
+// CORS configuration for separate frontend service
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Define allowed origins
+    const allowedOrigins = [
+      // Development
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://127.0.0.1:3000',
+      // Railway frontend service
+      /^https:\/\/.*\.railway\.app$/,
+      /^https:\/\/.*\.up\.railway\.app$/,
+      // Legacy deployments
+      /^https:\/\/.*\.netlify\.app$/,
+      /^https:\/\/.*\.vercel\.app$/
+    ];
+
+    // Add custom frontend URL if provided
+    if (FRONTEND_URL) {
+      allowedOrigins.push(FRONTEND_URL);
+    }
+
+    // Check if origin is allowed
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (typeof allowedOrigin === 'string') {
+        return origin === allowedOrigin;
+      }
+      return allowedOrigin.test(origin);
+    });
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.warn(`🚫 CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'X-Request-ID',
+    'x-request-id',
+    'X-Request-Time',
+    'x-request-time'
+  ],
+  exposedHeaders: ['X-Total-Count', 'X-Page-Count']
+};
+
+app.use(cors(corsOptions));
+
+// Basic middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Health check endpoint (highest priority) - keep it simple and fast
+// Health check endpoint
 app.get('/health', (req, res) => {
-  console.log('🏥 Health check requested');
   res.status(200).json({
-    status: 'healthy',
+    status: 'ok',
+    service: 'backend-api',
     timestamp: new Date().toISOString(),
-    uptime: Math.floor(process.uptime())
+    environment: NODE_ENV,
+    port: PORT,
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    version: process.env.npm_package_version || '1.0.0',
+    cors: {
+      configured: true,
+      frontendUrl: FRONTEND_URL || 'auto-detect'
+    }
   });
 });
 
-// More detailed health check for debugging
-app.get('/health/detailed', (req, res) => {
-  res.status(200).json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    services: {
-      backend: 'running',
-      frontend: fs.existsSync(STANDALONE_PATH) ? 'ready' : 'building'
-    },
-    environment: NODE_ENV,
-    uptime: process.uptime(),
-    port: PORT,
-    memory: process.memoryUsage(),
-    pid: process.pid
-  });
-});
+// Initialize all services
+require('./services/antiSpamGuard');
+console.log('Anti-Spam Guard System initialized');
+
+// Initialize Socket.IO
+const socketService = require('./services/socketService');
+
+// Initialize other services
+require('./services/performanceMonitor');
+console.log('Performance monitoring started');
+
+require('./services/queueManager');
+console.log('QueueManager initialized');
+
+require('./services/messageOrchestrator');
+console.log('Message Processing Orchestrator initialized');
+
+require('./services/gupshupPartnerService');
+console.log('Gupshup Partner Service initialized');
+
+require('./services/partnerTemplateService');
+console.log('Partner Template Service initialized');
+
+require('./services/agentWABASetupService');
+console.log('Agent WABA Setup Service initialized');
+
+require('./services/webSearchService');
+console.log('Web Search Service initialized');
+
+require('./services/multiLayerMonitoring');
+console.log('Multi-Layer AI Monitoring System initialized');
+
+require('./services/newLeadFollowUpService');
+console.log('New Lead Follow-up Service initialized');
+
+require('./services/orchestratorTester');
+console.log('Orchestrator Testing Framework initialized');
 
 // API Routes - Load all backend routes
 const apiRoutes = [
@@ -106,169 +185,6 @@ try {
   console.warn('⚠️ Visual property API not available:', error.message);
 }
 
-// Serve Next.js static files
-if (fs.existsSync(STATIC_PATH)) {
-  app.use('/_next/static', express.static(STATIC_PATH, {
-    maxAge: '1y',
-    immutable: true
-  }));
-  console.log('✅ Next.js static files configured');
-}
-
-// Serve public assets
-if (fs.existsSync(PUBLIC_PATH)) {
-  app.use(express.static(PUBLIC_PATH, {
-    maxAge: '1d'
-  }));
-  console.log('✅ Public assets configured');
-}
-
-// Serve Next.js build output directory
-const BUILD_OUTPUT_PATH = path.join(FRONTEND_BUILD_PATH, 'server/app');
-const PAGES_PATH = path.join(FRONTEND_BUILD_PATH, 'server/pages');
-
-// Serve Next.js app directory build files
-if (fs.existsSync(BUILD_OUTPUT_PATH)) {
-  app.use('/_next/server/app', express.static(BUILD_OUTPUT_PATH));
-  console.log('✅ Next.js app build files configured');
-}
-
-// Serve Next.js pages directory build files
-if (fs.existsSync(PAGES_PATH)) {
-  app.use('/_next/server/pages', express.static(PAGES_PATH));
-  console.log('✅ Next.js pages build files configured');
-}
-
-// Debug route to check what static files exist
-app.get('/debug/static', (req, res) => {
-  const staticPath = path.join(FRONTEND_BUILD_PATH, 'static');
-  const serverPath = path.join(FRONTEND_BUILD_PATH, 'server');
-
-  let staticFiles = [];
-  let serverFiles = [];
-
-  if (fs.existsSync(staticPath)) {
-    staticFiles = fs.readdirSync(staticPath, { recursive: true });
-  }
-
-  if (fs.existsSync(serverPath)) {
-    serverFiles = fs.readdirSync(serverPath, { recursive: true });
-  }
-
-  res.json({
-    staticPath,
-    serverPath,
-    staticExists: fs.existsSync(staticPath),
-    serverExists: fs.existsSync(serverPath),
-    staticFiles: staticFiles.slice(0, 20), // First 20 files
-    serverFiles: serverFiles.slice(0, 20)  // First 20 files
-  });
-});
-
-// Handle all frontend routes - serve Next.js App Router pages
-app.get('*', (req, res, next) => {
-  // Skip API routes, health check, and static files
-  if (req.path.startsWith('/api/') ||
-      req.path === '/health' ||
-      req.path.startsWith('/debug/') ||
-      req.path.startsWith('/_next/') ||
-      req.path.includes('.')) {
-    return next();
-  }
-
-  // Try to serve the appropriate Next.js page based on the route
-  let pagePath = req.path;
-
-  // Map routes to Next.js app directory structure
-  if (pagePath === '/') {
-    pagePath = '/page';
-  } else if (!pagePath.endsWith('/page')) {
-    pagePath = pagePath + '/page';
-  }
-
-  // Try to find the page file
-  const pageFile = path.join(FRONTEND_BUILD_PATH, 'server/app', pagePath + '.js');
-
-  if (fs.existsSync(pageFile)) {
-    try {
-      // Load and render the Next.js page
-      const pageModule = require(pageFile);
-      console.log(`📄 Serving Next.js page: ${pagePath}`);
-
-      // For now, serve a basic HTML shell that loads the page
-      res.status(200).send(`
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>Outpaced</title>
-            <link rel="stylesheet" href="/_next/static/css/app/layout.css">
-          </head>
-          <body>
-            <div id="__next"></div>
-            <script src="/_next/static/chunks/webpack-${fs.readFileSync(path.join(FRONTEND_BUILD_PATH, 'BUILD_ID'), 'utf8').trim()}.js"></script>
-            <script src="/_next/static/chunks/framework-${fs.readFileSync(path.join(FRONTEND_BUILD_PATH, 'BUILD_ID'), 'utf8').trim()}.js"></script>
-            <script src="/_next/static/chunks/main-${fs.readFileSync(path.join(FRONTEND_BUILD_PATH, 'BUILD_ID'), 'utf8').trim()}.js"></script>
-            <script src="/_next/static/chunks/pages/_app-${fs.readFileSync(path.join(FRONTEND_BUILD_PATH, 'BUILD_ID'), 'utf8').trim()}.js"></script>
-            <script src="/_next/static/chunks/app${pagePath}-${fs.readFileSync(path.join(FRONTEND_BUILD_PATH, 'BUILD_ID'), 'utf8').trim()}.js"></script>
-          </body>
-        </html>
-      `);
-      return;
-    } catch (error) {
-      console.warn(`⚠️ Error loading page ${pagePath}:`, error.message);
-    }
-  }
-
-  // Fallback: serve a basic HTML that loads the main app
-  res.status(200).send(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Outpaced</title>
-        <link rel="stylesheet" href="/_next/static/css/app/layout.css">
-      </head>
-      <body>
-        <div id="__next">
-          <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-            <div style="text-align: center;">
-              <div style="border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 1rem;"></div>
-              <h1>Outpaced</h1>
-              <p>Loading application...</p>
-              <p>Route: ${req.path}</p>
-              <p><a href="/debug/static" style="color: #007bff;">Debug Static Files</a></p>
-            </div>
-          </div>
-        </div>
-        <style>
-          @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        </style>
-        <script>
-          console.log('Loading Next.js App Router application...');
-          console.log('Current route:', '${req.path}');
-
-          // Load the main Next.js chunks
-          const chunks = [
-            '/_next/static/chunks/4bd1b696-c7687113aa082008.js',
-            '/_next/static/chunks/5964-9b06a9d265970142.js'
-          ];
-
-          chunks.forEach(chunk => {
-            const script = document.createElement('script');
-            script.src = chunk;
-            script.onload = () => console.log('Loaded:', chunk);
-            script.onerror = () => console.error('Failed to load:', chunk);
-            document.head.appendChild(script);
-          });
-        </script>
-      </body>
-    </html>
-  `);
-});
-
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
@@ -279,36 +195,45 @@ app.use((err, req, res, next) => {
   });
 });
 
+// 404 handler for unknown routes
+app.use('*', (req, res) => {
+  res.status(404).json({
+    error: 'Not Found',
+    message: `Route ${req.originalUrl} not found`,
+    availableRoutes: apiRoutes.map(route => route.path),
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Create HTTP server
 const server = http.createServer(app);
 
-// Initialize Socket.IO
-try {
-  const { initializeSocketIO } = require('./services/socketService');
-  if (initializeSocketIO) {
-    initializeSocketIO(server);
-    console.log('✅ Socket.IO initialized');
-  }
-} catch (error) {
-  console.warn('⚠️ Socket.IO initialization failed:', error.message);
-}
+// Initialize Socket.IO with the server
+socketService.initializeSocketIO(server);
+console.log('✅ Socket.IO server initialized');
+
+// Initialize database service
+require('./services/databaseService');
+console.log('Database service initialized for Railway deployment');
+
+// Initialize cost tracking
+require('./services/costTrackingService');
+console.log('Cost categories cache initialized');
 
 // Start server
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎉 Outpaced server running on port ${PORT}`);
+  console.log(`🎉 Outpaced Backend API running on port ${PORT}`);
   console.log(`🌐 Health check: http://0.0.0.0:${PORT}/health`);
-  console.log(`📱 Frontend: http://0.0.0.0:${PORT}`);
-  console.log(`🔌 API: http://0.0.0.0:${PORT}/api`);
-  console.log('✅ Server ready for Railway deployment');
+  console.log(`🔌 API endpoints: http://0.0.0.0:${PORT}/api`);
+  console.log(`🔗 WebSocket: ws://0.0.0.0:${PORT}`);
+  console.log('✅ Backend ready for Railway deployment');
 });
 
-// Graceful shutdown with debugging
+// Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM received, shutting down gracefully');
-  console.log('📊 Server uptime:', process.uptime(), 'seconds');
-  console.log('📊 Memory usage:', process.memoryUsage());
   server.close(() => {
-    console.log('✅ Server closed');
+    console.log('✅ Backend server closed');
     process.exit(0);
   });
 });
@@ -316,18 +241,7 @@ process.on('SIGTERM', () => {
 process.on('SIGINT', () => {
   console.log('🛑 SIGINT received, shutting down gracefully');
   server.close(() => {
-    console.log('✅ Server closed');
+    console.log('✅ Backend server closed');
     process.exit(0);
   });
-});
-
-// Add error handling
-process.on('uncaughtException', (error) => {
-  console.error('💥 Uncaught Exception:', error);
-  process.exit(1);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
 });
