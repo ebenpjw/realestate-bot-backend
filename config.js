@@ -139,13 +139,17 @@ const coreRequiredConfig = {
 // Optional config for production/specific features
 const optionalConfig = {
   WEBHOOK_SECRET_TOKEN: 'Webhook security token required',
-  META_VERIFY_TOKEN: 'Meta webhook verification required',
-  META_APP_SECRET: 'Meta webhook signature verification required',
   GOOGLE_CLIENT_ID: 'Google OAuth required for calendar integration',
   GOOGLE_CLIENT_SECRET: 'Google OAuth required for calendar integration',
   ZOOM_CLIENT_ID: 'Zoom OAuth required for meeting integration',
   ZOOM_CLIENT_SECRET: 'Zoom OAuth required for meeting integration',
   ZOOM_ACCOUNT_ID: 'Zoom Account ID required for Server-to-Server OAuth'
+};
+
+// Meta config - currently disabled but infrastructure ready
+const metaConfig = {
+  META_VERIFY_TOKEN: 'Meta webhook verification required',
+  META_APP_SECRET: 'Meta webhook signature verification required'
 };
 
 // Use different validation based on environment
