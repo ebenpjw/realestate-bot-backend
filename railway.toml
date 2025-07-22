@@ -1,0 +1,16 @@
+[build]
+builder = "NIXPACKS"
+
+[build.buildCommand]
+cmd = "npm run build"
+
+[deploy]
+startCommand = "npm start"
+
+[[deploy.environmentVariables]]
+name = "NODE_ENV"
+value = "production"
+
+[[deploy.environmentVariables]]
+name = "PORT"
+value = "8080"

@@ -167,8 +167,12 @@ app.get('/debug/static', (req, res) => {
 
 // Handle all frontend routes - serve Next.js App Router pages
 app.get('*', (req, res, next) => {
-  // Skip API routes and health check
-  if (req.path.startsWith('/api/') || req.path === '/health' || req.path.startsWith('/debug/')) {
+  // Skip API routes, health check, and static files
+  if (req.path.startsWith('/api/') ||
+      req.path === '/health' ||
+      req.path.startsWith('/debug/') ||
+      req.path.startsWith('/_next/') ||
+      req.path.includes('.')) {
     return next();
   }
 
