@@ -1,7 +1,7 @@
 const axios = require('axios');
 const config = require('../config');
 const logger = require('../logger');
-const { MESSAGE, VALIDATION } = require('../constants');
+const { MESSAGE, VALIDATION } = require('../constants/index');
 const { ExternalServiceError, ValidationError } = require('../middleware/errorHandler');
 const costTrackingService = require('./costTrackingService');
 

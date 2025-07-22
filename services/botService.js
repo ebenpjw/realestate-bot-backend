@@ -10,7 +10,7 @@ const leadDeduplicationService = require('./leadDeduplicationService');
 const intelligentFollowUpService = require('./intelligentFollowUpService');
 const newLeadFollowUpService = require('./newLeadFollowUpService');
 const pdpaComplianceService = require('./pdpaComplianceService');
-const { AI } = require('../constants');
+const { AI } = require('../constants/index');
 
 const { toSgTime, formatForDisplay } = require('../utils/timezoneUtils');
 
