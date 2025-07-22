@@ -9,7 +9,7 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   // Remove standalone output - let Railway handle standard Next.js deployment
-  trailingSlash: false
+  trailingSlash: false,
   // Environment variables will be set via Railway environment variables
   images: {
     formats: ['image/avif', 'image/webp'],
