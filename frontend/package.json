@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "next dev -p 3000 --turbo",
     "build": "NODE_ENV=production next build",
-    "start": "next start",
+    "start": "node .next/standalone/server.js",
     "lint": "next lint --fix",
     "lint:check": "next lint",
     "type-check": "tsc --noEmit",
