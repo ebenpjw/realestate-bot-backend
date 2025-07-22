@@ -165,35 +165,36 @@ export const LazyRoutes = {
   ),
 }
 
-// Component-based lazy loading
+// Component-based lazy loading - TEMPORARILY DISABLED
+// Causing chunk generation issues with missing components
 export const LazyComponents = {
-  // Charts (heavy components)
-  ConversionChart: createLazyComponent(
-    () => import('@/components/agent/ConversionChart'),
-    { fallback: <div className="h-64 bg-gray-100 rounded-lg animate-pulse" /> }
-  ),
-  LeadSourceChart: createLazyComponent(
-    () => import('@/components/agent/LeadSourceChart'),
-    { fallback: <div className="h-64 bg-gray-100 rounded-lg animate-pulse" /> }
-  ),
-  ResponseTimeChart: createLazyComponent(
-    () => import('@/components/agent/ResponseTimeChart'),
-    { fallback: <div className="h-64 bg-gray-100 rounded-lg animate-pulse" /> }
-  ),
+  // Charts (heavy components) - commented out to fix chunk issues
+  // ConversionChart: createLazyComponent(
+  //   () => import('@/components/agent/ConversionChart'),
+  //   { fallback: <div className="h-64 bg-gray-100 rounded-lg animate-pulse" /> }
+  // ),
+  // LeadSourceChart: createLazyComponent(
+  //   () => import('@/components/agent/LeadSourceChart'),
+  //   { fallback: <div className="h-64 bg-gray-100 rounded-lg animate-pulse" /> }
+  // ),
+  // ResponseTimeChart: createLazyComponent(
+  //   () => import('@/components/agent/ResponseTimeChart'),
+  //   { fallback: <div className="h-64 bg-gray-100 rounded-lg animate-pulse" /> }
+  // ),
 
-  // Heavy UI components
-  RichTextEditor: createLazyComponent(
-    () => import('@/components/ui/RichTextEditor'),
-    { fallback: <div className="h-32 bg-gray-100 rounded-lg animate-pulse" /> }
-  ),
-  DataTable: createLazyComponent(
-    () => import('@/components/ui/DataTable'),
-    { fallback: <div className="h-96 bg-gray-100 rounded-lg animate-pulse" /> }
-  ),
-  Calendar: createLazyComponent(
-    () => import('@/components/ui/Calendar'),
-    { fallback: <div className="h-80 bg-gray-100 rounded-lg animate-pulse" /> }
-  ),
+  // Heavy UI components - commented out to fix chunk issues
+  // RichTextEditor: createLazyComponent(
+  //   () => import('@/components/ui/RichTextEditor'),
+  //   { fallback: <div className="h-32 bg-gray-100 rounded-lg animate-pulse" /> }
+  // ),
+  // DataTable: createLazyComponent(
+  //   () => import('@/components/ui/DataTable'),
+  //   { fallback: <div className="h-96 bg-gray-100 rounded-lg animate-pulse" /> }
+  // ),
+  // Calendar: createLazyComponent(
+  //   () => import('@/components/ui/Calendar'),
+  //   { fallback: <div className="h-80 bg-gray-100 rounded-lg animate-pulse" /> }
+  // ),
 }
 
 // Preload critical routes
