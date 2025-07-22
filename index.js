@@ -46,15 +46,26 @@ app.set('trust proxy', 1);
 // Apply security middleware first
 app.use(createSecurityMiddleware());
 
-// CORS configuration for unified deployment
+// CORS configuration for separate services deployment
+const corsOrigins = [
+  'http://localhost:3000',  // Frontend development server
+  'http://127.0.0.1:3000',  // Alternative localhost
+  /^https?:\/\/.*\.railway\.app$/,  // Railway deployments
+];
+
+// Add production frontend URL if available
+if (process.env.FRONTEND_URL) {
+  corsOrigins.push(process.env.FRONTEND_URL);
+  corsOrigins.push(`https://${process.env.FRONTEND_URL}`);
+}
+
+// Add CORS_ORIGIN if specified
+if (process.env.CORS_ORIGIN) {
+  corsOrigins.push(process.env.CORS_ORIGIN);
+}
+
 app.use(cors({
-  origin: [
-    'http://localhost:3000',  // Frontend development server
-    'http://127.0.0.1:3000',  // Alternative localhost
-    /^https?:\/\/.*\.railway\.app$/,  // Railway deployments
-    /^https?:\/\/.*\.netlify\.app$/,  // Netlify deployments (legacy)
-    /^https?:\/\/.*\.vercel\.app$/    // Vercel deployments (legacy)
-  ],
+  origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
