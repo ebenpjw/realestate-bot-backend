@@ -9,12 +9,12 @@
   "scripts": {
     "start": "node server.js",
     "railway:unified:start": "node server.js",
+    "build": "cd frontend && npm install && npm run build",
     "dev": "nodemon index.js | pino-pretty",
     "lint": "eslint . --ext .js",
     "lint:fix": "eslint . --ext .js --fix",
     "format": "prettier --write .",
     "validate": "npm run lint",
-    "build": "cd frontend && npm install && npm run build",
     "health-check": "curl -f http://localhost:8080/health || exit 1",
     "db:migrate": "echo 'Run Supabase migrations manually'",
     "dev:unified": "concurrently \"npm run dev\" \"cd frontend && npm run dev\"",
