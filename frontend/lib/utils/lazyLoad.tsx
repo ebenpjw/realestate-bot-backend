@@ -114,9 +114,55 @@ export function createIntersectionLazyComponent<T extends ComponentType<any>>(
   }
 }
 
-// Route-based code splitting helper - TEMPORARILY DISABLED FOR DEBUGGING
+// Route-based code splitting helper
 export const LazyRoutes = {
-  // All lazy routes temporarily disabled to fix chunk loading issues
+  // Agent routes
+  AgentDashboard: createLazyComponent(
+    () => import('@/app/agent/dashboard/page'),
+    { fallback: <LoadingSpinner size="lg" /> }
+  ),
+  AgentConversations: createLazyComponent(
+    () => import('@/app/agent/conversations/page'),
+    { fallback: <LoadingSpinner size="lg" /> }
+  ),
+  AgentLeads: createLazyComponent(
+    () => import('@/app/agent/leads/page'),
+    { fallback: <LoadingSpinner size="lg" /> }
+  ),
+  AgentAnalytics: createLazyComponent(
+    () => import('@/app/agent/analytics/page'),
+    { fallback: <LoadingSpinner size="lg" /> }
+  ),
+  AgentTesting: createLazyComponent(
+    () => import('@/app/agent/testing/page'),
+    { fallback: <LoadingSpinner size="lg" /> }
+  ),
+  AgentIntegrations: createLazyComponent(
+    () => import('@/app/agent/integrations/page'),
+    { fallback: <LoadingSpinner size="lg" /> }
+  ),
+  AgentSettings: createLazyComponent(
+    () => import('@/app/agent/settings/page'),
+    { fallback: <LoadingSpinner size="lg" /> }
+  ),
+
+  // Admin routes
+  AdminDashboard: createLazyComponent(
+    () => import('@/app/admin/dashboard/page'),
+    { fallback: <LoadingSpinner size="lg" /> }
+  ),
+  AdminAgents: createLazyComponent(
+    () => import('@/app/admin/agents/page'),
+    { fallback: <LoadingSpinner size="lg" /> }
+  ),
+  AdminCosts: createLazyComponent(
+    () => import('@/app/admin/costs/page'),
+    { fallback: <LoadingSpinner size="lg" /> }
+  ),
+  AdminWABA: createLazyComponent(
+    () => import('@/app/admin/waba/page'),
+    { fallback: <LoadingSpinner size="lg" /> }
+  ),
 }
 
 // Component-based lazy loading - TEMPORARILY DISABLED
@@ -151,17 +197,16 @@ export const LazyComponents = {
   // ),
 }
 
-// Preload critical routes - TEMPORARILY DISABLED
+// Preload critical routes
 export function preloadCriticalRoutes() {
-  // Disabled to fix chunk loading issues
-  // if (typeof window !== 'undefined') {
-  //   // Preload dashboard routes
-  //   preloadComponent(() => import('@/app/agent/dashboard/page'))
-  //   preloadComponent(() => import('@/app/admin/dashboard/page'))
-  //
-  //   // Preload common components
-  //   preloadComponent(() => import('@/components/agent/ConversionChart'))
-  // }
+  if (typeof window !== 'undefined') {
+    // Preload dashboard routes
+    preloadComponent(() => import('@/app/agent/dashboard/page'))
+    preloadComponent(() => import('@/app/admin/dashboard/page'))
+
+    // Preload common components
+    preloadComponent(() => import('@/components/agent/ConversionChart'))
+  }
 }
 
 // Dynamic import with error handling
