@@ -110,69 +110,101 @@ if (fs.existsSync(PUBLIC_PATH)) {
   console.log('✅ Public assets configured');
 }
 
-// Serve Next.js build files
-if (fs.existsSync(path.join(FRONTEND_BUILD_PATH, 'server.js'))) {
-  // Use Next.js standalone server if available
+// Initialize Next.js standalone server
+let nextHandler = null;
+const standaloneServerPath = path.join(STANDALONE_PATH, 'server.js');
+
+if (fs.existsSync(standaloneServerPath)) {
   try {
-    const nextServer = require(path.join(FRONTEND_BUILD_PATH, 'standalone/server.js'));
-    console.log('✅ Next.js standalone server loaded');
+    // Set up environment for Next.js standalone
+    process.env.HOSTNAME = '0.0.0.0';
+    process.env.PORT = process.env.PORT || '8080';
+
+    // Import and initialize Next.js standalone server
+    const { createServer } = require('http');
+    const next = require('next');
+
+    const nextApp = next({
+      dev: false,
+      dir: path.join(__dirname, 'frontend'),
+      conf: {
+        output: 'standalone',
+        distDir: '.next'
+      }
+    });
+
+    nextHandler = nextApp.getRequestHandler();
+
+    // Prepare Next.js app
+    nextApp.prepare().then(() => {
+      console.log('✅ Next.js standalone app prepared');
+    }).catch(err => {
+      console.warn('⚠️ Next.js prepare failed:', err.message);
+      nextHandler = null;
+    });
+
   } catch (error) {
-    console.warn('⚠️ Next.js standalone server failed:', error.message);
+    console.warn('⚠️ Next.js standalone server initialization failed:', error.message);
+    nextHandler = null;
   }
+} else {
+  console.warn('⚠️ Next.js standalone server not found at:', standaloneServerPath);
 }
 
 // Handle all frontend routes
-app.get('*', (req, res, next) => {
+app.get('*', async (req, res, next) => {
   // Skip API routes and health check
   if (req.path.startsWith('/api/') || req.path === '/health') {
     return next();
   }
 
-  // Try to serve from Next.js build output first
-  const possiblePaths = [
-    path.join(FRONTEND_BUILD_PATH, 'standalone/frontend/index.html'),
-    path.join(FRONTEND_BUILD_PATH, 'out/index.html'),
-    path.join(__dirname, 'frontend/out/index.html'),
-    path.join(PUBLIC_PATH, 'index.html')
-  ];
-
-  for (const indexPath of possiblePaths) {
-    if (fs.existsSync(indexPath)) {
-      console.log(`✅ Serving frontend from: ${indexPath}`);
-      return res.sendFile(indexPath);
+  // Use Next.js handler if available
+  if (nextHandler) {
+    try {
+      return await nextHandler(req, res);
+    } catch (error) {
+      console.warn('⚠️ Next.js handler error:', error.message);
     }
   }
 
-  // Debug: Log what files exist
-  console.log('🔍 Frontend build paths check:');
-  console.log(`- FRONTEND_BUILD_PATH: ${FRONTEND_BUILD_PATH} (exists: ${fs.existsSync(FRONTEND_BUILD_PATH)})`);
-  console.log(`- STANDALONE_PATH: ${STANDALONE_PATH} (exists: ${fs.existsSync(STANDALONE_PATH)})`);
-  console.log(`- PUBLIC_PATH: ${PUBLIC_PATH} (exists: ${fs.existsSync(PUBLIC_PATH)})`);
-
-  if (fs.existsSync(FRONTEND_BUILD_PATH)) {
-    const buildFiles = fs.readdirSync(FRONTEND_BUILD_PATH);
-    console.log(`- Build files: ${buildFiles.join(', ')}`);
-  }
-
-  // Fallback response with debug info
+  // Fallback: serve a simple loading page
   res.status(200).send(`
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Outpaced - Debug</title>
+        <title>Outpaced</title>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+          .container { display: flex; justify-content: center; align-items: center; height: 100vh; background: #f8f9fa; }
+          .content { text-align: center; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+          .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+          @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+          .links { margin-top: 1rem; }
+          .links a { color: #007bff; text-decoration: none; margin: 0 1rem; }
+          .links a:hover { text-decoration: underline; }
+        </style>
       </head>
       <body>
-        <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif;">
-          <div style="text-align: center;">
+        <div class="container">
+          <div class="content">
+            <div class="spinner"></div>
             <h1>Outpaced</h1>
-            <p>Frontend build not found. Check server logs for debug info.</p>
-            <p>Build path: ${FRONTEND_BUILD_PATH}</p>
-            <p>Build exists: ${fs.existsSync(FRONTEND_BUILD_PATH)}</p>
-            <p><a href="/health">Health Check</a> | <a href="/api/test">API Test</a></p>
+            <p>Frontend is initializing...</p>
+            <p>Next.js handler: ${nextHandler ? 'Available' : 'Not available'}</p>
+            <div class="links">
+              <a href="/health">Health Check</a>
+              <a href="/api/test">API Test</a>
+            </div>
           </div>
         </div>
+        <script>
+          // Auto-refresh every 5 seconds if Next.js handler is not available
+          if (!${!!nextHandler}) {
+            setTimeout(() => window.location.reload(), 5000);
+          }
+        </script>
       </body>
     </html>
   `);
