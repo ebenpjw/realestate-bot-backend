@@ -8,4 +8,4 @@ cmds = ["npm install"]
 cmds = ["npm run build"]
 
 [phases.start]
-cmd = "cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public && cd .next/standalone && HOSTNAME=0.0.0.0 PORT=3000 node server.js"
+cmd = "npm start"

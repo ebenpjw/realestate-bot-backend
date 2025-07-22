@@ -8,8 +8,8 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  output: 'standalone', // Enable standalone build for Railway deployment
-  trailingSlash: false, // Disable trailing slash to prevent routing issues
+  // Remove standalone output - let Railway handle standard Next.js deployment
+  trailingSlash: false
   // Environment variables will be set via Railway environment variables
   images: {
     formats: ['image/avif', 'image/webp'],
