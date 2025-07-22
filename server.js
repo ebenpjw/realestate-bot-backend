@@ -164,14 +164,59 @@ app.get('/debug/static', (req, res) => {
   });
 });
 
-// Handle all frontend routes - serve static HTML for SPA
+// Handle all frontend routes - serve Next.js App Router pages
 app.get('*', (req, res, next) => {
   // Skip API routes and health check
   if (req.path.startsWith('/api/') || req.path === '/health' || req.path.startsWith('/debug/')) {
     return next();
   }
 
-  // Simple HTML that tries to load the actual Next.js app
+  // Try to serve the appropriate Next.js page based on the route
+  let pagePath = req.path;
+
+  // Map routes to Next.js app directory structure
+  if (pagePath === '/') {
+    pagePath = '/page';
+  } else if (!pagePath.endsWith('/page')) {
+    pagePath = pagePath + '/page';
+  }
+
+  // Try to find the page file
+  const pageFile = path.join(FRONTEND_BUILD_PATH, 'server/app', pagePath + '.js');
+
+  if (fs.existsSync(pageFile)) {
+    try {
+      // Load and render the Next.js page
+      const pageModule = require(pageFile);
+      console.log(`📄 Serving Next.js page: ${pagePath}`);
+
+      // For now, serve a basic HTML shell that loads the page
+      res.status(200).send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Outpaced</title>
+            <link rel="stylesheet" href="/_next/static/css/app/layout.css">
+          </head>
+          <body>
+            <div id="__next"></div>
+            <script src="/_next/static/chunks/webpack-${fs.readFileSync(path.join(FRONTEND_BUILD_PATH, 'BUILD_ID'), 'utf8').trim()}.js"></script>
+            <script src="/_next/static/chunks/framework-${fs.readFileSync(path.join(FRONTEND_BUILD_PATH, 'BUILD_ID'), 'utf8').trim()}.js"></script>
+            <script src="/_next/static/chunks/main-${fs.readFileSync(path.join(FRONTEND_BUILD_PATH, 'BUILD_ID'), 'utf8').trim()}.js"></script>
+            <script src="/_next/static/chunks/pages/_app-${fs.readFileSync(path.join(FRONTEND_BUILD_PATH, 'BUILD_ID'), 'utf8').trim()}.js"></script>
+            <script src="/_next/static/chunks/app${pagePath}-${fs.readFileSync(path.join(FRONTEND_BUILD_PATH, 'BUILD_ID'), 'utf8').trim()}.js"></script>
+          </body>
+        </html>
+      `);
+      return;
+    } catch (error) {
+      console.warn(`⚠️ Error loading page ${pagePath}:`, error.message);
+    }
+  }
+
+  // Fallback: serve a basic HTML that loads the main app
   res.status(200).send(`
     <!DOCTYPE html>
     <html>
@@ -179,6 +224,7 @@ app.get('*', (req, res, next) => {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Outpaced</title>
+        <link rel="stylesheet" href="/_next/static/css/app/layout.css">
       </head>
       <body>
         <div id="__next">
@@ -187,6 +233,7 @@ app.get('*', (req, res, next) => {
               <div style="border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 1rem;"></div>
               <h1>Outpaced</h1>
               <p>Loading application...</p>
+              <p>Route: ${req.path}</p>
               <p><a href="/debug/static" style="color: #007bff;">Debug Static Files</a></p>
             </div>
           </div>
@@ -195,31 +242,22 @@ app.get('*', (req, res, next) => {
           @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         </style>
         <script>
-          // Try to load Next.js if it exists
-          console.log('Attempting to load Next.js application...');
+          console.log('Loading Next.js App Router application...');
+          console.log('Current route:', '${req.path}');
 
-          // Check if we can access static files
-          fetch('/_next/static/chunks/webpack.js')
-            .then(response => {
-              if (response.ok) {
-                console.log('Static files accessible, loading Next.js...');
-                // Load Next.js chunks
-                const script1 = document.createElement('script');
-                script1.src = '/_next/static/chunks/webpack.js';
-                document.head.appendChild(script1);
+          // Load the main Next.js chunks
+          const chunks = [
+            '/_next/static/chunks/4bd1b696-c7687113aa082008.js',
+            '/_next/static/chunks/5964-9b06a9d265970142.js'
+          ];
 
-                const script2 = document.createElement('script');
-                script2.src = '/_next/static/chunks/main.js';
-                document.head.appendChild(script2);
-              } else {
-                console.error('Static files not accessible');
-                document.querySelector('p').innerHTML = 'Static files not found. <a href="/debug/static">Check debug info</a>';
-              }
-            })
-            .catch(error => {
-              console.error('Error loading static files:', error);
-              document.querySelector('p').innerHTML = 'Error loading application. <a href="/debug/static">Check debug info</a>';
-            });
+          chunks.forEach(chunk => {
+            const script = document.createElement('script');
+            script.src = chunk;
+            script.onload = () => console.log('Loaded:', chunk);
+            script.onerror = () => console.error('Failed to load:', chunk);
+            document.head.appendChild(script);
+          });
         </script>
       </body>
     </html>
