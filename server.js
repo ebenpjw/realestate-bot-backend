@@ -110,25 +110,56 @@ if (fs.existsSync(PUBLIC_PATH)) {
   console.log('✅ Public assets configured');
 }
 
-// Handle all frontend routes - serve static files for SPA
+// Serve Next.js build files
+if (fs.existsSync(path.join(FRONTEND_BUILD_PATH, 'server.js'))) {
+  // Use Next.js standalone server if available
+  try {
+    const nextServer = require(path.join(FRONTEND_BUILD_PATH, 'standalone/server.js'));
+    console.log('✅ Next.js standalone server loaded');
+  } catch (error) {
+    console.warn('⚠️ Next.js standalone server failed:', error.message);
+  }
+}
+
+// Handle all frontend routes
 app.get('*', (req, res, next) => {
   // Skip API routes and health check
   if (req.path.startsWith('/api/') || req.path === '/health') {
     return next();
   }
 
-  // For all other routes, serve the main index.html (SPA routing)
-  const indexPath = path.join(PUBLIC_PATH, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    return res.sendFile(indexPath);
+  // Try to serve from Next.js build output first
+  const possiblePaths = [
+    path.join(FRONTEND_BUILD_PATH, 'standalone/frontend/index.html'),
+    path.join(FRONTEND_BUILD_PATH, 'out/index.html'),
+    path.join(__dirname, 'frontend/out/index.html'),
+    path.join(PUBLIC_PATH, 'index.html')
+  ];
+
+  for (const indexPath of possiblePaths) {
+    if (fs.existsSync(indexPath)) {
+      console.log(`✅ Serving frontend from: ${indexPath}`);
+      return res.sendFile(indexPath);
+    }
   }
 
-  // If no index.html, return a simple response
+  // Debug: Log what files exist
+  console.log('🔍 Frontend build paths check:');
+  console.log(`- FRONTEND_BUILD_PATH: ${FRONTEND_BUILD_PATH} (exists: ${fs.existsSync(FRONTEND_BUILD_PATH)})`);
+  console.log(`- STANDALONE_PATH: ${STANDALONE_PATH} (exists: ${fs.existsSync(STANDALONE_PATH)})`);
+  console.log(`- PUBLIC_PATH: ${PUBLIC_PATH} (exists: ${fs.existsSync(PUBLIC_PATH)})`);
+
+  if (fs.existsSync(FRONTEND_BUILD_PATH)) {
+    const buildFiles = fs.readdirSync(FRONTEND_BUILD_PATH);
+    console.log(`- Build files: ${buildFiles.join(', ')}`);
+  }
+
+  // Fallback response with debug info
   res.status(200).send(`
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Outpaced - Loading...</title>
+        <title>Outpaced - Debug</title>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
       </head>
@@ -136,8 +167,10 @@ app.get('*', (req, res, next) => {
         <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif;">
           <div style="text-align: center;">
             <h1>Outpaced</h1>
-            <p>Application is starting up...</p>
-            <p>Please refresh in a moment.</p>
+            <p>Frontend build not found. Check server logs for debug info.</p>
+            <p>Build path: ${FRONTEND_BUILD_PATH}</p>
+            <p>Build exists: ${fs.existsSync(FRONTEND_BUILD_PATH)}</p>
+            <p><a href="/health">Health Check</a> | <a href="/api/test">API Test</a></p>
           </div>
         </div>
       </body>
