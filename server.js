@@ -36,8 +36,18 @@ app.set('trust proxy', 1);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Health check endpoint (highest priority)
+// Health check endpoint (highest priority) - keep it simple and fast
 app.get('/health', (req, res) => {
+  console.log('🏥 Health check requested');
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime())
+  });
+});
+
+// More detailed health check for debugging
+app.get('/health/detailed', (req, res) => {
   res.status(200).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -47,7 +57,9 @@ app.get('/health', (req, res) => {
     },
     environment: NODE_ENV,
     uptime: process.uptime(),
-    port: PORT
+    port: PORT,
+    memory: process.memoryUsage(),
+    pid: process.pid
   });
 });
 
@@ -247,9 +259,11 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('✅ Server ready for Railway deployment');
 });
 
-// Graceful shutdown
+// Graceful shutdown with debugging
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM received, shutting down gracefully');
+  console.log('📊 Server uptime:', process.uptime(), 'seconds');
+  console.log('📊 Memory usage:', process.memoryUsage());
   server.close(() => {
     console.log('✅ Server closed');
     process.exit(0);
@@ -262,4 +276,15 @@ process.on('SIGINT', () => {
     console.log('✅ Server closed');
     process.exit(0);
   });
+});
+
+// Add error handling
+process.on('uncaughtException', (error) => {
+  console.error('💥 Uncaught Exception:', error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
 });
