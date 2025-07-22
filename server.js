@@ -110,101 +110,57 @@ if (fs.existsSync(PUBLIC_PATH)) {
   console.log('✅ Public assets configured');
 }
 
-// Initialize Next.js standalone server
-let nextHandler = null;
-const standaloneServerPath = path.join(STANDALONE_PATH, 'server.js');
+// Serve Next.js build output directory
+const BUILD_OUTPUT_PATH = path.join(FRONTEND_BUILD_PATH, 'server/app');
+const PAGES_PATH = path.join(FRONTEND_BUILD_PATH, 'server/pages');
 
-if (fs.existsSync(standaloneServerPath)) {
-  try {
-    // Set up environment for Next.js standalone
-    process.env.HOSTNAME = '0.0.0.0';
-    process.env.PORT = process.env.PORT || '8080';
-
-    // Import and initialize Next.js standalone server
-    const { createServer } = require('http');
-    const next = require('next');
-
-    const nextApp = next({
-      dev: false,
-      dir: path.join(__dirname, 'frontend'),
-      conf: {
-        output: 'standalone',
-        distDir: '.next'
-      }
-    });
-
-    nextHandler = nextApp.getRequestHandler();
-
-    // Prepare Next.js app
-    nextApp.prepare().then(() => {
-      console.log('✅ Next.js standalone app prepared');
-    }).catch(err => {
-      console.warn('⚠️ Next.js prepare failed:', err.message);
-      nextHandler = null;
-    });
-
-  } catch (error) {
-    console.warn('⚠️ Next.js standalone server initialization failed:', error.message);
-    nextHandler = null;
-  }
-} else {
-  console.warn('⚠️ Next.js standalone server not found at:', standaloneServerPath);
+// Serve Next.js app directory build files
+if (fs.existsSync(BUILD_OUTPUT_PATH)) {
+  app.use('/_next/server/app', express.static(BUILD_OUTPUT_PATH));
+  console.log('✅ Next.js app build files configured');
 }
 
-// Handle all frontend routes
-app.get('*', async (req, res, next) => {
+// Serve Next.js pages directory build files
+if (fs.existsSync(PAGES_PATH)) {
+  app.use('/_next/server/pages', express.static(PAGES_PATH));
+  console.log('✅ Next.js pages build files configured');
+}
+
+// Handle all frontend routes - serve static HTML for SPA
+app.get('*', (req, res, next) => {
   // Skip API routes and health check
   if (req.path.startsWith('/api/') || req.path === '/health') {
     return next();
   }
 
-  // Use Next.js handler if available
-  if (nextHandler) {
-    try {
-      return await nextHandler(req, res);
-    } catch (error) {
-      console.warn('⚠️ Next.js handler error:', error.message);
-    }
-  }
-
-  // Fallback: serve a simple loading page
+  // For Next.js App Router, we need to serve a basic HTML shell
+  // that loads the Next.js client-side code
   res.status(200).send(`
     <!DOCTYPE html>
     <html>
       <head>
-        <title>Outpaced</title>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>
-          body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-          .container { display: flex; justify-content: center; align-items: center; height: 100vh; background: #f8f9fa; }
-          .content { text-align: center; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-          .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
-          @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-          .links { margin-top: 1rem; }
-          .links a { color: #007bff; text-decoration: none; margin: 0 1rem; }
-          .links a:hover { text-decoration: underline; }
-        </style>
+        <title>Outpaced</title>
+        <link rel="preload" href="/_next/static/css/app/layout.css" as="style">
+        <link rel="stylesheet" href="/_next/static/css/app/layout.css">
       </head>
       <body>
-        <div class="container">
-          <div class="content">
-            <div class="spinner"></div>
-            <h1>Outpaced</h1>
-            <p>Frontend is initializing...</p>
-            <p>Next.js handler: ${nextHandler ? 'Available' : 'Not available'}</p>
-            <div class="links">
-              <a href="/health">Health Check</a>
-              <a href="/api/test">API Test</a>
+        <div id="__next">
+          <div style="display: flex; justify-content: center; align-items: center; height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+            <div style="text-align: center;">
+              <div style="border: 3px solid #f3f3f3; border-top: 3px solid #007bff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 1rem;"></div>
+              <h1>Outpaced</h1>
+              <p>Loading application...</p>
             </div>
           </div>
         </div>
-        <script>
-          // Auto-refresh every 5 seconds if Next.js handler is not available
-          if (!${!!nextHandler}) {
-            setTimeout(() => window.location.reload(), 5000);
-          }
-        </script>
+        <script src="/_next/static/chunks/webpack.js"></script>
+        <script src="/_next/static/chunks/main.js"></script>
+        <script src="/_next/static/chunks/pages/_app.js"></script>
+        <style>
+          @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        </style>
       </body>
     </html>
   `);
