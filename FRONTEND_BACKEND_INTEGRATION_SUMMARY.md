@@ -201,7 +201,7 @@ Frontend Request → JWT Validation → Agent ID Extraction → RLS Filter → D
 ## 🚀 Deployment Readiness
 
 ### Frontend Deployment
-- **Netlify Configuration**: Optimized build and deployment settings
+- **Railway Configuration**: Unified deployment with backend
 - **Environment Variables**: Proper configuration management
 - **CDN Integration**: Global content delivery optimization
 - **Progressive Web App**: Offline capability and mobile optimization

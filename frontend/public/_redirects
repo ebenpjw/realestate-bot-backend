@@ -1,5 +1,0 @@
-# API redirects to backend
-/api/* https://realestate-bot-backend-production.up.railway.app/api/:splat 200
-
-# Static export routing
-/* /index.html 200

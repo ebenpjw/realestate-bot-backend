@@ -81,11 +81,9 @@ NEXT_PUBLIC_API_URL=https://your-app-name.railway.app
 NEXT_PUBLIC_WS_URL=wss://your-app-name.railway.app
 ```
 
-## Step 6: Deploy Frontend to Netlify
+## Step 6: Frontend Deployment
 
-1. Build frontend: `cd frontend && npm run build`
-2. Deploy to Netlify (drag & drop `.next` folder or connect GitHub)
-3. Configure Netlify environment variables
+The frontend is deployed as part of the unified Railway deployment. No separate frontend deployment is needed.
 
 ## Troubleshooting
 

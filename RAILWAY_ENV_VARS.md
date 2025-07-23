@@ -8,9 +8,11 @@ This document lists all environment variables that need to be set in Railway for
 Set these in Railway's environment variables section:
 
 ```bash
-# Frontend API URLs - Use Railway reference variables
-NEXT_PUBLIC_API_URL=https://${{RAILWAY_PUBLIC_DOMAIN}}
-NEXT_PUBLIC_WS_URL=wss://${{RAILWAY_PUBLIC_DOMAIN}}
+# Frontend API URLs - CRITICAL: Use the correct backend URL
+# DO NOT use ${{RAILWAY_PUBLIC_DOMAIN}} as it may resolve to internal URLs
+# Use the actual backend Railway URL instead:
+NEXT_PUBLIC_API_URL=https://realestate-bot-backend-production.up.railway.app
+NEXT_PUBLIC_WS_URL=wss://realestate-bot-backend-production.up.railway.app
 
 # App Configuration
 NEXT_PUBLIC_APP_NAME=Outpaced Command
@@ -103,6 +105,21 @@ After setting environment variables, you can verify they're working by:
 3. Testing API connectivity from the frontend
 
 ## Troubleshooting
+
+### Mixed Content Security Errors
+If you see "Mixed Content" errors in the browser console when trying to login:
+
+**Problem**: Frontend (HTTPS) trying to connect to HTTP backend
+**Symptoms**:
+- Login fails with "Network error"
+- Console shows: "Mixed Content: The page at 'https://...' was loaded over HTTPS, but requested an insecure XMLHttpRequest endpoint 'http://...'"
+
+**Solution**:
+1. Ensure `NEXT_PUBLIC_API_URL` is set to HTTPS URL in Railway environment variables
+2. Verify the URL is the actual backend Railway URL, not an internal Railway URL
+3. Check that the API client configuration is using the correct URL
+
+**Quick Fix**: The API client has been updated to automatically use the correct backend URL for Railway deployments, but setting the environment variable correctly is still recommended.
 
 If environment variables aren't working:
 1. Check Railway logs for missing variable errors

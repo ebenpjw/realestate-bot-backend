@@ -6,17 +6,49 @@ import { handleApiError, AuthenticationError, NetworkError, showErrorToast } fro
 const getApiBaseUrl = () => {
   if (typeof window !== 'undefined') {
     // Client-side: use environment variable or detect from window location
-    return process.env.NEXT_PUBLIC_API_URL ||
-           (window.location.hostname === 'localhost'
-             ? 'http://localhost:8080'
-             : `${window.location.protocol}//${window.location.host}`)
+    const envUrl = process.env.NEXT_PUBLIC_API_URL;
+
+    // If environment variable is set and not an internal Railway URL, use it
+    if (envUrl && !envUrl.includes('railway.internal')) {
+      return envUrl;
+    }
+
+    // For Railway deployment, use the correct backend URL
+    if (window.location.hostname.includes('railway.app')) {
+      return 'https://realestate-bot-backend-production.up.railway.app';
+    }
+
+    // For localhost development
+    if (window.location.hostname === 'localhost') {
+      return 'http://localhost:8080';
+    }
+
+    // Fallback: same protocol and host as frontend
+    return `${window.location.protocol}//${window.location.host}`;
   }
+
   // Server-side: use environment variable or default
-  return process.env.NEXT_PUBLIC_API_URL ||
-         (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8080')
+  const envUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (envUrl && !envUrl.includes('railway.internal')) {
+    return envUrl;
+  }
+
+  return process.env.NODE_ENV === 'production'
+    ? 'https://realestate-bot-backend-production.up.railway.app'
+    : 'http://localhost:8080';
 }
 
 const API_BASE_URL = getApiBaseUrl()
+
+// Debug logging for API URL configuration
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  console.log('🔧 API Configuration Debug:', {
+    API_BASE_URL,
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    hostname: window.location.hostname,
+    protocol: window.location.protocol
+  });
+}
 
 interface ApiError {
   message: string

@@ -23,10 +23,7 @@
     "test:e2e:ui": "playwright test --ui",
     "analyze": "cross-env ANALYZE=true next build",
     "clean": "rimraf .next dist coverage",
-    "deploy": "chmod +x scripts/deploy.sh && ./scripts/deploy.sh",
-    "deploy:preview": "chmod +x scripts/deploy.sh && ./scripts/deploy.sh preview",
-    "deploy:production": "chmod +x scripts/deploy.sh && ./scripts/deploy.sh production",
-    "deploy:build-only": "chmod +x scripts/deploy.sh && ./scripts/deploy.sh build-only",
+
     "lighthouse": "lighthouse-ci autorun",
     "version": "echo $npm_package_version",
     "verify-setup": "node scripts/verify-setup.js"
