@@ -105,8 +105,10 @@ router.post('/webhook', async (req, res) => {
     else {
       logger.info({
         eventType: body?.type,
-        hasPayload: !!body?.payload
-      }, 'Received webhook event - not a user message or delivery event');
+        payloadType: body?.payload?.type,
+        hasPayload: !!body?.payload,
+        fullBody: body
+      }, 'Received webhook event - analyzing event structure');
     }
 
   } catch (error) {
