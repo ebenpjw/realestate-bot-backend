@@ -1,0 +1,245 @@
+# CodeRabbit Configuration for PropertyHub Command Real Estate Bot
+# Optimized for Node.js 20.x + Next.js 15 + TypeScript strict mode
+# Focus: Multi-tenant real estate automation platform
+
+# Review Configuration
+reviews:
+  profile: assertive
+  request_changes_workflow: true
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_empty_files: true
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches: ["main", "develop", "staging"]
+  
+  # Enhanced review depth for complex architecture
+  review_depth: comprehensive
+  focus_areas:
+    - security
+    - performance
+    - architecture
+    - maintainability
+    - type_safety
+
+# Language-Specific Rules
+language_settings:
+  javascript:
+    # Node.js 20.x + Express.js backend focus
+    patterns:
+      - "**/*.js"
+      - "**/services/**/*.js"
+      - "**/routes/**/*.js"
+      - "**/middleware/**/*.js"
+    rules:
+      - enforce_async_await_over_promises
+      - require_error_handling_in_async_functions
+      - check_database_query_optimization
+      - validate_api_response_structure
+      - enforce_input_validation
+      - check_rate_limiting_implementation
+    
+  typescript:
+    # Next.js 15 + React 19 frontend focus
+    patterns:
+      - "**/*.ts"
+      - "**/*.tsx"
+      - "**/app/**/*.tsx"
+      - "**/components/**/*.tsx"
+      - "**/lib/**/*.ts"
+    rules:
+      - enforce_strict_mode_compliance
+      - require_explicit_return_types
+      - validate_react_query_patterns
+      - check_component_performance
+      - enforce_proper_error_boundaries
+      - validate_form_handling_patterns
+
+# File-Specific Analysis Rules
+file_patterns:
+  # Backend API & Services
+  backend_apis:
+    patterns:
+      - "routes/**/*.js"
+      - "services/**/*.js"
+      - "middleware/**/*.js"
+    focus:
+      - "Validate Express.js middleware order and error handling"
+      - "Check multi-tenant data isolation and RLS compliance"
+      - "Verify JWT authentication and session management"
+      - "Analyze external API integration patterns (WhatsApp, OpenAI, Zoom)"
+      - "Review database query optimization and connection pooling"
+      - "Validate input sanitization and SQL injection prevention"
+    
+  # Multi-Layer AI Architecture
+  ai_services:
+    patterns:
+      - "services/multiLayerAI.js"
+      - "services/multiLayerIntegration.js"
+      - "services/multiLayerMonitoring.js"
+      - "services/webSearchService.js"
+    focus:
+      - "Analyze 5-layer AI processing efficiency and token optimization"
+      - "Review OpenAI API cost tracking and rate limiting"
+      - "Validate fact-checking accuracy and fallback mechanisms"
+      - "Check psychological analysis and conversation strategy logic"
+      - "Verify appointment booking conversion optimization"
+      - "Review monitoring and performance degradation handling"
+  
+  # Database & Supabase Integration
+  database_layer:
+    patterns:
+      - "services/databaseService.js"
+      - "database/**/*.sql"
+      - "supabase/**/*.sql"
+    focus:
+      - "Validate Row Level Security (RLS) policy implementation"
+      - "Check multi-tenant data isolation and agent-specific queries"
+      - "Review database schema consistency and foreign key constraints"
+      - "Analyze query performance and indexing strategies"
+      - "Verify real-time subscription patterns and connection management"
+  
+  # Frontend Components & Pages
+  frontend_components:
+    patterns:
+      - "app/**/*.tsx"
+      - "components/**/*.tsx"
+      - "lib/**/*.ts"
+    focus:
+      - "Validate Next.js 15 App Router patterns and server components"
+      - "Check React Query state management and cache optimization"
+      - "Review TypeScript strict mode compliance and type safety"
+      - "Analyze component performance and unnecessary re-renders"
+      - "Verify form validation with React Hook Form + Zod patterns"
+      - "Check accessibility compliance and semantic HTML usage"
+  
+  # Real-time & Socket Integration
+  realtime_services:
+    patterns:
+      - "**/socket/**/*.js"
+      - "**/realtime/**/*.ts"
+      - "lib/socket.ts"
+    focus:
+      - "Validate Socket.IO connection management and error handling"
+      - "Check real-time data synchronization between frontend/backend"
+      - "Review connection pooling and memory leak prevention"
+      - "Analyze message queuing and delivery reliability"
+  
+  # Security & Authentication
+  security_layer:
+    patterns:
+      - "middleware/auth*.js"
+      - "lib/auth*.ts"
+      - "services/authService.js"
+    focus:
+      - "Validate JWT token handling and refresh mechanisms"
+      - "Check CORS configuration and origin validation"
+      - "Review rate limiting implementation and abuse prevention"
+      - "Analyze input validation and XSS prevention"
+      - "Verify encryption patterns for sensitive data"
+
+# Custom Review Instructions
+custom_instructions: |
+  ## PropertyHub Command Review Guidelines
+  
+  ### Backend Analysis Priority:
+  1. **Multi-Layer AI System**: Focus on the 5-layer processing efficiency, OpenAI token optimization, and appointment conversion logic
+  2. **Multi-Tenant Security**: Ensure strict data isolation between agents, proper RLS implementation, and secure credential management
+  3. **External API Integration**: Validate WhatsApp/Gupshup, Google Calendar, Zoom, and Meta API patterns for reliability and error handling
+  4. **Database Performance**: Check Supabase query optimization, connection pooling, and real-time subscription patterns
+  
+  ### Frontend Analysis Priority:
+  1. **Next.js 15 Compliance**: Ensure proper App Router usage, server component optimization, and TypeScript strict mode
+  2. **React Query Patterns**: Validate state management, cache optimization, and API integration consistency
+  3. **Performance Optimization**: Check for unnecessary re-renders, bundle size optimization, and Core Web Vitals impact
+  4. **User Experience**: Ensure proper error handling, loading states, and accessibility compliance
+  
+  ### Architecture Review Focus:
+  1. **API Consistency**: Ensure frontend service layer matches backend API contracts
+  2. **Error Handling**: Validate comprehensive error boundaries and user-friendly error messages
+  3. **Security Implementation**: Check authentication flows, input validation, and data sanitization
+  4. **Real-time Synchronization**: Ensure reliable data sync between frontend and backend
+  
+  ### Code Quality Standards:
+  - Enforce 2025 best practices for Node.js 20.x and React 19
+  - Require explicit TypeScript types and strict mode compliance
+  - Validate ESLint/Prettier configuration adherence
+  - Check for security vulnerabilities and performance bottlenecks
+  - Ensure maintainable code structure and proper documentation
+
+# Chat Configuration
+chat:
+  auto_reply: true
+  context_awareness: high
+  technical_depth: expert
+  
+# Ignore Patterns
+ignore:
+  - "node_modules/**"
+  - "dist/**"
+  - "build/**"
+  - ".next/**"
+  - "coverage/**"
+  - "*.log"
+  - ".env*"
+  - "*.md"
+  - "docs/**/*.md"
+
+# Performance Monitoring
+performance:
+  bundle_size_threshold: 500kb
+  core_web_vitals: true
+  lighthouse_integration: true
+  
+# Security Scanning
+security:
+  vulnerability_scanning: true
+  dependency_audit: true
+  secrets_detection: true
+  
+# Integration Settings
+integrations:
+  github:
+    auto_merge_dependabot: false
+    require_review_approval: true
+    dismiss_stale_reviews: true
+  
+  ci_cd:
+    railway_deployment_check: true
+    test_coverage_threshold: 80
+    
+# Custom Prompts for Specific Areas
+custom_prompts:
+  ai_architecture: |
+    When reviewing multi-layer AI code, focus on:
+    - Token optimization and cost efficiency
+    - Processing time under 25 seconds target
+    - Fact-checking accuracy and fallback logic
+    - Appointment conversion optimization
+    - Error handling and monitoring integration
+    
+  database_queries: |
+    When reviewing database operations, ensure:
+    - Multi-tenant data isolation (agent-specific queries)
+    - Proper RLS policy implementation
+    - Query optimization and indexing
+    - Connection pooling and timeout handling
+    - Real-time subscription management
+    
+  frontend_performance: |
+    When reviewing frontend components, check:
+    - Server component vs client component usage
+    - React Query cache optimization
+    - Bundle size impact and code splitting
+    - Accessibility and semantic HTML
+    - TypeScript strict mode compliance
+    
+  security_patterns: |
+    When reviewing security implementations, validate:
+    - JWT token handling and refresh logic
+    - Input validation and sanitization
+    - CORS and rate limiting configuration
+    - Multi-tenant credential isolation
+    - Encryption for sensitive data storage
