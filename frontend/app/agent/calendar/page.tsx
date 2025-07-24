@@ -173,18 +173,8 @@ export default function AgentCalendar() {
           </h1>
           <p className="text-muted-foreground">
             Manage your appointments and schedule
-            {calendarData && (
-              <span className="ml-2">
-                • {calendarData.totalEvents} events
-                ({calendarData.appointmentsCount} appointments, {calendarData.googleEventsCount} Google Calendar)
-              </span>
-            )}
           </p>
         </div>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          New Appointment
-        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

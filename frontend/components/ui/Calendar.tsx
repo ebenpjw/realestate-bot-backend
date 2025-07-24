@@ -139,10 +139,10 @@ export default function Calendar({
     if (event.color) return event.color
 
     switch (event.type) {
-      case 'appointment': return 'bg-blue-600 hover:bg-blue-700'
-      case 'meeting': return 'bg-green-600 hover:bg-green-700'
-      case 'reminder': return 'bg-amber-500 hover:bg-amber-600'
-      default: return 'bg-gray-600 hover:bg-gray-700'
+      case 'appointment': return 'bg-blue-100 hover:bg-blue-200 border border-blue-300'
+      case 'meeting': return 'bg-green-100 hover:bg-green-200 border border-green-300'
+      case 'reminder': return 'bg-amber-100 hover:bg-amber-200 border border-amber-300'
+      default: return 'bg-gray-100 hover:bg-gray-200 border border-gray-300'
     }
   }
 
@@ -229,7 +229,7 @@ export default function Calendar({
                 <div
                   key={event.id}
                   className={`
-                    text-xs p-1.5 mb-1 rounded-md text-white cursor-pointer shadow-sm hover:shadow-md transition-shadow
+                    text-xs p-1.5 mb-1 rounded-md text-gray-900 cursor-pointer shadow-sm hover:shadow-md transition-shadow
                     ${getEventColor(event)}
                   `}
                   onClick={(e) => {
