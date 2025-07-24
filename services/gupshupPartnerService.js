@@ -543,6 +543,13 @@ class GupshupPartnerService {
   }
 
   /**
+   * Delete a specific app subscription (alias for deleteSubscription)
+   */
+  async deleteAppSubscription(appId, subscriptionId) {
+    return this.deleteSubscription(appId, subscriptionId);
+  }
+
+  /**
    * Delete a specific subscription
    */
   async deleteSubscription(appId, subscriptionId) {
@@ -577,19 +584,24 @@ class GupshupPartnerService {
    * Get the appropriate webhook URL based on environment
    */
   _getWebhookUrl() {
+    // Always use production URL for webhook configuration
+    // This ensures webhooks work even when configuring from local development
+    const productionUrl = 'https://backend-api-production-d74a.up.railway.app/api/gupshup/webhook';
+
     // For production/Railway deployment
     if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
-      return 'https://backend-api-production-d74a.up.railway.app/api/gupshup/webhook';
+      return productionUrl;
     }
 
-    // For local development - use ngrok or similar tunnel
-    if (process.env.WEBHOOK_BASE_URL) {
+    // For local development - use ngrok or similar tunnel if available
+    if (process.env.WEBHOOK_BASE_URL && process.env.WEBHOOK_BASE_URL.startsWith('https://')) {
       return `${process.env.WEBHOOK_BASE_URL}/api/gupshup/webhook`;
     }
 
-    // Default fallback (will not work for actual webhooks)
-    logger.warn('No webhook URL configured for local development. Set WEBHOOK_BASE_URL environment variable.');
-    return 'http://localhost:8080/api/gupshup/webhook';
+    // Default to production URL for webhook configuration
+    // This allows local scripts to configure production webhooks
+    logger.info('Using production webhook URL for configuration from local environment');
+    return productionUrl;
   }
 }
 
