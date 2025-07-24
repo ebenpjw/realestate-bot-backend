@@ -432,7 +432,7 @@ class GupshupPartnerService {
   async getAppAccessToken(appId) {
     try {
       const token = await this.getPartnerToken();
-      
+
       const response = await this.axios.get(`/app/${appId}/token`, {
         headers: {
           'Authorization': token
@@ -450,9 +450,145 @@ class GupshupPartnerService {
         err: error,
         appId
       }, 'Failed to get app access token');
-      
+
       throw new Error(`Failed to get app token: ${error.message}`);
     }
+  }
+
+  /**
+   * Configure webhook subscription for an app
+   * This is REQUIRED for Partner API users - webhooks cannot be configured through UI
+   */
+  async configureWebhookSubscription(appId, options = {}) {
+    const webhookUrl = options.webhookUrl || this._getWebhookUrl();
+
+    logger.info({
+      appId,
+      webhookUrl,
+      environment: process.env.NODE_ENV
+    }, 'Configuring webhook subscription for Partner API app');
+
+    return this._retryWithBackoff(async () => {
+      const appToken = await this.getAppAccessToken(appId);
+
+      const subscriptionData = new URLSearchParams({
+        modes: 'ALL', // Subscribe to all message types and events
+        tag: `webhook-${appId}-${Date.now()}`, // Unique tag to avoid conflicts
+        url: webhookUrl,
+        version: '3', // Use latest webhook version
+        showOnUI: 'false',
+        meta: JSON.stringify({
+          headers: {
+            'User-Agent': 'Outpaced-RealEstate-Bot/1.0',
+            'X-App-ID': appId
+          }
+        })
+      });
+
+      const response = await this.axios.post(`/app/${appId}/subscription`, subscriptionData, {
+        headers: {
+          'Authorization': appToken,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      });
+
+      if (!response.data || !response.data.subscription) {
+        throw new Error('Invalid response from webhook subscription API');
+      }
+
+      logger.info({
+        appId,
+        subscriptionId: response.data.subscription.id,
+        webhookUrl,
+        modes: response.data.subscription.mode,
+        version: response.data.subscription.version
+      }, 'Webhook subscription configured successfully');
+
+      return response.data.subscription;
+    }).catch(error => {
+      logger.error({
+        err: error,
+        appId,
+        webhookUrl,
+        errorMessage: error.response?.data?.message || error.message
+      }, 'Failed to configure webhook subscription');
+      throw error;
+    });
+  }
+
+  /**
+   * Get all subscriptions for an app
+   */
+  async getAppSubscriptions(appId) {
+    logger.info({ appId }, 'Getting webhook subscriptions for app');
+
+    return this._retryWithBackoff(async () => {
+      const appToken = await this.getAppAccessToken(appId);
+
+      const response = await this.axios.get(`/app/${appId}/subscription`, {
+        headers: {
+          'Authorization': appToken
+        }
+      });
+
+      return response.data.subscriptions || [];
+    }).catch(error => {
+      logger.error({
+        err: error,
+        appId
+      }, 'Failed to get app subscriptions');
+      throw error;
+    });
+  }
+
+  /**
+   * Delete a specific subscription
+   */
+  async deleteSubscription(appId, subscriptionId) {
+    logger.info({ appId, subscriptionId }, 'Deleting webhook subscription');
+
+    return this._retryWithBackoff(async () => {
+      const appToken = await this.getAppAccessToken(appId);
+
+      const response = await this.axios.delete(`/app/${appId}/subscription/${subscriptionId}`, {
+        headers: {
+          'Authorization': appToken
+        }
+      });
+
+      logger.info({
+        appId,
+        subscriptionId
+      }, 'Webhook subscription deleted successfully');
+
+      return response.data;
+    }).catch(error => {
+      logger.error({
+        err: error,
+        appId,
+        subscriptionId
+      }, 'Failed to delete webhook subscription');
+      throw error;
+    });
+  }
+
+  /**
+   * Get the appropriate webhook URL based on environment
+   */
+  _getWebhookUrl() {
+    // For production/Railway deployment
+    if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
+      return 'https://backend-api-production-d74a.up.railway.app/api/gupshup/webhook';
+    }
+
+    // For local development - use ngrok or similar tunnel
+    if (process.env.WEBHOOK_BASE_URL) {
+      return `${process.env.WEBHOOK_BASE_URL}/api/gupshup/webhook`;
+    }
+
+    // Default fallback (will not work for actual webhooks)
+    logger.warn('No webhook URL configured for local development. Set WEBHOOK_BASE_URL environment variable.');
+    return 'http://localhost:8080/api/gupshup/webhook';
   }
 }
 

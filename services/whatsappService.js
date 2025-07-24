@@ -652,12 +652,24 @@ class WhatsAppService {
         };
       }
 
-      // Check if required configuration is present
+      // For multi-tenant architecture, check if Partner API is configured
+      if (config.GUPSHUP_PARTNER_EMAIL && config.GUPSHUP_PARTNER_CLIENT_SECRET) {
+        return {
+          status: 'healthy',
+          service: 'Gupshup Partner API (Multi-tenant)',
+          mode: 'multi_tenant',
+          partnerEmail: config.GUPSHUP_PARTNER_EMAIL,
+          configured: true,
+          note: 'Partner API configured - Agent-specific WABA configurations loaded from database'
+        };
+      }
+
+      // Legacy single-tenant check
       if (!this.apiKey || !this.wabaNumber) {
         return {
           status: 'unhealthy',
           service: 'Gupshup WhatsApp API',
-          error: 'Missing API key or WABA number configuration'
+          error: 'Missing API key or WABA number configuration. Please configure Partner API credentials or agent-specific WABA settings in database.'
         };
       }
 

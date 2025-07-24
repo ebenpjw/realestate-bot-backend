@@ -1,0 +1,153 @@
+version: '3.8'
+
+services:
+  # Local Supabase Database
+  supabase-db:
+    image: supabase/postgres:15.1.0.147
+    container_name: realestate-bot-db-dev
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_PORT: 5432
+    ports:
+      - "54322:5432"
+    volumes:
+      - supabase_db_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - realestate-dev
+
+  # Supabase API Gateway
+  supabase-api:
+    image: supabase/gotrue:v2.132.3
+    container_name: realestate-bot-api-dev
+    depends_on:
+      - supabase-db
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: http://localhost:54321
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:postgres@supabase-db:5432/postgres
+      GOTRUE_SITE_URL: http://localhost:3000
+      GOTRUE_URI_ALLOW_LIST: http://localhost:3000,http://localhost:8080
+      GOTRUE_DISABLE_SIGNUP: true
+      GOTRUE_JWT_SECRET: super-secret-jwt-token-with-at-least-32-characters-long
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+    ports:
+      - "54321:9999"
+    networks:
+      - realestate-dev
+
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    container_name: realestate-bot-redis-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - realestate-dev
+
+  # Backend API Server
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: realestate-bot-backend-dev
+    depends_on:
+      - supabase-db
+      - redis
+    environment:
+      NODE_ENV: development
+      PORT: 8080
+      # Database Configuration
+      SUPABASE_URL: http://supabase-api:9999
+      SUPABASE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
+      DATABASE_URL: postgres://postgres:postgres@supabase-db:5432/postgres
+      # Safety flags for development
+      DISABLE_WHATSAPP_SENDING: true
+      TESTING_MODE: true
+      DRY_RUN_MODE: true
+      MOCK_WHATSAPP_RESPONSES: true
+      # Feature flags
+      ENABLE_RATE_LIMITING: false
+      ENABLE_REQUEST_LOGGING: true
+      ENABLE_META_INTEGRATION: false
+      ENABLE_CONVERSATION_MEMORY: true
+      ENABLE_BOOKING_SYSTEM: false
+      # Redis Configuration
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./logs:/app/logs
+    working_dir: /app
+    command: npm run dev
+    networks:
+      - realestate-dev
+
+  # Frontend Development Server
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: realestate-bot-frontend-dev
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+      NEXT_PUBLIC_WS_URL: ws://localhost:8080
+      NEXT_PUBLIC_APP_ENV: development
+      NEXT_PUBLIC_ENABLE_TESTING_MODE: true
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    working_dir: /app
+    command: npm run dev
+    networks:
+      - realestate-dev
+
+  # Property Scraper Service (Optional)
+  scraper:
+    build:
+      context: ./scripts
+      dockerfile: Dockerfile.scraper
+    container_name: realestate-bot-scraper-dev
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: development
+      SUPABASE_URL: http://supabase-api:9999
+      SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU
+      # Safety flags
+      DRY_RUN_MODE: true
+      TESTING_MODE: true
+    volumes:
+      - ./scripts:/app
+      - /app/node_modules
+    working_dir: /app
+    profiles:
+      - scraper
+    networks:
+      - realestate-dev
+
+volumes:
+  supabase_db_data:
+  redis_data:
+
+networks:
+  realestate-dev:
+    driver: bridge

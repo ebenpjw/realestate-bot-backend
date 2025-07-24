@@ -55,7 +55,12 @@ async function processMessage({ senderWaId, userText, senderName, destinationWab
 // GET endpoint for webhook verification
 router.get('/webhook', (req, res) => {
     logger.info({ query: req.query, headers: req.headers }, 'Received GET request for Gupshup webhook verification.');
-    res.status(200).send('Webhook endpoint is active and ready for POST requests.');
+    res.status(200).json({
+        status: 'active',
+        message: 'Gupshup webhook endpoint is ready',
+        timestamp: new Date().toISOString(),
+        endpoint: '/api/gupshup/webhook'
+    });
 });
 
 // POST endpoint for incoming messages

@@ -43,21 +43,21 @@ export function LeadSelector({
   // Filter and sort leads
   const filteredLeads = leads
     .filter(lead => {
-      const matchesSearch = lead.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           lead.phoneNumber.includes(searchTerm)
+      const matchesSearch = (lead.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+                           (lead.phoneNumber?.includes(searchTerm) || false)
       const matchesStatus = statusFilter === 'all' || lead.status === statusFilter
       return matchesSearch && matchesStatus
     })
     .sort((a, b) => {
       switch (sortBy) {
         case 'name':
-          return a.fullName.localeCompare(b.fullName)
+          return (a.fullName || '').localeCompare(b.fullName || '')
         case 'status':
-          return a.status.localeCompare(b.status)
+          return (a.status || '').localeCompare(b.status || '')
         case 'lastInteraction':
-          return new Date(b.lastInteraction).getTime() - new Date(a.lastInteraction).getTime()
+          return new Date(b.lastInteraction || 0).getTime() - new Date(a.lastInteraction || 0).getTime()
         case 'messageCount':
-          return b.messageCount - a.messageCount
+          return (b.messageCount || 0) - (a.messageCount || 0)
         default:
           return 0
       }
@@ -68,7 +68,7 @@ export function LeadSelector({
 
   // Get status color
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch ((status || '').toLowerCase()) {
       case 'active':
         return 'bg-green-100 text-green-800 border-green-200'
       case 'waiting':
@@ -230,21 +230,21 @@ export function LeadSelector({
                       <div className="flex items-center space-x-2 min-w-0">
                         <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         <span className="font-medium text-sm truncate">
-                          {lead.fullName}
+                          {lead.fullName || 'Unknown'}
                         </span>
                       </div>
-                      <Badge 
-                        variant="outline" 
+                      <Badge
+                        variant="outline"
                         className={cn("text-xs flex-shrink-0", getStatusColor(lead.status))}
                       >
-                        {lead.status}
+                        {lead.status || 'Unknown'}
                       </Badge>
                     </div>
                     
                     {/* Phone Number */}
                     <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                       <Phone className="h-3 w-3" />
-                      <span>{lead.phoneNumber}</span>
+                      <span>{lead.phoneNumber || 'No phone number'}</span>
                     </div>
                     
                     {/* Lead Details */}
@@ -282,10 +282,10 @@ export function LeadSelector({
                     <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t">
                       <span className="flex items-center space-x-1">
                         <MessageSquare className="h-3 w-3" />
-                        <span>{lead.messageCount} messages</span>
+                        <span>{lead.messageCount || 0} messages</span>
                       </span>
                       <span>
-                        Last: {formatLastInteraction(lead.lastInteraction)}
+                        Last: {lead.lastInteraction ? formatLastInteraction(lead.lastInteraction) : 'Never'}
                       </span>
                     </div>
                   </div>

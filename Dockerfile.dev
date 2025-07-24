@@ -1,0 +1,54 @@
+# Development Dockerfile for Real Estate Bot Backend
+FROM node:20-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies for development
+RUN apk add --no-cache \
+    git \
+    curl \
+    bash \
+    python3 \
+    make \
+    g++ \
+    chromium \
+    nss \
+    freetype \
+    freetype-dev \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
+
+# Set Puppeteer to use installed Chromium
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies with development packages
+RUN npm ci --include=dev
+
+# Install global development tools
+RUN npm install -g nodemon pino-pretty concurrently
+
+# Copy application code
+COPY . .
+
+# Create logs directory
+RUN mkdir -p logs
+
+# Set proper permissions
+RUN chown -R node:node /app
+USER node
+
+# Expose port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Default command for development
+CMD ["npm", "run", "dev"]

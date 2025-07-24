@@ -96,7 +96,12 @@ class MessagesApi {
     total: number
     hasMore: boolean
   }> {
-    const response = await apiClient.get('/api/messages/leads', { params })
+    // Add cache-busting parameter to force fresh data
+    const queryParams = {
+      ...params,
+      _t: Date.now()
+    }
+    const response = await apiClient.get('/api/messages/leads', { params: queryParams })
     return response.data.data
   }
 

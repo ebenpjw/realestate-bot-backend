@@ -172,6 +172,29 @@ Feel free to let me know, I'll do my best to help!`,
         throw updateError;
       }
 
+      // Configure webhook subscription for the app
+      try {
+        logger.info({
+          agentId,
+          appId: matchingApp.id
+        }, 'Configuring webhook subscription for discovered app');
+
+        const subscription = await gupshupPartnerService.configureWebhookSubscription(matchingApp.id);
+
+        logger.info({
+          agentId,
+          appId: matchingApp.id,
+          subscriptionId: subscription.id
+        }, 'Webhook subscription configured successfully during auto-discovery');
+      } catch (webhookError) {
+        logger.error({
+          err: webhookError,
+          agentId,
+          appId: matchingApp.id
+        }, 'Failed to configure webhook subscription during auto-discovery - continuing anyway');
+        // Don't fail the entire setup if webhook configuration fails
+      }
+
       logger.info({
         agentId,
         appId: matchingApp.id,

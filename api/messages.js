@@ -34,7 +34,7 @@ router.get('/templates', authenticateToken, async (req, res) => {
     const transformedTemplates = approvedTemplates.map(template => ({
       id: template.template_id || template.id,
       name: template.template_name,
-      elementName: template.element_name,
+      elementName: template.template_name, // Use template_name since element_name doesn't exist
       category: template.template_category,
       content: template.template_content,
       language: template.language_code,
@@ -107,23 +107,90 @@ router.get('/leads', authenticateToken, async (req, res) => {
     const { data: leads, error, count } = await query;
 
     if (error) {
+      logger.error({ err: error, agentId }, 'Error fetching leads for messaging');
       throw error;
     }
 
+    logger.info({
+      agentId,
+      leadsCount: leads?.length || 0,
+      totalCount: count,
+      leads: leads?.map(l => ({ id: l.id, name: l.full_name, phone: l.phone_number, status: l.status }))
+    }, 'Leads fetched from database');
+
     // Get message counts for each lead
+    logger.info({ agentId, leadsCount: leads.length }, 'Starting message count processing');
+
     const leadsWithMessageCounts = await Promise.all(
       leads.map(async (lead) => {
-        const { count: messageCount } = await databaseService.supabase
-          .from('messages')
-          .select('*', { count: 'exact', head: true })
-          .eq('lead_id', lead.id);
+        try {
+          const { count: messageCount, error } = await databaseService.supabase
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('lead_id', lead.id);
 
-        return {
-          ...lead,
-          messageCount: messageCount || 0
-        };
+          if (error) {
+            logger.error({ err: error, leadId: lead.id }, 'Error fetching message count for lead');
+            return {
+              id: lead.id,
+              phoneNumber: lead.phone_number,
+              fullName: lead.full_name,
+              status: lead.status,
+              intent: lead.intent,
+              budget: lead.budget,
+              locationPreference: lead.location_preference,
+              propertyType: lead.property_type,
+              timeline: lead.timeline,
+              lastInteraction: lead.last_interaction,
+              createdAt: lead.created_at,
+              updatedAt: lead.updated_at,
+              messageCount: 0
+            };
+          }
+
+          logger.debug({ leadId: lead.id, messageCount }, 'Message count fetched for lead');
+
+          return {
+            id: lead.id,
+            phoneNumber: lead.phone_number,
+            fullName: lead.full_name,
+            status: lead.status,
+            intent: lead.intent,
+            budget: lead.budget,
+            locationPreference: lead.location_preference,
+            propertyType: lead.property_type,
+            timeline: lead.timeline,
+            lastInteraction: lead.last_interaction,
+            createdAt: lead.created_at,
+            updatedAt: lead.updated_at,
+            messageCount: messageCount || 0
+          };
+        } catch (error) {
+          logger.error({ err: error, leadId: lead.id }, 'Exception during message count processing');
+          return {
+            id: lead.id,
+            phoneNumber: lead.phone_number,
+            fullName: lead.full_name,
+            status: lead.status,
+            intent: lead.intent,
+            budget: lead.budget,
+            locationPreference: lead.location_preference,
+            propertyType: lead.property_type,
+            timeline: lead.timeline,
+            lastInteraction: lead.last_interaction,
+            createdAt: lead.created_at,
+            updatedAt: lead.updated_at,
+            messageCount: 0
+          };
+        }
       })
     );
+
+    logger.info({
+      agentId,
+      processedLeadsCount: leadsWithMessageCounts.length,
+      leadsWithCounts: leadsWithMessageCounts.map(l => ({ id: l.id, name: l.fullName, messageCount: l.messageCount }))
+    }, 'Message count processing completed');
 
     res.json({
       success: true,

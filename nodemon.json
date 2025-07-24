@@ -1,0 +1,40 @@
+{
+  "watch": [
+    ".",
+    "api/",
+    "services/",
+    "middleware/",
+    "config/",
+    "routes/",
+    "utils/"
+  ],
+  "ignore": [
+    "node_modules/",
+    "frontend/",
+    "tests/",
+    "docs/",
+    "logs/",
+    "data/",
+    "scripts/",
+    "*.log",
+    "*.md",
+    ".git/",
+    ".env*",
+    "package-lock.json"
+  ],
+  "ext": "js,json",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "delay": 1000,
+  "verbose": true,
+  "restartable": "rs",
+  "colours": true,
+  "legacyWatch": false,
+  "events": {
+    "start": "echo '🚀 Backend server starting...'",
+    "restart": "echo '🔄 Backend server restarting due to file changes...'",
+    "crash": "echo '💥 Backend server crashed - waiting for file changes...'",
+    "exit": "echo '👋 Backend server stopped'"
+  }
+}

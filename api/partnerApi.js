@@ -292,21 +292,168 @@ router.post('/apps/:appId/phone', authenticateToken, validateRequest({
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Unauthorized access to register phone' });
     }
-    
+
     // Register phone for app
     const result = await gupshupPartnerService.registerPhoneForApp({
       appId: req.params.appId,
       phoneNumber: req.body.phoneNumber
     });
-    
+
     res.json({
       success: true,
       message: 'Phone registered successfully',
       result
     });
-    
+
   } catch (error) {
     logger.error({ err: error, appId: req.params.appId }, 'Failed to register phone for app');
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Configure webhook subscription for app
+router.post('/apps/:appId/webhook', authenticateToken, async (req, res) => {
+  try {
+    // Only admins can configure webhooks
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Unauthorized access to configure webhooks' });
+    }
+
+    const appId = req.params.appId;
+    const webhookUrl = req.body.webhookUrl; // Optional custom webhook URL
+
+    // Configure webhook subscription
+    const subscription = await gupshupPartnerService.configureWebhookSubscription(appId, {
+      webhookUrl
+    });
+
+    res.json({
+      success: true,
+      message: 'Webhook subscription configured successfully',
+      subscription: {
+        id: subscription.id,
+        url: subscription.url,
+        modes: subscription.mode,
+        version: subscription.version,
+        active: subscription.active
+      }
+    });
+
+  } catch (error) {
+    logger.error({ err: error, appId: req.params.appId }, 'Failed to configure webhook subscription');
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get webhook subscriptions for app
+router.get('/apps/:appId/webhook', authenticateToken, async (req, res) => {
+  try {
+    // Only admins can view webhooks
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Unauthorized access to view webhooks' });
+    }
+
+    const appId = req.params.appId;
+
+    // Get all subscriptions for the app
+    const subscriptions = await gupshupPartnerService.getAppSubscriptions(appId);
+
+    res.json({
+      success: true,
+      subscriptions: subscriptions.map(sub => ({
+        id: sub.id,
+        url: sub.url,
+        modes: sub.mode,
+        version: sub.version,
+        active: sub.active,
+        tag: sub.tag,
+        createdOn: sub.createdOn
+      }))
+    });
+
+  } catch (error) {
+    logger.error({ err: error, appId: req.params.appId }, 'Failed to get webhook subscriptions');
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Configure webhooks for all existing agents (bulk operation)
+router.post('/agents/webhook/configure-all', authenticateToken, async (req, res) => {
+  try {
+    // Only admins can perform bulk operations
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Unauthorized access to bulk configure webhooks' });
+    }
+
+    const results = [];
+
+    // Get all agents with Gupshup app configurations
+    const { data: agents, error: agentsError } = await databaseService.supabase
+      .from('agents')
+      .select('id, full_name, gupshup_app_id, waba_phone_number')
+      .not('gupshup_app_id', 'is', null);
+
+    if (agentsError) {
+      throw new Error(`Failed to get agents: ${agentsError.message}`);
+    }
+
+    logger.info({ agentCount: agents.length }, 'Starting bulk webhook configuration for all agents');
+
+    // Configure webhook for each agent's app
+    for (const agent of agents) {
+      try {
+        const subscription = await gupshupPartnerService.configureWebhookSubscription(agent.gupshup_app_id);
+
+        results.push({
+          agentId: agent.id,
+          agentName: agent.full_name,
+          appId: agent.gupshup_app_id,
+          phoneNumber: agent.waba_phone_number,
+          success: true,
+          subscriptionId: subscription.id,
+          webhookUrl: subscription.url
+        });
+
+        logger.info({
+          agentId: agent.id,
+          appId: agent.gupshup_app_id,
+          subscriptionId: subscription.id
+        }, 'Webhook configured successfully for agent');
+
+      } catch (error) {
+        results.push({
+          agentId: agent.id,
+          agentName: agent.full_name,
+          appId: agent.gupshup_app_id,
+          phoneNumber: agent.waba_phone_number,
+          success: false,
+          error: error.message
+        });
+
+        logger.error({
+          err: error,
+          agentId: agent.id,
+          appId: agent.gupshup_app_id
+        }, 'Failed to configure webhook for agent');
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failureCount = results.filter(r => !r.success).length;
+
+    res.json({
+      success: true,
+      message: `Bulk webhook configuration completed: ${successCount} successful, ${failureCount} failed`,
+      summary: {
+        total: results.length,
+        successful: successCount,
+        failed: failureCount
+      },
+      results
+    });
+
+  } catch (error) {
+    logger.error({ err: error }, 'Failed to perform bulk webhook configuration');
     res.status(500).json({ error: error.message });
   }
 });

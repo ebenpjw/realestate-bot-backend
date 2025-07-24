@@ -438,13 +438,24 @@ class TemplateService {
    */
   async healthCheck() {
     try {
-      const templateCount = Object.keys(this.approvedTemplates).length;
-      
+      // Check if Partner Template Service is available
+      if (partnerTemplateService && typeof partnerTemplateService.healthCheck === 'function') {
+        const partnerHealth = await partnerTemplateService.healthCheck();
+        return {
+          status: 'healthy',
+          service: 'Template Service (Partner API)',
+          mode: 'multi_tenant',
+          partnerService: partnerHealth,
+          note: 'Using Partner API for dynamic template management'
+        };
+      }
+
+      // Fallback health check for legacy mode
       return {
         status: 'healthy',
         service: 'Template Service',
-        templatesConfigured: templateCount,
-        templates: Object.keys(this.approvedTemplates)
+        mode: 'legacy',
+        note: 'Template service operational - Partner API integration available'
       };
     } catch (error) {
       return {

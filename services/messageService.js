@@ -1,5 +1,6 @@
 const axios = require('axios');
 const logger = require('../logger');
+const config = require('../config');
 const databaseService = require('./databaseService');
 const multiTenantConfigService = require('./multiTenantConfigService');
 const gupshupPartnerService = require('./gupshupPartnerService');
@@ -41,14 +42,36 @@ class MessageService {
         leadId
       }, 'Sending template message');
 
+      // Safety check removed - using Partner API for real message delivery
+
       // Get agent configuration
       const agentConfig = await multiTenantConfigService.getAgentConfig(agentId);
-      if (!agentConfig || !agentConfig.gupshupAppId) {
+      if (!agentConfig || !agentConfig.gupshup_app_id) {
         throw new Error('Agent WABA configuration not found');
       }
 
+      // Check if app is in live mode
+      const appDetails = await this.checkAppStatus(agentConfig.gupshup_app_id);
+      if (!appDetails.live) {
+        logger.warn({
+          agentId,
+          appId: agentConfig.gupshup_app_id,
+          appName: appDetails.name,
+          isLive: appDetails.live
+        }, '⚠️ WARNING: App is not in LIVE mode - messages may not be delivered');
+      }
+
+    // Auto-fill template parameters if empty (moved outside try block)
+    let finalTemplateParams = templateParams;
+    if (Object.keys(templateParams).length === 0 && leadId) {
+      finalTemplateParams = await this.autoFillTemplateParameters(leadId, templateName);
+    }
+
       // Get app access token
-      const appToken = await gupshupPartnerService.getAppAccessToken(agentConfig.gupshupAppId);
+      const appToken = await gupshupPartnerService.getAppAccessToken(agentConfig.gupshup_app_id);
+
+      // Run diagnostics to understand why messages aren't being delivered
+      await this.diagnosePartnerAPIApp(agentId, agentConfig, appToken);
 
       // Format phone number (ensure it starts with country code)
       const formattedPhone = this.formatPhoneNumber(phoneNumber);
@@ -64,16 +87,35 @@ class MessageService {
           language: {
             code: 'en' // Default to English, can be made configurable
           },
-          components: this.buildTemplateComponents(templateParams)
+          components: this.buildTemplateComponents(finalTemplateParams)
         }
       };
 
-      // Send message via Gupshup Partner API v3
-      const response = await this.sendWithRetry(
-        `${this.baseURL}/app/${agentConfig.gupshupAppId}/v3/message`,
-        messagePayload,
-        appToken
-      );
+      // Try v3 API first, fallback to v2 if callback billing not enabled
+      let response;
+      try {
+        // Send message via Gupshup Partner API v3
+        response = await this.sendWithRetry(
+          `${this.baseURL}/app/${agentConfig.gupshup_app_id}/v3/message`,
+          messagePayload,
+          appToken
+        );
+      } catch (error) {
+        // If v3 fails with callback billing error, try v2 API
+        if ((error.message && error.message.includes('Callback Billing must be enabled')) ||
+            (error.response && error.response.data && error.response.data.message &&
+             error.response.data.message.includes('Callback Billing must be enabled'))) {
+          logger.warn({
+            agentId,
+            appId: agentConfig.gupshup_app_id,
+            error: error.message
+          }, '⚠️ V3 API requires callback billing - falling back to V2 API');
+
+          response = await this.sendWithV2API(agentConfig, templateId, templateName, finalTemplateParams, formattedPhone, appToken);
+        } else {
+          throw error;
+        }
+      }
 
       const messageId = response.data.messages?.[0]?.id;
       if (!messageId) {
@@ -87,7 +129,7 @@ class MessageService {
         messageId,
         templateId,
         templateName,
-        templateParams,
+        templateParams: finalTemplateParams,
         phoneNumber: formattedPhone,
         status: 'sent',
         campaignId: params.campaignId
@@ -97,8 +139,11 @@ class MessageService {
         agentId,
         messageId,
         phoneNumber: formattedPhone,
-        templateName
-      }, 'Template message sent successfully');
+        templateName,
+        appId: agentConfig.gupshup_app_id,
+        templateParams: finalTemplateParams,
+        gupshupResponse: response
+      }, '📱 Template message sent successfully - CHECK DELIVERY STATUS');
 
       return {
         messageId,
@@ -123,7 +168,7 @@ class MessageService {
           messageId: null,
           templateId,
           templateName,
-          templateParams,
+          templateParams: finalTemplateParams,
           phoneNumber,
           status: 'failed',
           errorMessage: error.message,
@@ -464,12 +509,31 @@ class MessageService {
     } = params;
 
     try {
+      // Handle undefined templateName gracefully
+      let displayName = templateName;
+
+      // If templateName is missing, try to get it from the template ID
+      if (!displayName && templateId && agentId) {
+        try {
+          const partnerTemplateService = require('./partnerTemplateService');
+          const templates = await partnerTemplateService.getAgentTemplates(agentId);
+          const template = templates.find(t => t.id === templateId);
+          displayName = template?.elementName || templateId;
+        } catch (error) {
+          logger.warn({ templateId, agentId }, 'Could not fetch template name for logging');
+          displayName = templateId;
+        }
+      }
+
+      // Final fallback
+      displayName = displayName || templateId || 'Unknown Template';
+
       await databaseService.supabase
         .from('messages')
         .insert({
           lead_id: leadId,
           sender: 'agent',
-          message: `Template: ${templateName}`,
+          message: `Template: ${displayName}`,
           message_type: 'template',
           template_id: templateId,
           template_params: templateParams,
@@ -556,6 +620,274 @@ class MessageService {
    */
   delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Check app status (live mode, health, etc.)
+   * @param {string} appId - Gupshup app ID
+   * @returns {Promise<Object>} App status details
+   */
+  async checkAppStatus(appId) {
+    try {
+      // Get partner apps list to check app status
+      const partnerApps = await gupshupPartnerService.getPartnerApps();
+      const app = partnerApps.find(app => app.id === appId);
+
+      if (!app) {
+        logger.error({ appId }, 'App not found in partner apps list');
+        return { live: false, healthy: false, name: 'Unknown' };
+      }
+
+      logger.info({
+        appId,
+        appName: app.name,
+        isLive: app.live,
+        isHealthy: app.healthy,
+        isStopped: app.stopped,
+        customerId: app.customerId
+      }, 'App status checked');
+
+      return {
+        live: app.live,
+        healthy: app.healthy,
+        stopped: app.stopped,
+        name: app.name,
+        customerId: app.customerId
+      };
+
+    } catch (error) {
+      logger.error({
+        err: error,
+        appId
+      }, 'Error checking app status');
+      return { live: false, healthy: false, name: 'Unknown' };
+    }
+  }
+
+  /**
+   * Diagnose Partner API app configuration issues
+   * @param {string} agentId - Agent ID
+   * @param {Object} agentConfig - Agent configuration
+   * @param {string} appToken - App access token
+   * @returns {Promise<Object>} Diagnostic information
+   */
+  async diagnosePartnerAPIApp(agentId, agentConfig, appToken) {
+    try {
+      const diagnostics = {
+        appId: agentConfig.gupshup_app_id,
+        agentId,
+        checks: {}
+      };
+
+      // Check business profile
+      try {
+        const profileResponse = await axios.get(
+          `${this.baseURL}/app/${agentConfig.gupshup_app_id}/business-profile`,
+          {
+            headers: {
+              'Authorization': appToken,
+              'Accept': 'application/json'
+            },
+            timeout: 10000
+          }
+        );
+        diagnostics.checks.businessProfile = {
+          status: 'success',
+          data: profileResponse.data
+        };
+      } catch (error) {
+        diagnostics.checks.businessProfile = {
+          status: 'error',
+          error: error.response?.data || error.message
+        };
+      }
+
+      // Check quality rating
+      try {
+        const ratingResponse = await axios.get(
+          `${this.baseURL}/app/${agentConfig.gupshup_app_id}/ratings`,
+          {
+            headers: {
+              'Authorization': appToken,
+              'Accept': 'application/json'
+            },
+            timeout: 10000
+          }
+        );
+        diagnostics.checks.qualityRating = {
+          status: 'success',
+          data: ratingResponse.data
+        };
+      } catch (error) {
+        diagnostics.checks.qualityRating = {
+          status: 'error',
+          error: error.response?.data || error.message
+        };
+      }
+
+      // Check WABA info
+      try {
+        const wabaResponse = await axios.get(
+          `${this.baseURL}/app/${agentConfig.gupshup_app_id}/health`,
+          {
+            headers: {
+              'Authorization': appToken,
+              'Accept': 'application/json'
+            },
+            timeout: 10000
+          }
+        );
+        diagnostics.checks.wabaHealth = {
+          status: 'success',
+          data: wabaResponse.data
+        };
+      } catch (error) {
+        diagnostics.checks.wabaHealth = {
+          status: 'error',
+          error: error.response?.data || error.message
+        };
+      }
+
+      logger.info({
+        agentId,
+        appId: agentConfig.gupshup_app_id,
+        diagnostics
+      }, '🔍 Partner API App Diagnostics');
+
+      return diagnostics;
+
+    } catch (error) {
+      logger.error({
+        err: error,
+        agentId,
+        appId: agentConfig.gupshup_app_id
+      }, 'Error running Partner API diagnostics');
+      throw error;
+    }
+  }
+
+  /**
+   * Send message using v2 API (fallback when v3 requires callback billing)
+   * @param {Object} agentConfig - Agent configuration
+   * @param {string} templateId - Template ID
+   * @param {string} templateName - Template name
+   * @param {Object} templateParams - Template parameters
+   * @param {string} phoneNumber - Formatted phone number
+   * @param {string} appToken - App access token
+   * @returns {Promise<Object>} API response
+   */
+  async sendWithV2API(agentConfig, templateId, templateName, templateParams, phoneNumber, appToken) {
+    try {
+      // Convert template parameters to array format for v2 API
+      const paramsArray = Object.keys(templateParams)
+        .sort((a, b) => parseInt(a) - parseInt(b))
+        .map(key => templateParams[key]);
+
+      // Prepare v2 API payload
+      const v2Payload = new URLSearchParams({
+        channel: 'whatsapp',
+        source: agentConfig.waba_phone_number || '+6580128102',
+        destination: phoneNumber,
+        'src.name': agentConfig.waba_display_name || 'DoroSmartGuide',
+        template: JSON.stringify({
+          id: templateId,
+          params: paramsArray
+        }),
+        sandbox: 'false'
+      });
+
+      logger.info({
+        appId: agentConfig.gupshup_app_id,
+        templateId,
+        templateName,
+        phoneNumber,
+        paramsArray
+      }, '📱 Sending message via v2 API (callback billing fallback)');
+
+      // Send via v2 API
+      const response = await axios.post(
+        `${this.baseURL}/app/${agentConfig.gupshup_app_id}/template/msg`,
+        v2Payload,
+        {
+          headers: {
+            'Authorization': appToken,
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json'
+          },
+          timeout: 30000
+        }
+      );
+
+      // Convert v2 response format to match v3 format
+      if (response.data && response.data.messageId) {
+        return {
+          messages: [{ id: response.data.messageId }],
+          messaging_product: 'whatsapp',
+          contacts: [{
+            input: phoneNumber,
+            wa_id: phoneNumber
+          }]
+        };
+      }
+
+      throw new Error('Invalid v2 API response format');
+
+    } catch (error) {
+      logger.error({
+        err: error,
+        appId: agentConfig.gupshup_app_id,
+        templateId,
+        phoneNumber
+      }, 'Error sending message via v2 API');
+      throw error;
+    }
+  }
+
+  /**
+   * Auto-fill template parameters based on lead data
+   * @param {string} leadId - Lead ID
+   * @param {string} templateName - Template name for context
+   * @returns {Promise<Object>} Template parameters object
+   */
+  async autoFillTemplateParameters(leadId, templateName) {
+    try {
+      // Get lead data
+      const { data: lead, error } = await databaseService.supabase
+        .from('leads')
+        .select('full_name, property_type, location_preference, budget, timeline')
+        .eq('id', leadId)
+        .single();
+
+      if (error || !lead) {
+        logger.warn({ leadId, templateName }, 'Could not fetch lead data for auto-fill');
+        return {};
+      }
+
+      // Auto-fill common template parameters
+      const autoParams = {
+        '1': lead.full_name?.split(' ')[0] || 'there', // First name
+        '2': lead.property_type || lead.location_preference || 'your property inquiry', // Context
+        '3': lead.location_preference || 'your preferred area', // Location
+        '4': 'How does this sound?' // Call to action
+      };
+
+      logger.info({
+        leadId,
+        templateName,
+        leadName: lead.full_name,
+        autoParams
+      }, 'Auto-filled template parameters');
+
+      return autoParams;
+
+    } catch (error) {
+      logger.error({
+        err: error,
+        leadId,
+        templateName
+      }, 'Error auto-filling template parameters');
+      return {};
+    }
   }
 }
 

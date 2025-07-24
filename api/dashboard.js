@@ -1102,7 +1102,9 @@ router.get('/integrations/waba', authenticateToken, async (req, res) => {
           lastSync: new Date().toISOString(),
           errorMessage: null,
           qrCode: null, // Not applicable for WABA
-          webhookUrl: `${process.env.WEBHOOK_BASE_URL || 'https://your-domain.com'}/api/gupshup/webhook`,
+          webhookUrl: process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT
+            ? 'https://backend-api-production-d74a.up.railway.app/api/gupshup/webhook'
+            : `${process.env.WEBHOOK_BASE_URL || 'http://localhost:8080'}/api/gupshup/webhook`,
           templates: templates.map(t => ({
             id: t.id,
             name: t.elementName,
