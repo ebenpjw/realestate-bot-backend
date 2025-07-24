@@ -53,12 +53,39 @@ async function processMessage({ senderWaId, userText, senderName, destinationWab
   }
 }
 
-// GET endpoint for webhook verification
+// GET endpoint for webhook verification (Meta App ISV requirement)
 router.get('/webhook', (req, res) => {
-    logger.info({ query: req.query, headers: req.headers }, 'Received GET request for Gupshup webhook verification.');
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+
+    logger.info({
+        query: req.query,
+        headers: req.headers,
+        mode,
+        hasToken: !!token,
+        hasChallenge: !!challenge
+    }, 'Received GET request for webhook verification');
+
+    // Handle Meta App webhook verification (required for ISV setup)
+    if (mode === 'subscribe') {
+        const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN || 'outpaced_webhook_verify_2025';
+
+        if (token === VERIFY_TOKEN) {
+            logger.info('✅ Meta App webhook verified successfully');
+            res.status(200).send(challenge);
+            return;
+        } else {
+            logger.warn({ expectedToken: '[REDACTED]', receivedToken: token ? '[REDACTED]' : 'missing' }, '❌ Meta App webhook verification failed');
+            res.sendStatus(403);
+            return;
+        }
+    }
+
+    // Default response for other GET requests
     res.status(200).json({
         status: 'active',
-        message: 'Gupshup webhook endpoint is ready',
+        message: 'Webhook endpoint is ready for Gupshup Partner API and Meta App',
         timestamp: new Date().toISOString(),
         endpoint: '/api/gupshup/webhook'
     });
@@ -77,8 +104,28 @@ router.post('/webhook', async (req, res) => {
   const body = req.body;
 
   try {
-    // Handle incoming user messages
-    if (body && body.type === 'message' && body.payload?.type === 'text') {
+    // Handle Meta App webhook events (ISV delivery confirmations)
+    if (body && body.object === 'whatsapp_business_account') {
+      logger.info({ body }, '📱 Received Meta App webhook event');
+
+      // Process Meta App delivery status updates
+      if (body.entry && Array.isArray(body.entry)) {
+        for (const entry of body.entry) {
+          if (entry.changes && Array.isArray(entry.changes)) {
+            for (const change of entry.changes) {
+              if (change.field === 'messages' && change.value?.statuses) {
+                for (const status of change.value.statuses) {
+                  await processMetaDeliveryEvent(status);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Handle incoming user messages (Gupshup format)
+    else if (body && body.type === 'message' && body.payload?.type === 'text') {
       const messageData = {
         senderWaId: body.payload.source,
         userText: body.payload.payload.text,
@@ -126,6 +173,78 @@ router.post('/webhook', async (req, res) => {
     logger.error({ err: error, body }, 'Error processing webhook event');
   }
 });
+
+/**
+ * Process delivery confirmation events from Meta App (ISV)
+ * @param {Object} status - The Meta delivery status object
+ */
+async function processMetaDeliveryEvent(status) {
+  const { id, status: deliveryStatus, timestamp, recipient_id, errors } = status;
+
+  logger.info({
+    messageId: id,
+    status: deliveryStatus,
+    timestamp,
+    recipientId: recipient_id
+  }, `📱 Processing Meta delivery event: ${deliveryStatus}`);
+
+  try {
+    // Update message status in database
+    const updateData = {
+      delivery_status: deliveryStatus,
+      updated_at: new Date().toISOString()
+    };
+
+    // Add timestamp for delivery events
+    if (timestamp) {
+      updateData.delivered_at = new Date(parseInt(timestamp) * 1000).toISOString();
+    }
+
+    // Add error information for failed messages
+    if (deliveryStatus === 'failed' && errors && errors.length > 0) {
+      const error = errors[0];
+      updateData.error_message = `${error.code}: ${error.title}`;
+      logger.warn({
+        messageId: id,
+        errorCode: error.code,
+        errorTitle: error.title,
+        errorMessage: error.message
+      }, '📱 Meta message delivery failed');
+    }
+
+    // Update by external_message_id (WhatsApp message ID)
+    const { error, count } = await databaseService.supabase
+      .from('messages')
+      .update(updateData)
+      .eq('external_message_id', id);
+
+    if (error) {
+      logger.error({
+        err: error,
+        messageId: id,
+        status: deliveryStatus
+      }, '❌ Failed to update message delivery status from Meta event');
+    } else if (count === 0) {
+      logger.warn({
+        messageId: id,
+        status: deliveryStatus
+      }, '⚠️ No message found to update for Meta delivery event');
+    } else {
+      logger.info({
+        messageId: id,
+        status: deliveryStatus,
+        updatedCount: count
+      }, '✅ Message delivery status updated from Meta event');
+    }
+
+  } catch (error) {
+    logger.error({
+      err: error,
+      messageId: id,
+      status: deliveryStatus
+    }, '💥 Error processing Meta delivery event');
+  }
+}
 
 /**
  * Process delivery confirmation events from Gupshup
