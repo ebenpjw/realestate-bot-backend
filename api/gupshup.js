@@ -109,6 +109,17 @@ router.post('/webhook', async (req, res) => {
         hasPayload: !!body?.payload,
         fullBody: body
       }, 'Received webhook event - analyzing event structure');
+
+      // Check if this might be a delivery event with different structure
+      if (body?.payload?.id || body?.payload?.gsId) {
+        logger.warn({
+          possibleDeliveryEvent: true,
+          messageId: body?.payload?.id,
+          gupshupId: body?.payload?.gsId,
+          eventType: body?.payload?.type,
+          fullPayload: body?.payload
+        }, 'Possible delivery event with unexpected structure - investigating');
+      }
     }
 
   } catch (error) {
