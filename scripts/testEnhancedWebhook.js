@@ -48,7 +48,7 @@ async function testEnhancedWebhook() {
     console.log(`   📝 Description: ${testProperty.description ? 'Yes' : 'No'}`);
 
     // Test webhook endpoint
-    const webhookUrl = 'https://realestate-bot-backend-production.up.railway.app/api/webhooks/property-data';
+    const webhookUrl = 'https://backend-api-production-d74a.up.railway.app/api/webhooks/property-data';
     
     console.log('\n🚀 Sending to webhook...');
     console.log(`   🌐 URL: ${webhookUrl}`);
