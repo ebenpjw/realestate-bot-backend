@@ -15,7 +15,7 @@ const getApiBaseUrl = () => {
 
     // For Railway deployment, use the correct backend URL
     if (window.location.hostname.includes('railway.app')) {
-      return 'https://realestate-bot-backend-production.up.railway.app';
+      return 'https://backend-api-production-d74a.up.railway.app';
     }
 
     // For localhost development
@@ -34,7 +34,7 @@ const getApiBaseUrl = () => {
   }
 
   return process.env.NODE_ENV === 'production'
-    ? 'https://realestate-bot-backend-production.up.railway.app'
+    ? 'https://backend-api-production-d74a.up.railway.app'
     : 'http://localhost:8080';
 }
 

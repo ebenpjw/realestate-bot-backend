@@ -11,8 +11,8 @@ Set these in Railway's environment variables section:
 # Frontend API URLs - CRITICAL: Use the correct backend URL
 # DO NOT use ${{RAILWAY_PUBLIC_DOMAIN}} as it may resolve to internal URLs
 # Use the actual backend Railway URL instead:
-NEXT_PUBLIC_API_URL=https://realestate-bot-backend-production.up.railway.app
-NEXT_PUBLIC_WS_URL=wss://realestate-bot-backend-production.up.railway.app
+NEXT_PUBLIC_API_URL=https://backend-api-production-d74a.up.railway.app
+NEXT_PUBLIC_WS_URL=wss://backend-api-production-d74a.up.railway.app
 
 # App Configuration
 NEXT_PUBLIC_APP_NAME=Outpaced Command
