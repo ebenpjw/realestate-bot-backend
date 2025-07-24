@@ -472,15 +472,16 @@ class GupshupPartnerService {
       const appToken = await this.getAppAccessToken(appId);
 
       const subscriptionData = new URLSearchParams({
-        modes: 'ALL', // Subscribe to all message types and events
+        modes: 'SENT,DELIVERED,READ,FAILED,MESSAGE', // Specific modes for better control
         tag: `webhook-${appId}-${Date.now()}`, // Unique tag to avoid conflicts
         url: webhookUrl,
-        version: '3', // Use latest webhook version
+        version: '3', // Use v3 webhook version for future-proofing
         showOnUI: 'false',
         meta: JSON.stringify({
           headers: {
             'User-Agent': 'Outpaced-RealEstate-Bot/1.0',
-            'X-App-ID': appId
+            'X-App-ID': appId,
+            'Content-Type': 'application/json'
           }
         })
       });

@@ -5,6 +5,7 @@ const router = express.Router();
 const logger = require('../logger');
 const messageOrchestrator = require('../services/messageOrchestrator');
 const multiTenantConfigService = require('../services/multiTenantConfigService');
+const databaseService = require('../services/databaseService');
 
 /**
  * Enhanced message processing with multi-agent routing
@@ -63,8 +64,8 @@ router.get('/webhook', (req, res) => {
     });
 });
 
-// POST endpoint for incoming messages
-router.post('/webhook', (req, res) => {
+// POST endpoint for incoming messages and delivery events
+router.post('/webhook', async (req, res) => {
   logger.info({
     query: req.query,
     headers: req.headers,
@@ -73,27 +74,126 @@ router.post('/webhook', (req, res) => {
 
   res.sendStatus(200);
 
-  // Parse Gupshup V2 format with multi-agent support
   const body = req.body;
-  if (body && body.type === 'message' && body.payload?.type === 'text') {
-    const messageData = {
-      senderWaId: body.payload.source,
-      userText: body.payload.payload.text,
-      senderName: body.payload.sender.name || 'There',
-      destinationWabaNumber: body.payload.destination // Extract destination WABA for agent routing
-    };
 
-    logger.info({
-      messageData,
-      destinationWaba: messageData.destinationWabaNumber
-    }, 'Processing valid Gupshup message with multi-agent routing');
+  try {
+    // Handle incoming user messages
+    if (body && body.type === 'message' && body.payload?.type === 'text') {
+      const messageData = {
+        senderWaId: body.payload.source,
+        userText: body.payload.payload.text,
+        senderName: body.payload.sender.name || 'There',
+        destinationWabaNumber: body.payload.destination // Extract destination WABA for agent routing
+      };
 
-    processMessage(messageData).catch(err => {
+      logger.info({
+        messageData,
+        destinationWaba: messageData.destinationWabaNumber
+      }, 'Processing incoming user message with multi-agent routing');
+
+      processMessage(messageData).catch(err => {
         logger.error({ err }, 'Unhandled exception in async processMessage from Gupshup webhook.');
-    });
-  } else {
-    logger.info({ payload: req.body }, 'Received a status update or non-text message. Acknowledging.');
+      });
+    }
+
+    // Handle delivery confirmation events (message-event type)
+    else if (body && body.type === 'message-event') {
+      await processDeliveryEvent(body.payload);
+    }
+
+    // Handle other webhook events
+    else {
+      logger.info({
+        eventType: body?.type,
+        hasPayload: !!body?.payload
+      }, 'Received webhook event - not a user message or delivery event');
+    }
+
+  } catch (error) {
+    logger.error({ err: error, body }, 'Error processing webhook event');
   }
 });
+
+/**
+ * Process delivery confirmation events from Gupshup
+ * @param {Object} payload - Delivery event payload
+ */
+async function processDeliveryEvent(payload) {
+  const { id, gsId, type, destination, ts, payload: eventPayload } = payload;
+
+  logger.info({
+    messageId: id,
+    gupshupId: gsId,
+    eventType: type,
+    destination,
+    timestamp: ts
+  }, `Processing delivery event: ${type}`);
+
+  try {
+    // Update message status in database
+    const updateData = {
+      delivery_status: type,
+      updated_at: new Date().toISOString()
+    };
+
+    // Add timestamp for delivery events
+    if (ts) {
+      updateData.delivered_at = new Date(ts * 1000).toISOString();
+    }
+
+    // Add error information for failed messages
+    if (type === 'failed' && eventPayload) {
+      updateData.error_message = `${eventPayload.code}: ${eventPayload.reason}`;
+      logger.warn({
+        messageId: id,
+        gupshupId: gsId,
+        errorCode: eventPayload.code,
+        errorReason: eventPayload.reason
+      }, 'Message delivery failed');
+    }
+
+    // Update by external_message_id (WhatsApp message ID) or gsId (Gupshup message ID)
+    let updateQuery = databaseService.supabase
+      .from('messages')
+      .update(updateData);
+
+    // Try to match by external_message_id first, then by gsId
+    if (id) {
+      updateQuery = updateQuery.eq('external_message_id', id);
+    } else if (gsId) {
+      updateQuery = updateQuery.eq('external_message_id', gsId);
+    } else {
+      logger.warn({ payload }, 'Delivery event missing both id and gsId');
+      return;
+    }
+
+    const { error, count } = await updateQuery;
+
+    if (error) {
+      logger.error({
+        err: error,
+        messageId: id,
+        gsId,
+        type
+      }, 'Failed to update message delivery status');
+    } else if (count === 0) {
+      logger.warn({
+        messageId: id,
+        gsId,
+        type
+      }, 'No message found to update delivery status');
+    } else {
+      logger.info({
+        messageId: id,
+        gsId,
+        type,
+        updatedCount: count
+      }, 'Message delivery status updated successfully');
+    }
+
+  } catch (error) {
+    logger.error({ err: error, payload }, 'Error processing delivery event');
+  }
+}
 
 module.exports = router;

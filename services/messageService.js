@@ -76,7 +76,7 @@ class MessageService {
       // Format phone number (ensure it starts with country code)
       const formattedPhone = this.formatPhoneNumber(phoneNumber);
 
-      // Prepare message payload for Gupshup v3 API
+      // Prepare message payload for Gupshup Partner API v3
       const messagePayload = {
         messaging_product: 'whatsapp',
         recipient_type: 'individual',
@@ -91,24 +91,37 @@ class MessageService {
         }
       };
 
-      // Try v3 API first, fallback to v2 if callback billing not enabled
+      logger.info({
+        agentId,
+        appId: agentConfig.gupshup_app_id,
+        templateName,
+        phoneNumber: formattedPhone,
+        componentCount: messagePayload.template.components?.length || 0
+      }, '📱 Sending message via Partner API v3');
+
+      // Send message via Gupshup Partner API v3
       let response;
       try {
-        // Send message via Gupshup Partner API v3
         response = await this.sendWithRetry(
           `${this.baseURL}/app/${agentConfig.gupshup_app_id}/v3/message`,
           messagePayload,
           appToken
         );
+
+        logger.info({
+          agentId,
+          appId: agentConfig.gupshup_app_id,
+          messageId: response.data.messages?.[0]?.id,
+          templateName
+        }, '✅ Message sent successfully via v3 API');
+
       } catch (error) {
-        // If v3 fails with callback billing error, try v2 API
-        if ((error.message && error.message.includes('Callback Billing must be enabled')) ||
-            (error.response && error.response.data && error.response.data.message &&
-             error.response.data.message.includes('Callback Billing must be enabled'))) {
+        // If v3 fails with callback billing error, try v2 API as fallback
+        if (this.isCallbackBillingError(error)) {
           logger.warn({
             agentId,
             appId: agentConfig.gupshup_app_id,
-            error: error.message
+            error: error.response?.data?.message || error.message
           }, '⚠️ V3 API requires callback billing - falling back to V2 API');
 
           response = await this.sendWithV2API(agentConfig, templateId, templateName, finalTemplateParams, formattedPhone, appToken);
@@ -474,20 +487,39 @@ class MessageService {
   }
 
   /**
-   * Format phone number for WhatsApp
+   * Format phone number for WhatsApp (consistent with Partner API v3)
    * @param {string} phoneNumber - Raw phone number
-   * @returns {string} Formatted phone number
+   * @returns {string} Formatted phone number with country code
    */
   formatPhoneNumber(phoneNumber) {
+    if (!phoneNumber) {
+      throw new Error('Phone number is required');
+    }
+
     // Remove all non-digit characters
     let cleaned = phoneNumber.replace(/\D/g, '');
-    
+
     // Add country code if not present (default to Singapore +65)
     if (!cleaned.startsWith('65') && cleaned.length === 8) {
       cleaned = '65' + cleaned;
     }
-    
-    return cleaned;
+
+    // Validate length (should be 10-15 digits)
+    if (cleaned.length < 10 || cleaned.length > 15) {
+      throw new Error(`Invalid phone number format: ${phoneNumber}`);
+    }
+
+    return cleaned; // Return without + prefix for Gupshup Partner API
+  }
+
+  /**
+   * Check if error is related to callback billing requirement
+   * @param {Error} error - Error object
+   * @returns {boolean} True if callback billing error
+   */
+  isCallbackBillingError(error) {
+    const errorMessage = error.response?.data?.message || error.message || '';
+    return errorMessage.toLowerCase().includes('callback billing must be enabled');
   }
 
   /**
@@ -784,17 +816,17 @@ class MessageService {
         .sort((a, b) => parseInt(a) - parseInt(b))
         .map(key => templateParams[key]);
 
-      // Prepare v2 API payload
+      // Prepare v2 API payload with proper formatting
       const v2Payload = new URLSearchParams({
         channel: 'whatsapp',
-        source: agentConfig.waba_phone_number || '+6580128102',
+        source: agentConfig.waba_phone_number,
         destination: phoneNumber,
-        'src.name': agentConfig.waba_display_name || 'DoroSmartGuide',
+        'src.name': agentConfig.waba_display_name || agentConfig.full_name || 'Outpaced',
         template: JSON.stringify({
           id: templateId,
           params: paramsArray
         }),
-        sandbox: 'false'
+        sandbox: 'false' // Ensure production mode
       });
 
       logger.info({
