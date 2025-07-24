@@ -99,7 +99,7 @@ const config = {
   GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
   GOOGLE_TIMEOUT: parseInteger(process.env.GOOGLE_TIMEOUT, 15000),
   PRODUCTION_REDIRECT_URI: process.env.PRODUCTION_REDIRECT_URI ||
-    'https://realestate-bot-backend-production.up.railway.app/api/auth/google/callback',
+    'https://backend-api-production-d74a.up.railway.app/api/auth/google/callback',
 
   // Zoom OAuth Configuration
   ZOOM_CLIENT_ID: process.env.ZOOM_CLIENT_ID,
