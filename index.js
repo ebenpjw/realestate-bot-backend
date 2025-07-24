@@ -584,4 +584,5 @@ if (require.main === module) {
   logger.info('index.js loaded as module - server not started');
 }
 
-module.exports = app;
+module.exports = app;/ /   C o d e R a b b i t   t e s t   s e t u p  
+ 
