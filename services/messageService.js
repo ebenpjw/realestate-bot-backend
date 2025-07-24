@@ -532,6 +532,7 @@ class MessageService {
         .from('messages')
         .insert({
           lead_id: leadId,
+          phone_number: phoneNumber, // ✅ FIX: Add missing phone_number field
           sender: 'agent',
           message: `Template: ${displayName}`,
           message_type: 'template',
