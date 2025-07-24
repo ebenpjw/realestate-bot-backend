@@ -560,23 +560,25 @@ class MessageService {
       // Final fallback
       displayName = displayName || templateId || 'Unknown Template';
 
+      // Create message record using correct schema
+      const messageRecord = {
+        sender: 'agent', // Required field
+        message: `Template: ${displayName} | Phone: ${phoneNumber}`, // Required field
+        external_message_id: messageId,
+        delivery_status: status || 'sent',
+        message_type: 'template'
+      };
+
+      // Add optional fields only if they have values
+      if (leadId) messageRecord.lead_id = leadId;
+      if (templateId) messageRecord.template_id = templateId;
+      if (templateParams) messageRecord.template_params = templateParams;
+      if (errorMessage) messageRecord.error_message = errorMessage;
+      if (campaignId) messageRecord.campaign_id = campaignId;
+
       const { error: insertError } = await databaseService.supabase
         .from('messages')
-        .insert({
-          lead_id: leadId,
-          sender: 'agent',
-          topic: 'template_message', // Required field
-          message: `Template: ${displayName}`,
-          extension: phoneNumber || 'unknown', // Required field
-          message_type: 'template',
-          template_id: templateId,
-          template_params: templateParams,
-          external_message_id: messageId,
-          delivery_status: status,
-          error_message: errorMessage,
-          campaign_id: campaignId,
-          created_at: new Date().toISOString()
-        });
+        .insert(messageRecord);
 
       if (insertError) {
         throw insertError;
