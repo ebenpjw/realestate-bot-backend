@@ -471,12 +471,13 @@ class GupshupPartnerService {
     return this._retryWithBackoff(async () => {
       const appToken = await this.getAppAccessToken(appId);
 
+      // Configure webhook subscription according to official Gupshup Partner API specification
       const subscriptionData = new URLSearchParams({
-        modes: 'SENT,DELIVERED,READ,FAILED,MESSAGE', // Specific modes for better control
-        tag: `webhook-${appId}-${Date.now()}`, // Unique tag to avoid conflicts
-        url: webhookUrl,
-        version: '3', // Use v3 webhook version for future-proofing
-        showOnUI: 'false',
+        modes: 'SENT,DELIVERED,READ,FAILED,MESSAGE', // Official v3 modes for delivery tracking + incoming messages
+        tag: `outpaced-webhook-${appId}-${Date.now()}`, // Unique tag as required
+        url: webhookUrl, // Must be valid HTTPS URL
+        version: '3', // Use v3 as specified in Partner API docs
+        showOnUI: 'false', // Don't show in UI as per Partner API best practices
         meta: JSON.stringify({
           headers: {
             'User-Agent': 'Outpaced-RealEstate-Bot/1.0',
@@ -584,8 +585,8 @@ class GupshupPartnerService {
    * Get the appropriate webhook URL based on environment
    */
   _getWebhookUrl() {
-    // Always use production URL for webhook configuration
-    // This ensures webhooks work even when configuring from local development
+    // Gupshup Partner API requires valid HTTPS URL for webhook configuration
+    // Always use production HTTPS URL to ensure webhooks work properly
     const productionUrl = 'https://backend-api-production-d74a.up.railway.app/api/gupshup/webhook';
 
     // For production/Railway deployment
@@ -593,14 +594,16 @@ class GupshupPartnerService {
       return productionUrl;
     }
 
-    // For local development - use ngrok or similar tunnel if available
+    // For local development - only use custom URL if it's HTTPS (as required by Gupshup)
     if (process.env.WEBHOOK_BASE_URL && process.env.WEBHOOK_BASE_URL.startsWith('https://')) {
-      return `${process.env.WEBHOOK_BASE_URL}/api/gupshup/webhook`;
+      const customUrl = `${process.env.WEBHOOK_BASE_URL}/api/gupshup/webhook`;
+      logger.info({ customUrl }, 'Using custom HTTPS webhook URL for local development');
+      return customUrl;
     }
 
     // Default to production URL for webhook configuration
-    // This allows local scripts to configure production webhooks
-    logger.info('Using production webhook URL for configuration from local environment');
+    // This ensures webhooks work even when configuring from local development
+    logger.info('Using production HTTPS webhook URL (required by Gupshup Partner API)');
     return productionUrl;
   }
 }
