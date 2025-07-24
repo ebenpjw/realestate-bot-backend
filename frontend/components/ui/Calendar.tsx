@@ -137,20 +137,20 @@ export default function Calendar({
 
   const getEventColor = (event: CalendarEvent) => {
     if (event.color) return event.color
-    
+
     switch (event.type) {
-      case 'appointment': return 'bg-blue-500'
-      case 'meeting': return 'bg-green-500'
-      case 'reminder': return 'bg-yellow-500'
-      default: return 'bg-gray-500'
+      case 'appointment': return 'bg-blue-600 hover:bg-blue-700'
+      case 'meeting': return 'bg-green-600 hover:bg-green-700'
+      case 'reminder': return 'bg-amber-500 hover:bg-amber-600'
+      default: return 'bg-gray-600 hover:bg-gray-700'
     }
   }
 
   return (
     <Card className={className}>
-      <CardHeader className={compact ? 'p-4' : undefined}>
+      <CardHeader className={compact ? 'p-4' : 'pb-4'}>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">
+          <CardTitle className="text-xl font-bold text-gray-900">
             {MONTHS[currentMonth]} {currentYear}
           </CardTitle>
           <div className="flex items-center gap-2">
@@ -158,6 +158,7 @@ export default function Calendar({
               variant="outline"
               size="sm"
               onClick={() => navigateMonth('prev')}
+              className="hover:bg-gray-100"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -165,6 +166,7 @@ export default function Calendar({
               variant="outline"
               size="sm"
               onClick={() => setCurrentDate(new Date())}
+              className="hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300"
             >
               Today
             </Button>
@@ -172,6 +174,7 @@ export default function Calendar({
               variant="outline"
               size="sm"
               onClick={() => navigateMonth('next')}
+              className="hover:bg-gray-100"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -186,7 +189,7 @@ export default function Calendar({
           {DAYS.map(day => (
             <div
               key={day}
-              className="p-2 text-center text-sm font-medium text-gray-500 border-b"
+              className="p-2 text-center text-sm font-semibold text-gray-700 border-b bg-gray-50"
             >
               {day}
             </div>
@@ -197,19 +200,25 @@ export default function Calendar({
             <div
               key={index}
               className={`
-                min-h-[80px] p-1 border border-gray-100 cursor-pointer hover:bg-gray-50
-                ${!isCurrentMonth ? 'text-gray-400 bg-gray-50' : ''}
-                ${isToday(date) ? 'bg-blue-50 border-blue-200' : ''}
-                ${isSelected(date) ? 'bg-blue-100 border-blue-300' : ''}
+                min-h-[80px] p-2 border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors
+                ${!isCurrentMonth ? 'text-gray-400 bg-gray-50/50' : 'bg-white'}
+                ${isToday(date) ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-200' : ''}
+                ${isSelected(date) ? 'bg-blue-100 border-blue-400 ring-1 ring-blue-300' : ''}
               `}
               onClick={() => handleDateClick(date)}
             >
               <div className="flex items-center justify-between mb-1">
-                <span className={`text-sm ${isToday(date) ? 'font-bold text-blue-600' : ''}`}>
+                <span className={`text-sm font-medium ${
+                  isToday(date)
+                    ? 'font-bold text-blue-700'
+                    : !isCurrentMonth
+                      ? 'text-gray-400'
+                      : 'text-gray-900'
+                }`}>
                   {date.getDate()}
                 </span>
                 {dayEvents.length > 0 && (
-                  <Badge variant="secondary" className="text-xs px-1 py-0">
+                  <Badge variant="secondary" className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 border-blue-200">
                     {dayEvents.length}
                   </Badge>
                 )}
@@ -220,7 +229,7 @@ export default function Calendar({
                 <div
                   key={event.id}
                   className={`
-                    text-xs p-1 mb-1 rounded text-white cursor-pointer
+                    text-xs p-1.5 mb-1 rounded-md text-white cursor-pointer shadow-sm hover:shadow-md transition-shadow
                     ${getEventColor(event)}
                   `}
                   onClick={(e) => {
@@ -229,9 +238,9 @@ export default function Calendar({
                   }}
                   title={`${event.title}${event.startTime ? ` at ${event.startTime}` : ''}`}
                 >
-                  <div className="truncate">
+                  <div className="truncate font-medium">
                     {event.startTime && (
-                      <span className="mr-1">{event.startTime}</span>
+                      <span className="mr-1 opacity-90">{event.startTime}</span>
                     )}
                     {event.title}
                   </div>
@@ -239,7 +248,7 @@ export default function Calendar({
               ))}
 
               {dayEvents.length > 2 && (
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-gray-600 font-medium bg-gray-100 px-1.5 py-0.5 rounded">
                   +{dayEvents.length - 2} more
                 </div>
               )}

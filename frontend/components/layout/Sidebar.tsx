@@ -2,7 +2,7 @@ import React from 'react';
 import {
   Home, MessageSquare, Users, Settings,
   BarChart3, DollarSign, Phone, ChevronRight, ChevronLeft,
-  Building2, UserCheck, Send
+  Building2, UserCheck, Send, Calendar
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -49,6 +49,11 @@ export function Sidebar({ isCollapsed, onToggle, className }: SidebarProps) {
       title: 'Leads',
       icon: Users,
       href: '/agent/leads',
+    },
+    {
+      title: 'Calendar',
+      icon: Calendar,
+      href: '/agent/calendar',
     },
     {
       title: 'Settings',
