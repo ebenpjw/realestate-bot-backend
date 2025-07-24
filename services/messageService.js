@@ -560,13 +560,14 @@ class MessageService {
       // Final fallback
       displayName = displayName || templateId || 'Unknown Template';
 
-      await databaseService.supabase
+      const { error: insertError } = await databaseService.supabase
         .from('messages')
         .insert({
           lead_id: leadId,
-          phone_number: phoneNumber, // ✅ FIX: Add missing phone_number field
           sender: 'agent',
+          topic: 'template_message', // Required field
           message: `Template: ${displayName}`,
+          extension: phoneNumber || 'unknown', // Required field
           message_type: 'template',
           template_id: templateId,
           template_params: templateParams,
@@ -576,6 +577,17 @@ class MessageService {
           campaign_id: campaignId,
           created_at: new Date().toISOString()
         });
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      logger.info({
+        messageId,
+        phoneNumber,
+        templateName: displayName,
+        status
+      }, '✅ Message logged to database successfully');
 
     } catch (error) {
       logger.error({
