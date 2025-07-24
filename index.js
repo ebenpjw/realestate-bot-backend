@@ -1,4 +1,4 @@
-// index.js
+﻿// index.js
 const express = require('express');
 const cors = require('cors');
 const pinoHttp = require('pino-http');
@@ -46,26 +46,15 @@ app.set('trust proxy', 1);
 // Apply security middleware first
 app.use(createSecurityMiddleware());
 
-// CORS configuration for separate services deployment
-const corsOrigins = [
-  'http://localhost:3000',  // Frontend development server
-  'http://127.0.0.1:3000',  // Alternative localhost
-  /^https?:\/\/.*\.railway\.app$/,  // Railway deployments
-];
-
-// Add production frontend URL if available
-if (process.env.FRONTEND_URL) {
-  corsOrigins.push(process.env.FRONTEND_URL);
-  corsOrigins.push(`https://${process.env.FRONTEND_URL}`);
-}
-
-// Add CORS_ORIGIN if specified
-if (process.env.CORS_ORIGIN) {
-  corsOrigins.push(process.env.CORS_ORIGIN);
-}
-
+// CORS configuration for unified deployment
 app.use(cors({
-  origin: corsOrigins,
+  origin: [
+    'http://localhost:3000',  // Frontend development server
+    'http://127.0.0.1:3000',  // Alternative localhost
+    /^https?:\/\/.*\.railway\.app$/,  // Railway deployments
+    /^https?:\/\/.*\.netlify\.app$/,  // Netlify deployments (legacy)
+    /^https?:\/\/.*\.vercel\.app$/    // Vercel deployments (legacy)
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
@@ -285,10 +274,10 @@ let visualPropertyStatus = { loaded: false, error: null };
 if (enabledFeatures.visualProperty) {
   try {
     app.use('/api/visual-property', require('./api/visualPropertyData'));
-    logger.info('✅ Visual property API routes loaded');
+    logger.info('Γ£à Visual property API routes loaded');
     visualPropertyStatus.loaded = true;
   } catch (error) {
-    logger.warn({ err: error }, '⚠️ Visual property API not available - some dependencies missing');
+    logger.warn({ err: error }, 'ΓÜá∩╕Å Visual property API not available - some dependencies missing');
     visualPropertyStatus.error = error.message;
   }
 } else {
@@ -300,11 +289,11 @@ let webhookStatus = { loaded: false, error: null };
 if (enabledFeatures.webhooks) {
   try {
     app.use('/api/webhooks', require('./api/webhooks'));
-    logger.info('✅ Webhook API routes loaded');
+    logger.info('Γ£à Webhook API routes loaded');
     webhookStatus.loaded = true;
   } catch (error) {
-    logger.error({ err: error }, '❌ Webhook API failed to load');
-    logger.warn('⚠️ Webhook API not available - some dependencies missing');
+    logger.error({ err: error }, 'Γ¥î Webhook API failed to load');
+    logger.warn('ΓÜá∩╕Å Webhook API not available - some dependencies missing');
     webhookStatus.error = error.message;
   }
 } else {
@@ -393,12 +382,12 @@ app.get('/test-bot', (req, res) => {
     </style>
 </head>
 <body>
-    <h1>🤖 Bot Testing Interface</h1>
+    <h1>≡ƒñû Bot Testing Interface</h1>
     <div class="controls">
-        <button onclick="resetConversation()">🔄 Reset Conversation</button>
-        <button onclick="testGreeting()">👋 Test Greeting</button>
-        <button onclick="testBooking()">📅 Test Booking</button>
-        <button onclick="viewLearningDashboard()">🧠 AI Learning Dashboard</button>
+        <button onclick="resetConversation()">≡ƒöä Reset Conversation</button>
+        <button onclick="testGreeting()">≡ƒæï Test Greeting</button>
+        <button onclick="testBooking()">≡ƒôà Test Booking</button>
+        <button onclick="viewLearningDashboard()">≡ƒºá AI Learning Dashboard</button>
     </div>
 
     <div class="chat-container" id="chatContainer"></div>
@@ -435,7 +424,7 @@ app.get('/test-bot', (req, res) => {
             addMessage('user', text);
             if (!message) messageInput.value = '';
 
-            showStatus('🧠 Processing...');
+            showStatus('≡ƒºá Processing...');
 
             try {
                 const response = await fetch('/api/test/simulate-inbound', {
@@ -453,12 +442,12 @@ app.get('/test-bot', (req, res) => {
 
                 if (data.success && data.ai_responses) {
                     data.ai_responses.forEach(resp => addMessage('bot', resp));
-                    showStatus('✅ Response received (' + data.processing_time_ms + 'ms)');
+                    showStatus('Γ£à Response received (' + data.processing_time_ms + 'ms)');
                 } else {
-                    showStatus('❌ No response received', true);
+                    showStatus('Γ¥î No response received', true);
                 }
             } catch (error) {
-                showStatus('❌ Error: ' + error.message, true);
+                showStatus('Γ¥î Error: ' + error.message, true);
             }
         }
 
@@ -468,7 +457,7 @@ app.get('/test-bot', (req, res) => {
 
         function resetConversation() {
             chatContainer.innerHTML = '';
-            showStatus('🔄 Conversation reset');
+            showStatus('≡ƒöä Conversation reset');
         }
 
         function testGreeting() {
@@ -526,12 +515,12 @@ const gracefulShutdown = (signal) => {
 // Initialize AI Learning System
 async function initializeAILearningSystem() {
   try {
-    logger.info('🧠 Initializing AI Learning System...');
+    logger.info('≡ƒºá Initializing AI Learning System...');
     const aiLearningManager = require('./services/aiLearningManager');
     await aiLearningManager.initialize();
-    logger.info('✅ AI Learning System initialized successfully');
+    logger.info('Γ£à AI Learning System initialized successfully');
   } catch (error) {
-    logger.error({ err: error }, '❌ Failed to initialize AI Learning System - continuing without learning features');
+    logger.error({ err: error }, 'Γ¥î Failed to initialize AI Learning System - continuing without learning features');
   }
 }
 
@@ -544,10 +533,10 @@ try {
   const { initializeSocketIO } = require('./services/socketService');
   if (initializeSocketIO) {
     initializeSocketIO(server);
-    logger.info('✅ Socket.IO initialized successfully');
+    logger.info('Γ£à Socket.IO initialized successfully');
   }
 } catch (error) {
-  logger.warn('⚠️ Socket.IO initialization failed, continuing without WebSocket support:', error.message);
+  logger.warn('ΓÜá∩╕Å Socket.IO initialization failed, continuing without WebSocket support:', error.message);
 }
 
 // Only start server if this file is run directly (not imported as module)
@@ -559,7 +548,7 @@ if (require.main === module) {
     environment: config.NODE_ENV,
     nodeVersion: process.version,
     pid: process.pid
-  }, '🚀 Server started successfully');
+  }, '≡ƒÜÇ Server started successfully');
 
   // Initialize AI Learning System after server starts
   await initializeAILearningSystem();
@@ -570,9 +559,9 @@ if (require.main === module) {
     const scheduledService = new ScheduledDataCollectionService();
     scheduledService.initialize();
     scheduledService.start();
-    logger.info('✅ Scheduled data collection service started');
+    logger.info('Γ£à Scheduled data collection service started');
   } catch (error) {
-    logger.warn({ err: error }, '⚠️ Visual property services not available - continuing with basic functionality');
+    logger.warn({ err: error }, 'ΓÜá∩╕Å Visual property services not available - continuing with basic functionality');
     // Don't fail the entire app if visual services can't start
   }
   });
@@ -584,5 +573,5 @@ if (require.main === module) {
   logger.info('index.js loaded as module - server not started');
 }
 
-module.exports = app;/ /   C o d e R a b b i t   t e s t   s e t u p  
- 
+module.exports = app;
+
