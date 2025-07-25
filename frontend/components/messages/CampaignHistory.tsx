@@ -8,21 +8,27 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
-import { 
-  Clock, 
-  Search, 
-  Filter, 
+import {
+  Clock,
+  Search,
+  Filter,
   RefreshCw,
-  CheckCircle, 
-  XCircle, 
+  CheckCircle,
+  XCircle,
   Pause,
   Loader2,
   Users,
   MessageSquare,
   Calendar,
   TrendingUp,
-  Eye
+  Eye,
+  BarChart3,
+  Target,
+  Send,
+  AlertTriangle,
+  Activity
 } from 'lucide-react'
+import { Progress } from '@/components/ui/progress'
 import messagesApi, { Campaign } from '@/lib/api/services/messagesApi'
 import { cn } from '@/lib/utils'
 
@@ -113,51 +119,137 @@ export function CampaignHistory({
   }
 
   // Format date
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    })
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return 'N/A'
+    try {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) return 'Invalid Date'
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch (error) {
+      return 'Invalid Date'
+    }
   }
 
   // Calculate success rate
   const getSuccessRate = (campaign: Campaign) => {
-    if (campaign.messagesSent === 0) return 0
-    return Math.round((campaign.messagesDelivered / campaign.messagesSent) * 100)
+    const sent = campaign.messagesSent || 0
+    const delivered = campaign.messagesDelivered || 0
+    if (sent === 0) return 0
+    return Math.round((delivered / sent) * 100)
   }
 
   // Calculate completion rate
   const getCompletionRate = (campaign: Campaign) => {
-    if (campaign.totalRecipients === 0) return 0
-    return Math.round(((campaign.messagesSent + campaign.messagesFailed) / campaign.totalRecipients) * 100)
+    const totalRecipients = campaign.totalRecipients || 0
+    const sent = campaign.messagesSent || 0
+    const failed = campaign.messagesFailed || 0
+    if (totalRecipients === 0) return 0
+    return Math.round(((sent + failed) / totalRecipients) * 100)
   }
 
+  // Calculate overall statistics with proper null handling
+  const totalCampaigns = campaigns?.length || 0
+  const completedCampaigns = campaigns?.filter(c => c?.status === 'completed')?.length || 0
+  const totalRecipients = campaigns?.reduce((sum, c) => sum + (c?.totalRecipients || 0), 0) || 0
+  const totalSent = campaigns?.reduce((sum, c) => sum + (c?.messagesSent || 0), 0) || 0
+  const totalDelivered = campaigns?.reduce((sum, c) => sum + (c?.messagesDelivered || 0), 0) || 0
+  const totalFailed = campaigns?.reduce((sum, c) => sum + (c?.messagesFailed || 0), 0) || 0
+  const overallSuccessRate = totalSent > 0 ? Math.round((totalDelivered / totalSent) * 100) : 0
+  const overallCompletionRate = totalCampaigns > 0 ? Math.round((completedCampaigns / totalCampaigns) * 100) : 0
+
   return (
-    <Card className={className}>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center space-x-2">
-              <Clock className="h-5 w-5" />
-              <span>Campaign History</span>
-            </CardTitle>
-            <CardDescription>
-              View your past messaging campaigns and their performance ({filteredCampaigns.length} campaigns)
-            </CardDescription>
+    <div className={className}>
+      {/* Overall Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-700">Total Campaigns</p>
+                <p className="text-2xl font-bold text-blue-900">{totalCampaigns}</p>
+                <p className="text-xs text-blue-600">{completedCampaigns} completed</p>
+              </div>
+              <div className="h-12 w-12 bg-blue-200 rounded-lg flex items-center justify-center">
+                <BarChart3 className="h-6 w-6 text-blue-700" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-700">Messages Sent</p>
+                <p className="text-2xl font-bold text-green-900">{totalSent.toLocaleString()}</p>
+                <p className="text-xs text-green-600">to {totalRecipients.toLocaleString()} recipients</p>
+              </div>
+              <div className="h-12 w-12 bg-green-200 rounded-lg flex items-center justify-center">
+                <Send className="h-6 w-6 text-green-700" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-purple-700">Delivery Rate</p>
+                <p className="text-2xl font-bold text-purple-900">{overallSuccessRate}%</p>
+                <p className="text-xs text-purple-600">{totalDelivered.toLocaleString()} delivered</p>
+              </div>
+              <div className="h-12 w-12 bg-purple-200 rounded-lg flex items-center justify-center">
+                <Target className="h-6 w-6 text-purple-700" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-orange-700">Completion Rate</p>
+                <p className="text-2xl font-bold text-orange-900">{overallCompletionRate}%</p>
+                <p className="text-xs text-orange-600">{totalFailed} failed messages</p>
+              </div>
+              <div className="h-12 w-12 bg-orange-200 rounded-lg flex items-center justify-center">
+                <Activity className="h-6 w-6 text-orange-700" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Campaign History Table */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center space-x-2">
+                <Clock className="h-5 w-5" />
+                <span>Campaign History</span>
+              </CardTitle>
+              <CardDescription>
+                Detailed view of your messaging campaigns ({filteredCampaigns.length} campaigns)
+              </CardDescription>
+            </div>
+            {onRefresh && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onRefresh}
+                disabled={loading}
+              >
+                <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+              </Button>
+            )}
           </div>
-          {onRefresh && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onRefresh}
-              disabled={loading}
-            >
-              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-            </Button>
-          )}
-        </div>
-      </CardHeader>
+        </CardHeader>
       
       <CardContent className="space-y-4">
         {/* Search and Filter Controls */}
@@ -263,59 +355,100 @@ export function CampaignHistory({
                       </Badge>
                     </div>
 
-                    {/* Campaign Stats */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-3 text-center">
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-center space-x-1">
-                          <Users className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-sm font-medium">{campaign.totalRecipients}</span>
+                    {/* Campaign Stats with Visual Progress */}
+                    <div className="space-y-4">
+                      {/* Progress Bar */}
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">Campaign Progress</span>
+                          <span className="font-medium">{completionRate}% complete</span>
                         </div>
-                        <p className="text-xs text-muted-foreground">Recipients</p>
+                        <Progress value={completionRate} className="h-2" />
                       </div>
-                      
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-center space-x-1">
-                          <CheckCircle className="h-3 w-3 text-green-600" />
-                          <span className="text-sm font-medium text-green-600">{campaign.messagesSent}</span>
+
+                      {/* Stats Grid */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="bg-blue-50 rounded-lg p-3 text-center border border-blue-100">
+                          <div className="flex items-center justify-center space-x-1 mb-1">
+                            <Users className="h-4 w-4 text-blue-600" />
+                            <span className="text-lg font-bold text-blue-900">{campaign.totalRecipients || 0}</span>
+                          </div>
+                          <p className="text-xs text-blue-700 font-medium">Recipients</p>
                         </div>
-                        <p className="text-xs text-muted-foreground">Sent</p>
+
+                        <div className="bg-green-50 rounded-lg p-3 text-center border border-green-100">
+                          <div className="flex items-center justify-center space-x-1 mb-1">
+                            <Send className="h-4 w-4 text-green-600" />
+                            <span className="text-lg font-bold text-green-900">{campaign.messagesSent || 0}</span>
+                          </div>
+                          <p className="text-xs text-green-700 font-medium">Sent</p>
+                        </div>
+
+                        <div className="bg-purple-50 rounded-lg p-3 text-center border border-purple-100">
+                          <div className="flex items-center justify-center space-x-1 mb-1">
+                            <CheckCircle className="h-4 w-4 text-purple-600" />
+                            <span className="text-lg font-bold text-purple-900">{campaign.messagesDelivered || 0}</span>
+                          </div>
+                          <p className="text-xs text-purple-700 font-medium">Delivered</p>
+                        </div>
+
+                        <div className="bg-red-50 rounded-lg p-3 text-center border border-red-100">
+                          <div className="flex items-center justify-center space-x-1 mb-1">
+                            <AlertTriangle className="h-4 w-4 text-red-600" />
+                            <span className="text-lg font-bold text-red-900">{campaign.messagesFailed || 0}</span>
+                          </div>
+                          <p className="text-xs text-red-700 font-medium">Failed</p>
+                        </div>
                       </div>
-                      
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-center space-x-1">
-                          <TrendingUp className="h-3 w-3 text-blue-600" />
-                          <span className="text-sm font-medium text-blue-600">{campaign.messagesDelivered}</span>
+
+                      {/* Success Rate Indicator */}
+                      <div className="flex items-center justify-between bg-gray-50 rounded-lg p-3 border">
+                        <div className="flex items-center space-x-2">
+                          <Target className="h-4 w-4 text-gray-600" />
+                          <span className="text-sm font-medium text-gray-700">Success Rate</span>
                         </div>
-                        <p className="text-xs text-muted-foreground">Delivered</p>
-                      </div>
-                      
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-center space-x-1">
-                          <XCircle className="h-3 w-3 text-red-600" />
-                          <span className="text-sm font-medium text-red-600">{campaign.messagesFailed}</span>
+                        <div className="flex items-center space-x-2">
+                          <span className={cn(
+                            "text-lg font-bold",
+                            successRate >= 90 ? "text-green-600" :
+                            successRate >= 70 ? "text-yellow-600" : "text-red-600"
+                          )}>
+                            {successRate}%
+                          </span>
+                          <div className={cn(
+                            "w-2 h-2 rounded-full",
+                            successRate >= 90 ? "bg-green-500" :
+                            successRate >= 70 ? "bg-yellow-500" : "bg-red-500"
+                          )} />
                         </div>
-                        <p className="text-xs text-muted-foreground">Failed</p>
                       </div>
                     </div>
 
-                    {/* Progress and Dates */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>Progress: {completionRate}%</span>
-                        <span>Success Rate: {successRate}%</span>
-                      </div>
-                      
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <div className="flex items-center space-x-1">
+                    {/* Timeline */}
+                    <div className="mt-4 pt-3 border-t border-gray-100">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center space-x-2 text-muted-foreground">
                           <Calendar className="h-3 w-3" />
                           <span>Created: {formatDate(campaign.createdAt)}</span>
                         </div>
                         {campaign.completedAt && (
-                          <div className="flex items-center space-x-1">
+                          <div className="flex items-center space-x-2 text-muted-foreground">
                             <Clock className="h-3 w-3" />
                             <span>Completed: {formatDate(campaign.completedAt)}</span>
                           </div>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedCampaign(campaign)
+                          }}
+                          className="h-6 px-2 text-xs"
+                        >
+                          <Eye className="h-3 w-3 mr-1" />
+                          Details
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -325,77 +458,150 @@ export function CampaignHistory({
           </div>
         </ScrollArea>
 
-        {/* Campaign Details Modal - Simple implementation */}
+        {/* Enhanced Campaign Details Modal */}
         {selectedCampaign && (
-          <div 
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
             onClick={() => setSelectedCampaign(null)}
           >
-            <div 
-              className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-96 overflow-y-auto"
+            <div
+              className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold">Campaign Details</h3>
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b">
+                <div>
+                  <h3 className="text-lg font-semibold">
+                    {selectedCampaign.campaignName || `Campaign ${selectedCampaign.id.slice(0, 8)}`}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Campaign ID: {selectedCampaign.id}
+                  </p>
+                </div>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setSelectedCampaign(null)}
                 >
-                  ×
+                  <XCircle className="h-4 w-4" />
                 </Button>
               </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm font-medium">
-                    {selectedCampaign.campaignName || `Campaign ${selectedCampaign.id.slice(0, 8)}`}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    ID: {selectedCampaign.id}
-                  </p>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="font-medium">Template</p>
-                    <p className="text-muted-foreground">{selectedCampaign.templateName}</p>
+
+              {/* Modal Content */}
+              <div className="p-6 space-y-6">
+                {/* Status and Template Info */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">Template Used</p>
+                    <div className="flex items-center space-x-2">
+                      <MessageSquare className="h-4 w-4 text-blue-600" />
+                      <span className="font-medium">{selectedCampaign.templateName}</span>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium">Status</p>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">Campaign Status</p>
                     <Badge variant="outline" className={getStatusConfig(selectedCampaign.status).color}>
                       {selectedCampaign.status.toUpperCase()}
                     </Badge>
                   </div>
-                  <div>
-                    <p className="font-medium">Recipients</p>
-                    <p className="text-muted-foreground">{selectedCampaign.totalRecipients}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium">Messages Sent</p>
-                    <p className="text-muted-foreground">{selectedCampaign.messagesSent}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium">Delivered</p>
-                    <p className="text-muted-foreground">{selectedCampaign.messagesDelivered}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium">Failed</p>
-                    <p className="text-muted-foreground">{selectedCampaign.messagesFailed}</p>
+                </div>
+
+                {/* Performance Metrics */}
+                <div className="space-y-4">
+                  <h4 className="font-medium flex items-center space-x-2">
+                    <BarChart3 className="h-4 w-4" />
+                    <span>Performance Metrics</span>
+                  </h4>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-blue-700">Total Recipients</span>
+                        <Users className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <p className="text-2xl font-bold text-blue-900">{selectedCampaign.totalRecipients || 0}</p>
+                    </div>
+
+                    <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-green-700">Messages Sent</span>
+                        <Send className="h-4 w-4 text-green-600" />
+                      </div>
+                      <p className="text-2xl font-bold text-green-900">{selectedCampaign.messagesSent || 0}</p>
+                    </div>
+
+                    <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-purple-700">Successfully Delivered</span>
+                        <CheckCircle className="h-4 w-4 text-purple-600" />
+                      </div>
+                      <p className="text-2xl font-bold text-purple-900">{selectedCampaign.messagesDelivered || 0}</p>
+                    </div>
+
+                    <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-red-700">Failed Messages</span>
+                        <AlertTriangle className="h-4 w-4 text-red-600" />
+                      </div>
+                      <p className="text-2xl font-bold text-red-900">{selectedCampaign.messagesFailed || 0}</p>
+                    </div>
                   </div>
                 </div>
-                
-                <div className="text-xs text-muted-foreground pt-2 border-t">
-                  <p>Created: {formatDate(selectedCampaign.createdAt)}</p>
-                  {selectedCampaign.completedAt && (
-                    <p>Completed: {formatDate(selectedCampaign.completedAt)}</p>
-                  )}
+
+                {/* Success Rate Visualization */}
+                <div className="space-y-4">
+                  <h4 className="font-medium flex items-center space-x-2">
+                    <Target className="h-4 w-4" />
+                    <span>Success Rate Analysis</span>
+                  </h4>
+
+                  <div className="bg-gray-50 rounded-lg p-4 border">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium">Delivery Success Rate</span>
+                      <span className={cn(
+                        "text-lg font-bold",
+                        getSuccessRate(selectedCampaign) >= 90 ? "text-green-600" :
+                        getSuccessRate(selectedCampaign) >= 70 ? "text-yellow-600" : "text-red-600"
+                      )}>
+                        {getSuccessRate(selectedCampaign)}%
+                      </span>
+                    </div>
+                    <Progress value={getSuccessRate(selectedCampaign)} className="h-3" />
+                    <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                      <span>{selectedCampaign.messagesDelivered || 0} delivered</span>
+                      <span>{selectedCampaign.messagesFailed || 0} failed</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Timeline */}
+                <div className="space-y-4">
+                  <h4 className="font-medium flex items-center space-x-2">
+                    <Clock className="h-4 w-4" />
+                    <span>Campaign Timeline</span>
+                  </h4>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-3 text-sm">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      <span className="text-muted-foreground">Created:</span>
+                      <span className="font-medium">{formatDate(selectedCampaign.createdAt)}</span>
+                    </div>
+                    {selectedCampaign.completedAt && (
+                      <div className="flex items-center space-x-3 text-sm">
+                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                        <span className="text-muted-foreground">Completed:</span>
+                        <span className="font-medium">{formatDate(selectedCampaign.completedAt)}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

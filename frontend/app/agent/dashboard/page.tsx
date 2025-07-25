@@ -15,6 +15,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { StatsCard } from '@/components/ui/StatsCard'
+import { HealthStatusCard } from '@/components/agent/HealthStatusCard'
+import { CostSummaryCard } from '@/components/agent/CostSummaryCard'
 import {
   Users,
   MessageSquare,
@@ -24,6 +26,8 @@ import {
   Phone,
   TrendingUp,
   TrendingDown,
+  Activity,
+  Wallet,
 } from 'lucide-react'
 
 // Mock data - this would come from your API
@@ -290,6 +294,12 @@ export default function AgentDashboard() {
       </div>
 
 
+
+      {/* Health & Cost Monitoring */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <HealthStatusCard />
+        <CostSummaryCard />
+      </div>
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

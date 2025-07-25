@@ -21,6 +21,8 @@ import { Badge } from '@/components/ui/badge'
 import { StatsCard } from '@/components/ui/StatsCard'
 import { Progress } from '@/components/ui/progress'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
+import { SystemHealthOverview } from '@/components/admin/SystemHealthOverview'
+import { CostAlertsPanel } from '@/components/admin/CostAlertsPanel'
 
 interface MetricCard {
   title: string
@@ -205,6 +207,12 @@ export default function AdminDashboard() {
             </Card>
           )
         })}
+      </div>
+
+      {/* WABA Health & Cost Monitoring */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SystemHealthOverview />
+        <CostAlertsPanel />
       </div>
 
       {/* System Performance */}

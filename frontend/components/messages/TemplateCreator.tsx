@@ -9,21 +9,32 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { 
-  Plus, 
-  Trash2, 
-  Eye, 
-  Send, 
-  AlertCircle, 
-  CheckCircle, 
+import {
+  Plus,
+  Trash2,
+  Eye,
+  Send,
+  AlertCircle,
+  CheckCircle,
   Loader2,
   Hash,
   MessageSquare,
-  Info
+  Info,
+  MousePointer,
+  ExternalLink,
+  Phone
 } from 'lucide-react'
 import messagesApi from '@/lib/api/services/messagesApi'
 import { showErrorToast, showSuccessToast } from '@/lib/utils/errorHandling'
 import { cn } from '@/lib/utils'
+
+interface TemplateButton {
+  id: string
+  type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER'
+  text: string
+  url?: string
+  phoneNumber?: string
+}
 
 interface TemplateCreatorProps {
   onTemplateCreated?: (templateId: string) => void
@@ -35,6 +46,7 @@ export function TemplateCreator({ onTemplateCreated, className }: TemplateCreato
   const [templateCategory, setTemplateCategory] = useState<'MARKETING' | 'UTILITY' | 'AUTHENTICATION'>('MARKETING')
   const [templateContent, setTemplateContent] = useState('')
   const [parameters, setParameters] = useState<string[]>([])
+  const [buttons, setButtons] = useState<TemplateButton[]>([])
   const [previewMode, setPreviewMode] = useState(false)
   const [creating, setCreating] = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
@@ -79,8 +91,41 @@ export function TemplateCreator({ onTemplateCreated, className }: TemplateCreato
       }
     }
 
+    // Button validation
+    if (buttons.length > 3) {
+      errors.push('Maximum 3 buttons allowed')
+    }
+
+    buttons.forEach((button, index) => {
+      if (!button.text.trim()) {
+        errors.push(`Button ${index + 1} text is required`)
+      } else if (button.text.length > 20) {
+        errors.push(`Button ${index + 1} text must be 20 characters or less`)
+      }
+
+      if (button.type === 'URL' && !button.url?.trim()) {
+        errors.push(`Button ${index + 1} URL is required`)
+      } else if (button.type === 'URL' && button.url && !isValidUrl(button.url)) {
+        errors.push(`Button ${index + 1} URL is invalid`)
+      }
+
+      if (button.type === 'PHONE_NUMBER' && !button.phoneNumber?.trim()) {
+        errors.push(`Button ${index + 1} phone number is required`)
+      }
+    })
+
     setValidationErrors(errors)
     return errors.length === 0
+  }
+
+  // Helper function to validate URLs
+  const isValidUrl = (url: string) => {
+    try {
+      new URL(url)
+      return true
+    } catch {
+      return false
+    }
   }
 
   // Add parameter
@@ -100,6 +145,30 @@ export function TemplateCreator({ onTemplateCreated, className }: TemplateCreato
     setParameters(newParams)
   }
 
+  // Add button
+  const addButton = () => {
+    if (buttons.length >= 3) return
+
+    const newButton: TemplateButton = {
+      id: `btn_${Date.now()}`,
+      type: 'QUICK_REPLY',
+      text: ''
+    }
+    setButtons([...buttons, newButton])
+  }
+
+  // Remove button
+  const removeButton = (index: number) => {
+    setButtons(buttons.filter((_, i) => i !== index))
+  }
+
+  // Update button
+  const updateButton = (index: number, updates: Partial<TemplateButton>) => {
+    const newButtons = [...buttons]
+    newButtons[index] = { ...newButtons[index], ...updates }
+    setButtons(newButtons)
+  }
+
   // Generate preview
   const getPreview = () => {
     let preview = templateContent
@@ -109,6 +178,20 @@ export function TemplateCreator({ onTemplateCreated, className }: TemplateCreato
       preview = preview.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), sampleValue)
     })
     return preview
+  }
+
+  // Get button icon
+  const getButtonIcon = (type: TemplateButton['type']) => {
+    switch (type) {
+      case 'QUICK_REPLY':
+        return <MousePointer className="h-3 w-3" />
+      case 'URL':
+        return <ExternalLink className="h-3 w-3" />
+      case 'PHONE_NUMBER':
+        return <Phone className="h-3 w-3" />
+      default:
+        return <MousePointer className="h-3 w-3" />
+    }
   }
 
   // Create template
@@ -125,8 +208,9 @@ export function TemplateCreator({ onTemplateCreated, className }: TemplateCreato
         templateCategory,
         templateContent: templateContent.trim(),
         templateParams: parameters.filter(p => p.trim()),
+        templateButtons: buttons.length > 0 ? buttons : undefined,
         languageCode: 'en',
-        templateType: 'TEXT'
+        templateType: buttons.length > 0 ? 'INTERACTIVE' : 'TEXT'
       })
 
       showSuccessToast('Template created successfully! It will be available after approval.')
@@ -135,6 +219,7 @@ export function TemplateCreator({ onTemplateCreated, className }: TemplateCreato
       setTemplateName('')
       setTemplateContent('')
       setParameters([])
+      setButtons([])
       setValidationErrors([])
       setPreviewMode(false)
 
@@ -287,6 +372,113 @@ export function TemplateCreator({ onTemplateCreated, className }: TemplateCreato
                 </p>
               )}
             </div>
+
+            {/* Buttons */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center space-x-2">
+                  <MousePointer className="h-4 w-4" />
+                  <span>Interactive Buttons</span>
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addButton}
+                  disabled={buttons.length >= 3}
+                  data-testid="add-button-btn"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Button
+                </Button>
+              </div>
+
+              {buttons.map((button, index) => (
+                <div key={button.id} className="p-3 border rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="outline" className="text-xs">
+                      Button {index + 1}
+                    </Badge>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeButton(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Button Type</Label>
+                      <Select
+                        value={button.type}
+                        onValueChange={(value: TemplateButton['type']) =>
+                          updateButton(index, { type: value })
+                        }
+                      >
+                        <SelectTrigger className="h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="QUICK_REPLY">Quick Reply</SelectItem>
+                          <SelectItem value="URL">URL Button</SelectItem>
+                          <SelectItem value="PHONE_NUMBER">Phone Call</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Button Text</Label>
+                      <Input
+                        placeholder="e.g., Book Now"
+                        value={button.text}
+                        onChange={(e) => updateButton(index, { text: e.target.value })}
+                        maxLength={20}
+                        className="h-8"
+                      />
+                    </div>
+                  </div>
+
+                  {button.type === 'URL' && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">URL</Label>
+                      <Input
+                        placeholder="https://example.com"
+                        value={button.url || ''}
+                        onChange={(e) => updateButton(index, { url: e.target.value })}
+                        className="h-8"
+                      />
+                    </div>
+                  )}
+
+                  {button.type === 'PHONE_NUMBER' && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Phone Number</Label>
+                      <Input
+                        placeholder="+1234567890"
+                        value={button.phoneNumber || ''}
+                        onChange={(e) => updateButton(index, { phoneNumber: e.target.value })}
+                        className="h-8"
+                      />
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {buttons.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  No buttons defined. Add buttons to make your template interactive.
+                </p>
+              )}
+
+              {buttons.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {buttons.length}/3 buttons • Quick Reply buttons get higher engagement rates
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Preview */}
@@ -323,10 +515,25 @@ export function TemplateCreator({ onTemplateCreated, className }: TemplateCreato
                         Enter template content to see preview
                       </p>
                     )}
+
+                    {/* Button Preview */}
+                    {buttons.length > 0 && (
+                      <div className="mt-3 pt-3 border-t space-y-2">
+                        {buttons.map((button, index) => (
+                          <div
+                            key={button.id}
+                            className="flex items-center justify-center p-2 bg-blue-50 border border-blue-200 rounded text-blue-700 text-sm font-medium cursor-pointer hover:bg-blue-100 transition-colors"
+                          >
+                            {getButtonIcon(button.type)}
+                            <span className="ml-2">{button.text || `Button ${index + 1}`}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center justify-between mt-2 text-xs text-green-600">
                     <Badge variant="outline" className="text-xs">
-                      {templateCategory}
+                      {buttons.length > 0 ? 'INTERACTIVE' : templateCategory}
                     </Badge>
                     <span>{templateContent.length} characters</span>
                   </div>

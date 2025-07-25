@@ -62,11 +62,20 @@ export interface SendBulkMessageRequest {
   campaignName?: string
 }
 
+export interface TemplateButton {
+  id: string
+  type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER'
+  text: string
+  url?: string
+  phoneNumber?: string
+}
+
 export interface CreateTemplateRequest {
   templateName: string
   templateCategory: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
   templateContent: string
   templateParams?: string[]
+  templateButtons?: TemplateButton[]
   languageCode?: string
   templateType?: string
 }

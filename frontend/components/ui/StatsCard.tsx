@@ -75,10 +75,10 @@ export function StatsCard({
           <div className="flex items-center text-xs space-x-2">
             {trend !== undefined && (
               <span className={cn(
-                'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-all duration-200',
-                isTrendPositive 
-                  ? 'text-green-700 bg-green-100 dark:text-green-400 dark:bg-green-900/20' 
-                  : 'text-red-700 bg-red-100 dark:text-red-400 dark:bg-red-900/20'
+                'inline-flex items-center text-xs font-medium transition-all duration-200',
+                isTrendPositive
+                  ? 'text-green-600 dark:text-green-400'
+                  : 'text-red-600 dark:text-red-400'
               )}>
                 {isTrendPositive ? (
                   <ArrowUpIcon className="h-3 w-3 mr-1" />
