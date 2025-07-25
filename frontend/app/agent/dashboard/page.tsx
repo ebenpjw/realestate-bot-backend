@@ -14,6 +14,7 @@ import { LiveActivityFeed } from '@/components/ui/RealTimeStatus'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { StatsCard } from '@/components/ui/StatsCard'
 import {
   Users,
   MessageSquare,
@@ -88,6 +89,14 @@ const mockDashboardData = {
       status: 'pending',
     },
   ],
+}
+
+// Helper function to get time-based greeting
+function getTimeOfDay() {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'morning'
+  if (hour < 17) return 'afternoon'
+  return 'evening'
 }
 
 export default function AgentDashboard() {
@@ -227,53 +236,55 @@ export default function AgentDashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-fade-in">
       {/* Welcome Header */}
-      <Card className="bg-gradient-to-r from-primary to-primary/90 text-primary-foreground border-0">
-        <CardContent className="p-6">
-          <h1 className="text-2xl font-bold">
-            Good morning, {user?.full_name?.split(' ')[0] || 'Agent'}! 👋
-          </h1>
-          <p className="mt-2 text-primary-foreground/80">
-            You have {dashboardData.metrics.activeConversations} active conversations and {dashboardData.metrics.appointmentsToday} appointments today.
-          </p>
+      <Card className="bg-gradient-to-br from-primary via-primary/95 to-primary/80 text-primary-foreground border-0 shadow-card-hover overflow-hidden relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
+        <CardContent className="p-8 relative">
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-3xl font-bold mb-2 animate-slide-up">
+                Good {getTimeOfDay()}, {user?.full_name?.split(' ')[0] || 'Agent'}! 👋
+              </h1>
+              <p className="text-lg text-primary-foreground/90 font-medium animate-slide-up" style={{ animationDelay: '0.1s' }}>
+                You have <span className="font-bold">{dashboardData.metrics.activeConversations}</span> active conversations and <span className="font-bold">{dashboardData.metrics.appointmentsToday}</span> appointments today.
+              </p>
+            </div>
+            <div className="hidden sm:block animate-float">
+              <div className="h-16 w-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                <Users className="h-8 w-8 text-primary-foreground" />
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {metrics.map((metric) => {
+        {metrics.map((metric, index) => {
           const Icon = metric.icon
-          const TrendIcon = metric.changeType === 'positive' ? TrendingUp :
-                          metric.changeType === 'negative' ? TrendingDown : null
+          const trendValue = metric.changeType === 'positive' ?
+            parseFloat(metric.change.replace(/[^0-9.-]/g, '')) :
+            metric.changeType === 'negative' ?
+            -parseFloat(metric.change.replace(/[^0-9.-]/g, '')) :
+            undefined
+
           return (
-            <Card key={metric.name}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">{metric.name}</p>
-                    <p className="text-2xl font-bold">{metric.value}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Icon className="h-6 w-6 text-primary" />
-                  </div>
-                </div>
-                <div className="mt-4 flex items-center">
-                  {TrendIcon && (
-                    <TrendIcon className={`h-4 w-4 mr-1 ${
-                      metric.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                    }`} />
-                  )}
-                  <span className={`text-sm font-medium ${
-                    metric.changeType === 'positive' ? 'text-green-600' :
-                    metric.changeType === 'negative' ? 'text-red-600' :
-                    'text-muted-foreground'
-                  }`}>
-                    {metric.change}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
+            <div
+              key={metric.name}
+              className="animate-slide-up"
+              style={{ animationDelay: `${index * 0.1}s` }}
+            >
+              <StatsCard
+                title={metric.name}
+                value={metric.value}
+                icon={<Icon className="h-5 w-5" />}
+                trend={trendValue}
+                trendLabel={metric.change}
+                loading={loading}
+                className="h-full"
+              />
+            </div>
           )
         })}
       </div>

@@ -23,31 +23,43 @@ interface PerformanceMetricsProps {
 }
 
 export function PerformanceMetrics({ data }: PerformanceMetricsProps) {
+  // Helper function to safely calculate percentages
+  const safePercentage = (numerator: number, denominator: number): number => {
+    if (denominator === 0 || isNaN(numerator) || isNaN(denominator)) return 0
+    return Math.round((numerator / denominator) * 100)
+  }
+
+  // Helper function to safely calculate averages
+  const safeAverage = (total: number, count: number): number => {
+    if (count === 0 || isNaN(total) || isNaN(count)) return 0
+    return Math.round(total / count)
+  }
+
   const metrics = [
     {
       name: 'Lead Qualification Rate',
-      value: `${Math.round((data.qualifiedLeads / data.totalLeads) * 100)}%`,
+      value: `${safePercentage(data.qualifiedLeads, data.totalLeads)}%`,
       description: `${data.qualifiedLeads} of ${data.totalLeads} leads qualified`,
       icon: UserGroupIcon,
       color: 'blue',
     },
     {
       name: 'Booking Conversion Rate',
-      value: `${Math.round((data.appointmentsBooked / data.qualifiedLeads) * 100)}%`,
+      value: `${safePercentage(data.appointmentsBooked, data.qualifiedLeads)}%`,
       description: `${data.appointmentsBooked} appointments from ${data.qualifiedLeads} qualified leads`,
       icon: CalendarDaysIcon,
       color: 'green',
     },
     {
       name: 'Message Efficiency',
-      value: `${Math.round(data.totalMessages / data.totalLeads)}`,
+      value: `${safeAverage(data.totalMessages, data.totalLeads)}`,
       description: `Average messages per lead`,
       icon: ChatBubbleLeftRightIcon,
       color: 'purple',
     },
     {
       name: 'Completion Rate',
-      value: `${Math.round((data.completedAppointments / data.appointmentsBooked) * 100)}%`,
+      value: `${safePercentage(data.completedAppointments, data.appointmentsBooked)}%`,
       description: `${data.completedAppointments} of ${data.appointmentsBooked} appointments completed`,
       icon: CheckCircleIcon,
       color: 'emerald',
@@ -91,12 +103,12 @@ export function PerformanceMetrics({ data }: PerformanceMetricsProps) {
           <div>
             <div className="flex justify-between text-sm font-medium text-gray-900 mb-1">
               <span>Lead to Qualified</span>
-              <span>{Math.round((data.qualifiedLeads / data.totalLeads) * 100)}%</span>
+              <span>{safePercentage(data.qualifiedLeads, data.totalLeads)}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
+              <div
                 className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(data.qualifiedLeads / data.totalLeads) * 100}%` }}
+                style={{ width: `${safePercentage(data.qualifiedLeads, data.totalLeads)}%` }}
               />
             </div>
           </div>
@@ -104,12 +116,12 @@ export function PerformanceMetrics({ data }: PerformanceMetricsProps) {
           <div>
             <div className="flex justify-between text-sm font-medium text-gray-900 mb-1">
               <span>Qualified to Booked</span>
-              <span>{Math.round((data.appointmentsBooked / data.qualifiedLeads) * 100)}%</span>
+              <span>{safePercentage(data.appointmentsBooked, data.qualifiedLeads)}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
+              <div
                 className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(data.appointmentsBooked / data.qualifiedLeads) * 100}%` }}
+                style={{ width: `${safePercentage(data.appointmentsBooked, data.qualifiedLeads)}%` }}
               />
             </div>
           </div>
@@ -117,12 +129,12 @@ export function PerformanceMetrics({ data }: PerformanceMetricsProps) {
           <div>
             <div className="flex justify-between text-sm font-medium text-gray-900 mb-1">
               <span>Booked to Completed</span>
-              <span>{Math.round((data.completedAppointments / data.appointmentsBooked) * 100)}%</span>
+              <span>{safePercentage(data.completedAppointments, data.appointmentsBooked)}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
+              <div
                 className="bg-emerald-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(data.completedAppointments / data.appointmentsBooked) * 100}%` }}
+                style={{ width: `${safePercentage(data.completedAppointments, data.appointmentsBooked)}%` }}
               />
             </div>
           </div>

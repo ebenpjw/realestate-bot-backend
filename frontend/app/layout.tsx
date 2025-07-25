@@ -14,6 +14,8 @@ export const dynamic = 'force-dynamic'
 const fontSans = Inter({
   subsets: ['latin'],
   variable: '--font-sans',
+  display: 'swap',
+  preload: true,
 })
 
 const fontMono = JetBrains_Mono({

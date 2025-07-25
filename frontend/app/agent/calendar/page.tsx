@@ -163,7 +163,7 @@ export default function AgentCalendar() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="h-full flex flex-col space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -177,7 +177,7 @@ export default function AgentCalendar() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
         {/* Calendar */}
         <div className="lg:col-span-2">
           <Calendar

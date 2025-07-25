@@ -132,7 +132,7 @@ export function MessageComposer({
 
   if (!selectedTemplate) {
     return (
-      <Card className={cn("h-full", className)}>
+      <Card className={cn("h-full flex flex-col", className)}>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <MessageSquare className="h-5 w-5" />
@@ -142,8 +142,8 @@ export function MessageComposer({
             Select a template to start composing your message
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="text-center py-12 text-muted-foreground">
+        <CardContent className="flex-1 flex items-center justify-center">
+          <div className="text-center text-muted-foreground">
             <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
             <p className="text-lg font-medium mb-2">No Template Selected</p>
             <p className="text-sm">
@@ -156,7 +156,7 @@ export function MessageComposer({
   }
 
   return (
-    <Card className={cn("h-full", className)}>
+    <Card className={cn("h-full flex flex-col", className)}>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -179,7 +179,7 @@ export function MessageComposer({
         </CardDescription>
       </CardHeader>
       
-      <CardContent className="space-y-6">
+      <CardContent className="flex-1 flex flex-col space-y-6">
         {/* Template Info */}
         <div className="p-3 bg-muted/50 rounded-lg border" data-testid="selected-template">
           <div className="flex items-center justify-between mb-2">

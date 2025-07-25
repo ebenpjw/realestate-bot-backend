@@ -15,6 +15,11 @@ import {
   TagIcon,
 } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
+import { EditableField } from '@/components/ui/EditableField'
+import { openWhatsApp, initiateCall } from '@/lib/utils/phoneUtils'
+import { AppointmentScheduler } from './AppointmentScheduler'
+import { leadsApi } from '@/lib/api/services'
+import { showSuccessToast, showErrorToast } from '@/lib/utils/errorHandling'
 
 interface Lead {
   id: string
@@ -36,10 +41,12 @@ interface LeadDetailsProps {
   lead: Lead
   onClose: () => void
   onStatusUpdate: (status: string) => void
+  onLeadUpdate?: (updates: Partial<Lead>) => void
 }
 
-export function LeadDetails({ lead, onClose, onStatusUpdate }: LeadDetailsProps) {
+export function LeadDetails({ lead, onClose, onStatusUpdate, onLeadUpdate }: LeadDetailsProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'notes'>('overview')
+  const [schedulingAppointment, setSchedulingAppointment] = useState(false)
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -66,6 +73,55 @@ export function LeadDetails({ lead, onClose, onStatusUpdate }: LeadDetailsProps)
     { value: 'lost', label: 'Lost' },
   ]
 
+  const intentOptions = [
+    { value: 'buy', label: 'Buy' },
+    { value: 'rent', label: 'Rent' },
+    { value: 'browse', label: 'Browse' },
+    { value: 'invest', label: 'Invest' },
+  ]
+
+  const timelineOptions = [
+    { value: 'immediate', label: 'Immediate (within 1 month)' },
+    { value: 'short_term', label: 'Short term (1-3 months)' },
+    { value: 'medium_term', label: 'Medium term (3-6 months)' },
+    { value: 'long_term', label: 'Long term (6+ months)' },
+    { value: 'flexible', label: 'Flexible' },
+  ]
+
+  // Field update handlers
+  const handleFieldUpdate = async (field: string, value: string) => {
+    try {
+      await leadsApi.updateLead(lead.id, { [field]: value })
+
+      if (onLeadUpdate) {
+        onLeadUpdate({ [field]: value } as Partial<Lead>)
+      }
+
+      showSuccessToast(`${field} updated successfully`)
+    } catch (error) {
+      console.error(`Error updating ${field}:`, error)
+      showErrorToast(`Failed to update ${field}`)
+      throw error
+    }
+  }
+
+  // Validation functions
+  const validateBudget = (value: string): string | null => {
+    if (!value) return null
+    const numValue = parseFloat(value.replace(/[^0-9.]/g, ''))
+    if (isNaN(numValue) || numValue < 0) {
+      return 'Please enter a valid budget amount'
+    }
+    return null
+  }
+
+  const formatBudget = (value: string): string => {
+    if (!value) return 'Not specified'
+    const numValue = parseFloat(value.replace(/[^0-9.]/g, ''))
+    if (isNaN(numValue)) return value
+    return `$${numValue.toLocaleString()}`
+  }
+
   const tabs = [
     { id: 'overview', name: 'Overview' },
     { id: 'activity', name: 'Activity' },
@@ -73,6 +129,7 @@ export function LeadDetails({ lead, onClose, onStatusUpdate }: LeadDetailsProps)
   ]
 
   return (
+    <>
     <Transition appear show={true} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
         <Transition.Child
@@ -145,15 +202,24 @@ export function LeadDetails({ lead, onClose, onStatusUpdate }: LeadDetailsProps)
                       </select>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <button className="btn-secondary flex items-center">
+                      <button
+                        onClick={() => openWhatsApp(lead.phoneNumber, lead.fullName)}
+                        className="btn-secondary flex items-center"
+                      >
                         <ChatBubbleLeftRightIcon className="h-4 w-4 mr-2" />
                         Message
                       </button>
-                      <button className="btn-secondary flex items-center">
+                      <button
+                        onClick={() => initiateCall(lead.phoneNumber)}
+                        className="btn-secondary flex items-center"
+                      >
                         <PhoneIcon className="h-4 w-4 mr-2" />
                         Call
                       </button>
-                      <button className="btn-primary flex items-center">
+                      <button
+                        onClick={() => setSchedulingAppointment(true)}
+                        className="btn-primary flex items-center"
+                      >
                         <CalendarDaysIcon className="h-4 w-4 mr-2" />
                         Schedule
                       </button>
@@ -190,31 +256,46 @@ export function LeadDetails({ lead, onClose, onStatusUpdate }: LeadDetailsProps)
                         <div className="space-y-4">
                           <div className="flex items-center">
                             <TagIcon className="h-5 w-5 text-gray-400 mr-3" />
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">Intent</p>
-                              <p className="text-sm text-gray-600 capitalize">
-                                {lead.intent || 'Not specified'}
-                              </p>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-900 mb-1">Intent</p>
+                              <EditableField
+                                value={lead.intent}
+                                onSave={(value) => handleFieldUpdate('intent', value)}
+                                type="select"
+                                options={intentOptions}
+                                placeholder="Select intent"
+                                displayClassName="text-sm text-gray-600 capitalize"
+                              />
                             </div>
                           </div>
-                          
+
                           <div className="flex items-center">
                             <CurrencyDollarIcon className="h-5 w-5 text-gray-400 mr-3" />
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">Budget</p>
-                              <p className="text-sm text-gray-600">
-                                {lead.budget || 'Not specified'}
-                              </p>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-900 mb-1">Budget</p>
+                              <EditableField
+                                value={lead.budget}
+                                onSave={(value) => handleFieldUpdate('budget', value)}
+                                type="text"
+                                placeholder="Enter budget"
+                                validation={validateBudget}
+                                formatDisplay={formatBudget}
+                                displayClassName="text-sm text-gray-600"
+                              />
                             </div>
                           </div>
-                          
+
                           <div className="flex items-center">
                             <MapPinIcon className="h-5 w-5 text-gray-400 mr-3" />
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">Location Preference</p>
-                              <p className="text-sm text-gray-600">
-                                {lead.locationPreference || 'Not specified'}
-                              </p>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-900 mb-1">Location Preference</p>
+                              <EditableField
+                                value={lead.locationPreference}
+                                onSave={(value) => handleFieldUpdate('locationPreference', value)}
+                                type="text"
+                                placeholder="Enter preferred location"
+                                displayClassName="text-sm text-gray-600"
+                              />
                             </div>
                           </div>
                         </div>
@@ -222,11 +303,16 @@ export function LeadDetails({ lead, onClose, onStatusUpdate }: LeadDetailsProps)
                         <div className="space-y-4">
                           <div className="flex items-center">
                             <ClockIcon className="h-5 w-5 text-gray-400 mr-3" />
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">Timeline</p>
-                              <p className="text-sm text-gray-600">
-                                {lead.timeline || 'Not specified'}
-                              </p>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-900 mb-1">Timeline</p>
+                              <EditableField
+                                value={lead.timeline}
+                                onSave={(value) => handleFieldUpdate('timeline', value)}
+                                type="select"
+                                options={timelineOptions}
+                                placeholder="Select timeline"
+                                displayClassName="text-sm text-gray-600"
+                              />
                             </div>
                           </div>
                           
@@ -312,5 +398,17 @@ export function LeadDetails({ lead, onClose, onStatusUpdate }: LeadDetailsProps)
         </div>
       </Dialog>
     </Transition>
+
+    {/* Appointment Scheduler Modal */}
+    <AppointmentScheduler
+      lead={lead}
+      isOpen={schedulingAppointment}
+      onClose={() => setSchedulingAppointment(false)}
+      onAppointmentScheduled={(appointmentId) => {
+        setSchedulingAppointment(false)
+        // Optionally update lead status or trigger refresh
+      }}
+    />
+  </>
   )
 }

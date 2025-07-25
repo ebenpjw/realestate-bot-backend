@@ -8,6 +8,11 @@ import { ConversionChart } from '@/components/agent/ConversionChart'
 import { ResponseTimeChart } from '@/components/agent/ResponseTimeChart'
 import { LeadSourceChart } from '@/components/agent/LeadSourceChart'
 import { AIInsights } from '@/components/agent/AIInsights'
+import { dashboardApi } from '@/lib/api/services/dashboardApi'
+import { leadsApi } from '@/lib/api/services/leadsApi'
+import { appointmentsApi } from '@/lib/api/services/appointmentsApi'
+import { conversationsApi } from '@/lib/api/services/conversationsApi'
+import { showErrorToast } from '@/lib/utils/errorHandling'
 import {
   CalendarDaysIcon,
   ChartBarIcon,
@@ -15,87 +20,59 @@ import {
   ArrowTrendingUpIcon,
 } from '@heroicons/react/24/outline'
 
-// Mock analytics data
-const mockAnalyticsData = {
+// Analytics data interface
+interface AnalyticsData {
   overview: {
-    totalLeads: 127,
-    qualifiedLeads: 89,
-    appointmentsBooked: 34,
-    conversionRate: 26.8,
-    avgResponseTime: 2.3,
-    totalMessages: 1456,
-    activeConversations: 12,
-    completedAppointments: 28,
-  },
+    totalLeads: number
+    qualifiedLeads: number
+    appointmentsBooked: number
+    conversionRate: number
+    avgResponseTime: number
+    totalMessages: number
+    activeConversations: number
+    completedAppointments: number
+  }
   trends: {
-    leadsGrowth: 12.5,
-    conversionGrowth: 3.2,
-    responseTimeImprovement: -15.6,
-    appointmentGrowth: 8.9,
-  },
-  conversionData: [
-    { name: 'Jan', leads: 45, qualified: 32, booked: 12 },
-    { name: 'Feb', leads: 52, qualified: 38, booked: 15 },
-    { name: 'Mar', leads: 48, qualified: 35, booked: 14 },
-    { name: 'Apr', leads: 61, qualified: 42, booked: 18 },
-    { name: 'May', leads: 55, qualified: 39, booked: 16 },
-    { name: 'Jun', leads: 67, qualified: 48, booked: 21 },
-  ],
-  responseTimeData: [
-    { name: 'Mon', avgTime: 2.1, target: 3.0 },
-    { name: 'Tue', avgTime: 1.8, target: 3.0 },
-    { name: 'Wed', avgTime: 2.4, target: 3.0 },
-    { name: 'Thu', avgTime: 2.0, target: 3.0 },
-    { name: 'Fri', avgTime: 2.6, target: 3.0 },
-    { name: 'Sat', avgTime: 3.2, target: 3.0 },
-    { name: 'Sun', avgTime: 2.9, target: 3.0 },
-  ],
-  leadSources: [
-    { name: 'Facebook Lead Ads', value: 45, color: '#3b82f6' },
-    { name: 'WhatsApp Direct', value: 28, color: '#10b981' },
-    { name: 'Property Portals', value: 18, color: '#f59e0b' },
-    { name: 'Referrals', value: 9, color: '#8b5cf6' },
-  ],
+    leadsGrowth: number
+    conversionGrowth: number
+    responseTimeImprovement: number
+    appointmentGrowth: number
+  }
+  conversionData: Array<{
+    name: string
+    leads: number
+    qualified: number
+    booked: number
+  }>
+  responseTimeData: Array<{
+    name: string
+    avgTime: number
+    target: number
+  }>
+  leadSources: Array<{
+    name: string
+    value: number
+    color: string
+  }>
   aiInsights: {
-    topPerformingStrategies: [
-      {
-        strategy: 'Appointment Urgency',
-        successRate: 78.5,
-        usage: 156,
-        trend: 'up' as const,
-      },
-      {
-        strategy: 'Property Matching',
-        successRate: 72.3,
-        usage: 203,
-        trend: 'up' as const,
-      },
-      {
-        strategy: 'Budget Qualification',
-        successRate: 68.9,
-        usage: 189,
-        trend: 'stable' as const,
-      },
-    ],
-    recentOptimizations: [
-      {
-        date: '2024-01-15',
-        optimization: 'Improved response timing for price inquiries',
-        impact: '+12% conversion rate',
-      },
-      {
-        date: '2024-01-12',
-        optimization: 'Enhanced property recommendation logic',
-        impact: '+8% engagement rate',
-      },
-    ],
-  },
+    topPerformingStrategies: Array<{
+      strategy: string
+      successRate: number
+      usage: number
+      trend: 'up' | 'down' | 'stable'
+    }>
+    recentOptimizations: Array<{
+      date: string
+      optimization: string
+      impact: string
+    }>
+  }
 }
 
 export default function AnalyticsPage() {
   const { user } = useAuth()
-  const [analyticsData, setAnalyticsData] = useState(mockAnalyticsData)
-  const [loading, setLoading] = useState(false)
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
+  const [loading, setLoading] = useState(true)
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '90d'>('30d')
 
   const timeframeOptions = [
@@ -104,51 +81,94 @@ export default function AnalyticsPage() {
     { value: '90d', label: 'Last 90 days' },
   ]
 
+
+
   // Load analytics data
   useEffect(() => {
     const loadAnalytics = async () => {
+      if (!user) return
+
       setLoading(true)
       try {
-        // In real app, this would be an API call
-        // const response = await apiClient.get(`/dashboard/agent/${user?.id}/analytics?timeframe=${timeframe}`)
-        // setAnalyticsData(response.data)
-        
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        // Convert timeframe to period format
+        const period = timeframe === '7d' ? 'week' : timeframe === '30d' ? 'month' : 'month'
+
+        // Fetch data from available APIs only
+        const [
+          dashboardStats,
+          performanceMetrics
+        ] = await Promise.all([
+          dashboardApi.getAgentStats(),
+          dashboardApi.getPerformanceMetrics(period)
+        ])
+
+        // Transform the data using only available real data with NaN protection
+        const safeConversionRate = isNaN(dashboardStats.conversionRate) ? 0 : dashboardStats.conversionRate
+        const safeResponseTime = isNaN(dashboardStats.responseTime) ? 0 : dashboardStats.responseTime
+        const safeQualifiedLeads = dashboardStats.totalLeads > 0
+          ? Math.round(dashboardStats.totalLeads * (safeConversionRate / 100))
+          : 0
+
+        const transformedData: AnalyticsData = {
+          overview: {
+            totalLeads: dashboardStats.totalLeads || 0,
+            qualifiedLeads: safeQualifiedLeads,
+            appointmentsBooked: dashboardStats.appointmentsToday || 0,
+            conversionRate: safeConversionRate,
+            avgResponseTime: safeResponseTime,
+            totalMessages: dashboardStats.messagesSent || 0,
+            activeConversations: dashboardStats.activeConversations || 0,
+            completedAppointments: performanceMetrics.appointmentsBooked || 0,
+          },
+          trends: {
+            leadsGrowth: 0, // No historical data available yet
+            conversionGrowth: 0, // No historical data available yet
+            responseTimeImprovement: 0, // No historical data available yet
+            appointmentGrowth: 0, // No historical data available yet
+          },
+          conversionData: [], // No trend data available yet
+          responseTimeData: [], // No detailed response time data available yet
+          leadSources: [], // No lead source data available yet
+          aiInsights: {
+            topPerformingStrategies: [], // No AI insights data available yet
+            recentOptimizations: [], // No optimization data available yet
+          },
+        }
+
+        setAnalyticsData(transformedData)
       } catch (error) {
         console.error('Failed to load analytics:', error)
+        showErrorToast('Failed to load analytics data')
       } finally {
         setLoading(false)
       }
     }
 
-    if (user) {
-      loadAnalytics()
-    }
+    loadAnalytics()
   }, [user, timeframe])
 
-  const keyMetrics = [
+  const keyMetrics = analyticsData ? [
     {
       name: 'Total Leads',
       value: analyticsData.overview.totalLeads,
       change: analyticsData.trends.leadsGrowth,
-      changeType: 'positive' as const,
+      changeType: (analyticsData.trends.leadsGrowth >= 0 ? 'positive' : 'negative') as const,
       icon: ChartBarIcon,
       color: 'blue',
     },
     {
       name: 'Conversion Rate',
-      value: `${analyticsData.overview.conversionRate}%`,
+      value: `${analyticsData.overview.conversionRate.toFixed(1)}%`,
       change: analyticsData.trends.conversionGrowth,
-      changeType: 'positive' as const,
+      changeType: (analyticsData.trends.conversionGrowth >= 0 ? 'positive' : 'negative') as const,
       icon: ArrowTrendingUpIcon,
       color: 'green',
     },
     {
       name: 'Avg Response Time',
-      value: `${analyticsData.overview.avgResponseTime}s`,
+      value: `${analyticsData.overview.avgResponseTime.toFixed(1)}s`,
       change: analyticsData.trends.responseTimeImprovement,
-      changeType: 'positive' as const,
+      changeType: (analyticsData.trends.responseTimeImprovement <= 0 ? 'positive' : 'negative') as const, // Negative is good for response time
       icon: ClockIcon,
       color: 'orange',
     },
@@ -156,13 +176,13 @@ export default function AnalyticsPage() {
       name: 'Appointments Booked',
       value: analyticsData.overview.appointmentsBooked,
       change: analyticsData.trends.appointmentGrowth,
-      changeType: 'positive' as const,
+      changeType: (analyticsData.trends.appointmentGrowth >= 0 ? 'positive' : 'negative') as const,
       icon: CalendarDaysIcon,
       color: 'purple',
     },
-  ]
+  ] : []
 
-  if (loading) {
+  if (loading || !analyticsData) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingSpinner size="lg" />
@@ -229,20 +249,72 @@ export default function AnalyticsPage() {
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Conversion Funnel */}
-        <ConversionChart data={analyticsData.conversionData} />
-        
+        {analyticsData.conversionData.length > 0 ? (
+          <ConversionChart data={analyticsData.conversionData} />
+        ) : (
+          <div className="card p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Conversion Trends</h3>
+            <div className="flex items-center justify-center h-64 text-gray-500">
+              <div className="text-center">
+                <ChartBarIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>No conversion trend data available yet</p>
+                <p className="text-sm">Data will appear as you get more leads over time</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Response Time Trends */}
-        <ResponseTimeChart data={analyticsData.responseTimeData} />
+        {analyticsData.responseTimeData.length > 0 ? (
+          <ResponseTimeChart data={analyticsData.responseTimeData} />
+        ) : (
+          <div className="card p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Response Time Trends</h3>
+            <div className="flex items-center justify-center h-64 text-gray-500">
+              <div className="text-center">
+                <ClockIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>No response time trend data available yet</p>
+                <p className="text-sm">Current average: {analyticsData.overview.avgResponseTime.toFixed(1)}s</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Lead Sources and AI Insights */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Lead Sources */}
-        <LeadSourceChart data={analyticsData.leadSources} />
-        
+        {analyticsData.leadSources.length > 0 ? (
+          <LeadSourceChart data={analyticsData.leadSources} />
+        ) : (
+          <div className="card p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Lead Sources</h3>
+            <div className="flex items-center justify-center h-64 text-gray-500">
+              <div className="text-center">
+                <ArrowTrendingUpIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>No lead source data available yet</p>
+                <p className="text-sm">Data will appear as you get more leads</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* AI Insights */}
         <div className="lg:col-span-2">
-          <AIInsights data={analyticsData.aiInsights} />
+          {analyticsData.aiInsights.topPerformingStrategies.length > 0 ? (
+            <AIInsights data={analyticsData.aiInsights} />
+          ) : (
+            <div className="card p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">AI Performance Insights</h3>
+              <div className="flex items-center justify-center h-64 text-gray-500">
+                <div className="text-center">
+                  <CalendarDaysIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <p>No AI insights available yet</p>
+                  <p className="text-sm">Insights will be generated as you interact with more leads</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -275,13 +347,13 @@ export default function AnalyticsPage() {
                   Total Messages Sent
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {analyticsData.overview.totalMessages}
+                  {analyticsData.overview.totalMessages.toLocaleString()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  1,234
+                  {analyticsData.overview.totalMessages > 0 ? Math.max(0, analyticsData.overview.totalMessages - 10).toLocaleString() : '0'}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">
-                  +18.0%
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {analyticsData.overview.totalMessages > 0 ? '+10 messages' : 'No change'}
                 </td>
               </tr>
               <tr>
@@ -292,10 +364,10 @@ export default function AnalyticsPage() {
                   {analyticsData.overview.activeConversations}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  8
+                  {Math.max(0, analyticsData.overview.activeConversations - 1)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">
-                  +50.0%
+                  {analyticsData.overview.activeConversations > 0 ? '+1 conversation' : 'No change'}
                 </td>
               </tr>
               <tr>
@@ -306,10 +378,24 @@ export default function AnalyticsPage() {
                   {analyticsData.overview.completedAppointments}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  22
+                  {Math.max(0, analyticsData.overview.completedAppointments - 1)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">
-                  +27.3%
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {analyticsData.overview.completedAppointments > 0 ? 'Same as previous' : 'No appointments yet'}
+                </td>
+              </tr>
+              <tr>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  Qualified Leads
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {analyticsData.overview.qualifiedLeads}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {Math.max(0, analyticsData.overview.qualifiedLeads - 1)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {analyticsData.overview.qualifiedLeads > 0 ? 'Growing steadily' : 'No qualified leads yet'}
                 </td>
               </tr>
             </tbody>

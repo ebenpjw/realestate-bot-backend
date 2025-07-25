@@ -53,8 +53,10 @@ export default function AdminLayout({
         
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto">
-          <div className="p-6">
-            {children}
+          <div className="p-6 h-full flex flex-col">
+            <div className="flex-1">
+              {children}
+            </div>
           </div>
         </main>
       </div>

@@ -47,8 +47,13 @@ export function CampaignHistory({
   // Filter and sort campaigns
   const filteredCampaigns = campaigns
     .filter(campaign => {
-      const matchesSearch = campaign.campaignName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           campaign.templateName.toLowerCase().includes(searchTerm.toLowerCase())
+      // Safely handle potentially undefined/null values
+      const campaignName = campaign.campaignName || ''
+      const templateName = campaign.templateName || ''
+      const searchLower = searchTerm.toLowerCase()
+
+      const matchesSearch = campaignName.toLowerCase().includes(searchLower) ||
+                           templateName.toLowerCase().includes(searchLower)
       const matchesStatus = statusFilter === 'all' || campaign.status === statusFilter
       return matchesSearch && matchesStatus
     })
@@ -57,19 +62,19 @@ export function CampaignHistory({
         case 'campaignName':
           return (a.campaignName || '').localeCompare(b.campaignName || '')
         case 'templateName':
-          return a.templateName.localeCompare(b.templateName)
+          return (a.templateName || '').localeCompare(b.templateName || '')
         case 'status':
-          return a.status.localeCompare(b.status)
+          return (a.status || '').localeCompare(b.status || '')
         case 'totalRecipients':
-          return b.totalRecipients - a.totalRecipients
+          return (b.totalRecipients || 0) - (a.totalRecipients || 0)
         case 'createdAt':
         default:
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
       }
     })
 
-  // Get unique statuses
-  const statuses = Array.from(new Set(campaigns.map(c => c.status)))
+  // Get unique statuses (filter out undefined/null values)
+  const statuses = Array.from(new Set(campaigns.map(c => c.status).filter(Boolean)))
 
   // Get status color and icon
   const getStatusConfig = (status: string) => {

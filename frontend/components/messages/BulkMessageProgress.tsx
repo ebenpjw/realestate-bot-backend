@@ -54,14 +54,25 @@ export function BulkMessageProgress({
     const pollStatus = async () => {
       try {
         const campaign = await messagesApi.getCampaignStatus(progress.campaignId)
-        setCampaignStatus(campaign.status)
-        
-        // Update progress with latest data
+
+        if (!campaign) {
+          setError('Campaign not found')
+          return
+        }
+
+        setCampaignStatus(campaign.status || 'in_progress')
+
+        // Update progress with latest data (with safe fallbacks)
+        const messagesSent = campaign.messagesSent || 0
+        const messagesFailed = campaign.messagesFailed || 0
+        const totalRecipients = campaign.totalRecipients || 1
+        const calculatedProgress = Math.round(((messagesSent + messagesFailed) / totalRecipients) * 100)
+
         onProgressUpdate({
           ...progress,
-          sent: campaign.messagesSent,
-          failed: campaign.messagesFailed,
-          progress: Math.round(((campaign.messagesSent + campaign.messagesFailed) / campaign.totalRecipients) * 100)
+          sent: messagesSent,
+          failed: messagesFailed,
+          progress: calculatedProgress
         })
 
         // Handle completion
@@ -70,9 +81,10 @@ export function BulkMessageProgress({
             onComplete()
           }, 3000) // Show completion status for 3 seconds
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error polling campaign status:', error)
-        setError('Failed to get campaign status')
+        const errorMessage = error?.response?.data?.error || error?.message || 'Failed to get campaign status'
+        setError(errorMessage)
       }
     }
 
@@ -143,7 +155,12 @@ export function BulkMessageProgress({
 
   if (!progress) return null
 
-  const progressPercentage = progress.progress || Math.round(((progress.sent + progress.failed) / progress.total) * 100)
+  // Safely calculate progress percentage with fallbacks
+  const sent = progress.sent || 0
+  const failed = progress.failed || 0
+  const total = progress.total || 1 // Avoid division by zero
+  const calculatedProgress = Math.round(((sent + failed) / total) * 100)
+  const progressPercentage = progress.progress || calculatedProgress || 0
   const isActive = campaignStatus === 'in_progress'
   const isPaused = campaignStatus === 'paused'
   const isCompleted = campaignStatus === 'completed'
@@ -213,7 +230,7 @@ export function BulkMessageProgress({
           <div className="flex items-center justify-between text-sm">
             <span className={statusConfig.textColor}>Progress</span>
             <span className={statusConfig.textColor}>
-              {progress.sent + progress.failed} / {progress.total} ({progressPercentage}%)
+              {sent + failed} / {total} ({progressPercentage}%)
             </span>
           </div>
           <Progress 
@@ -227,23 +244,23 @@ export function BulkMessageProgress({
           <div className="space-y-1">
             <div className="flex items-center justify-center space-x-1">
               <CheckCircle className="h-4 w-4 text-green-600" />
-              <span className="text-lg font-semibold text-green-600">{progress.sent}</span>
+              <span className="text-lg font-semibold text-green-600">{sent}</span>
             </div>
             <p className="text-xs text-muted-foreground">Sent</p>
           </div>
-          
+
           <div className="space-y-1">
             <div className="flex items-center justify-center space-x-1">
               <XCircle className="h-4 w-4 text-red-600" />
-              <span className="text-lg font-semibold text-red-600">{progress.failed}</span>
+              <span className="text-lg font-semibold text-red-600">{failed}</span>
             </div>
             <p className="text-xs text-muted-foreground">Failed</p>
           </div>
-          
+
           <div className="space-y-1">
             <div className="flex items-center justify-center space-x-1">
               <Users className="h-4 w-4 text-blue-600" />
-              <span className="text-lg font-semibold text-blue-600">{progress.total}</span>
+              <span className="text-lg font-semibold text-blue-600">{total}</span>
             </div>
             <p className="text-xs text-muted-foreground">Total</p>
           </div>
@@ -263,7 +280,33 @@ export function BulkMessageProgress({
         {error && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>
+              {error}
+              <Button
+                onClick={() => {
+                  setError(null)
+                  // Retry polling
+                  if (progress?.campaignId) {
+                    const pollStatus = async () => {
+                      try {
+                        const campaign = await messagesApi.getCampaignStatus(progress.campaignId)
+                        if (campaign) {
+                          setCampaignStatus(campaign.status || 'in_progress')
+                        }
+                      } catch (err) {
+                        console.error('Retry failed:', err)
+                      }
+                    }
+                    pollStatus()
+                  }
+                }}
+                variant="outline"
+                size="sm"
+                className="ml-2"
+              >
+                Retry
+              </Button>
+            </AlertDescription>
           </Alert>
         )}
 

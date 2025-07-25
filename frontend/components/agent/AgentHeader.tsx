@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useAuth } from '@/lib/auth/AuthContext'
 import { useSocket } from '@/lib/socket/SocketContext'
 import { useRealTimeNotifications } from '@/lib/hooks/useRealTimeNotifications'
+import { useTheme } from 'next-themes'
 import {
   BellIcon,
   MagnifyingGlassIcon,
@@ -13,6 +14,7 @@ import {
   ExclamationTriangleIcon,
   InformationCircleIcon,
 } from '@heroicons/react/24/outline'
+import { SunIcon, MoonIcon } from '@heroicons/react/24/solid'
 import { Menu, Transition } from '@headlessui/react'
 import { Fragment } from 'react'
 import clsx from 'clsx'
@@ -22,6 +24,7 @@ export function AgentHeader() {
   const { user, logout } = useAuth()
   const { connected } = useSocket()
   const { notifications, unreadCount, markAsRead } = useRealTimeNotifications()
+  const { theme, setTheme } = useTheme()
   const [searchQuery, setSearchQuery] = useState('')
   const [showNotifications, setShowNotifications] = useState(false)
 
@@ -32,39 +35,65 @@ export function AgentHeader() {
   }
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4">
+    <header className="bg-background/95 backdrop-blur-sm border-b border-border/50 px-6 py-4 sticky top-0 z-30">
       <div className="flex items-center justify-between">
         {/* Left side - Search */}
         <div className="flex-1 max-w-lg">
-          <form onSubmit={handleSearch} className="relative">
+          <form onSubmit={handleSearch} className="relative group">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+              <MagnifyingGlassIcon className="h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors duration-200" />
             </div>
             <input
               type="text"
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 focus:bg-white sm:text-sm"
-              placeholder="Search leads, conversations..."
+              className="block w-full pl-10 pr-4 py-2.5 border border-input rounded-xl leading-5 bg-background/50 placeholder-muted-foreground focus:outline-none focus:placeholder-muted-foreground/70 focus:ring-2 focus:ring-ring focus:border-primary focus:bg-background sm:text-sm transition-all duration-200 hover:bg-background/80"
+              placeholder="Search leads, conversations, properties..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
+            {searchQuery && (
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors duration-200 rounded-full hover:bg-muted p-0.5"
+                >
+                  ×
+                </button>
+              </div>
+            )}
           </form>
         </div>
 
         {/* Right side - Actions */}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3">
           {/* Connection Status */}
-          <RealTimeStatus size="sm" />
+          <div className="hidden sm:block">
+            <RealTimeStatus size="sm" />
+          </div>
+
+          {/* Theme Toggle */}
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="p-2.5 text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-xl hover:bg-accent transition-all duration-200 micro-bounce"
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          >
+            {theme === 'dark' ? (
+              <SunIcon className="h-5 w-5" />
+            ) : (
+              <MoonIcon className="h-5 w-5" />
+            )}
+          </button>
 
           {/* Notifications */}
           <div className="relative">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative p-2 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-lg"
+              className="relative p-2.5 text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-xl hover:bg-accent transition-all duration-200 micro-bounce"
             >
-              <BellIcon className="h-6 w-6" />
+              <BellIcon className="h-5 w-5" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  {unreadCount > 99 ? '99+' : unreadCount}
+                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-xs font-medium animate-pulse-gentle">
+                  {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
             </button>
@@ -131,17 +160,17 @@ export function AgentHeader() {
 
           {/* User Menu */}
           <Menu as="div" className="relative">
-            <Menu.Button className="flex items-center text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
-              <div className="h-8 w-8 bg-primary-100 rounded-full flex items-center justify-center">
-                <span className="text-sm font-medium text-primary-700">
+            <Menu.Button className="flex items-center text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 hover:bg-accent transition-all duration-200 p-2 group">
+              <div className="h-9 w-9 bg-gradient-to-br from-primary to-primary/80 rounded-full flex items-center justify-center shadow-sm group-hover:shadow-md transition-all duration-200 micro-bounce">
+                <span className="text-sm font-semibold text-primary-foreground">
                   {user?.full_name?.charAt(0) || 'A'}
                 </span>
               </div>
-              <div className="ml-3 text-left">
-                <p className="text-sm font-medium text-gray-900">
+              <div className="ml-3 text-left hidden sm:block">
+                <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors duration-200">
                   {user?.full_name || 'Agent'}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground font-medium">
                   {user?.email}
                 </p>
               </div>

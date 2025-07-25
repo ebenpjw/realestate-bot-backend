@@ -42,19 +42,21 @@ export default function AgentLayout({
   }
 
   return (
-    <div className="h-screen flex bg-gray-50">
+    <div className="h-screen flex bg-background">
       {/* Sidebar */}
       <AgentSidebar />
-      
+
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <AgentHeader />
-        
+
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="p-6">
-            {children}
+        <main className="flex-1 overflow-y-auto bg-gradient-to-br from-background via-background to-muted/20">
+          <div className="p-6 lg:p-8 h-full flex flex-col">
+            <div className="flex-1">
+              {children}
+            </div>
           </div>
         </main>
       </div>

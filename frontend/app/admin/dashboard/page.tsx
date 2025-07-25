@@ -18,6 +18,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { StatsCard } from '@/components/ui/StatsCard'
 import { Progress } from '@/components/ui/progress'
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner'
 
@@ -141,20 +142,20 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-fade-in">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
+        <div className="animate-slide-up">
+          <h1 className="text-4xl font-bold tracking-tight gradient-text">Admin Dashboard</h1>
+          <p className="text-muted-foreground text-lg mt-2">
             Monitor and manage your Outpaced system
           </p>
         </div>
-        <div className="flex space-x-3">
-          <Button variant="outline">
+        <div className="flex space-x-3 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <Button variant="outline" className="hover:scale-105 transition-transform duration-200">
             Export Report
           </Button>
-          <Button>
+          <Button className="hover:scale-105 transition-transform duration-200">
             Add New Agent
           </Button>
         </div>

@@ -101,7 +101,7 @@ export function LeadSelector({
     filteredLeads.every(lead => selectedLeads.includes(lead.id))
 
   return (
-    <Card className={cn("h-full", className)}>
+    <Card className={cn("h-full flex flex-col", className)}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -136,7 +136,7 @@ export function LeadSelector({
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-4">
+      <CardContent className="flex-1 flex flex-col space-y-4">
         {/* Search and Filter Controls */}
         <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
           <div className="relative flex-1">
@@ -176,7 +176,7 @@ export function LeadSelector({
         </div>
 
         {/* Leads List */}
-        <ScrollArea className="h-96">
+        <ScrollArea className="flex-1">
           <div className="space-y-2" data-testid="leads-list">
             {loading ? (
               // Loading skeletons

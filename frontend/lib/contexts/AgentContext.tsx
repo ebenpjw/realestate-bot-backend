@@ -115,42 +115,44 @@ export function AgentProvider({ children }: AgentProviderProps) {
     try {
       setLoading(true)
       setError(null)
-      
-      // Load agent configuration
-      const agentResponse = await apiClient.get(`/api/agents/${user?.id}`)
-      const agentData = agentResponse.data.data
-      
+
+      // Use data from the user object (already loaded from /api/frontend-auth/me)
+      // No need to call the admin-only /api/agents/:id endpoint
+      if (!user) {
+        throw new Error('User data not available')
+      }
+
       setAgentConfig({
-        id: agentData.id,
-        fullName: agentData.full_name,
-        email: agentData.email,
-        organizationId: agentData.organization_id,
-        wabaPhoneNumber: agentData.waba_phone_number,
-        wabaDisplayName: agentData.waba_display_name,
-        botName: agentData.bot_name || 'Doro',
-        googleConnected: !!agentData.google_email,
-        zoomConnected: !!agentData.zoom_user_id,
-        wabaConnected: !!agentData.waba_phone_number,
-        workingHours: agentData.working_hours || {
+        id: user.id,
+        fullName: user.full_name,
+        email: user.email,
+        organizationId: user.organization_id,
+        wabaPhoneNumber: user.waba_phone_number,
+        wabaDisplayName: user.waba_display_name,
+        botName: user.bot_name || 'Doro',
+        googleConnected: user.google_connected || false,
+        zoomConnected: user.zoom_connected || false,
+        wabaConnected: !!user.waba_phone_number,
+        workingHours: {
           start: 9,
           end: 18,
           days: [1, 2, 3, 4, 5]
         },
-        timezone: agentData.timezone || 'Asia/Singapore',
-        botPersonalityConfig: agentData.bot_personality_config || {},
-        customResponses: agentData.custom_responses || {},
-        totalLeads: agentData.total_leads || 0,
-        activeConversations: agentData.active_conversations || 0,
-        conversionRate: agentData.conversion_rate || 0,
-        averageResponseTime: agentData.average_response_time || 0,
+        timezone: 'Asia/Singapore',
+        botPersonalityConfig: {},
+        customResponses: {},
+        totalLeads: 0,
+        activeConversations: 0,
+        conversionRate: 0,
+        averageResponseTime: 0,
       })
-      
-      // Set organization configuration from agent data (if available)
-      if (user?.role === 'admin' && agentData.organization_id) {
-        // For now, set basic organization config from agent data
+
+      // Set organization configuration from user data (if available)
+      if (user?.role === 'admin' && user.organization_id) {
+        // For now, set basic organization config from user data
         // In the future, we can add a dedicated organization endpoint if needed
         setOrganizationConfig({
-          id: agentData.organization_id,
+          id: user.organization_id,
           name: 'Default Organization', // Could be enhanced with actual org name
           slug: 'default',
           subscriptionTier: 'basic',
@@ -172,11 +174,28 @@ export function AgentProvider({ children }: AgentProviderProps) {
     try {
       setLoading(true)
       setError(null)
-      
-      const response = await apiClient.patch(`/api/agents/${user?.id}`, updates)
-      const updatedConfig = response.data.data
-      
-      setAgentConfig(prev => prev ? { ...prev, ...updatedConfig } : null)
+
+      // Use the agent-accessible profile endpoint instead of admin-only endpoint
+      const profileUpdates: any = {}
+      if (updates.fullName) profileUpdates.full_name = updates.fullName
+      if (updates.email) profileUpdates.email = updates.email
+
+      if (Object.keys(profileUpdates).length > 0) {
+        await apiClient.patch('/api/frontend-auth/profile', profileUpdates)
+      }
+
+      // For WABA-related updates, use the integrations endpoint
+      const wabaUpdates: any = {}
+      if (updates.wabaPhoneNumber) wabaUpdates.phoneNumber = updates.wabaPhoneNumber
+      if (updates.wabaDisplayName) wabaUpdates.displayName = updates.wabaDisplayName
+      if (updates.botName) wabaUpdates.botName = updates.botName
+
+      if (Object.keys(wabaUpdates).length > 0) {
+        await apiClient.patch('/api/integrations/waba', wabaUpdates)
+      }
+
+      // Update local state
+      setAgentConfig(prev => prev ? { ...prev, ...updates } : null)
     } catch (err: any) {
       setError(err.message || 'Failed to update agent configuration')
       throw err

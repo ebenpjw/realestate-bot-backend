@@ -2,7 +2,7 @@
 
 import { format } from 'date-fns'
 import { Menu, Transition } from '@headlessui/react'
-import { Fragment } from 'react'
+import { Fragment, useState } from 'react'
 import {
   EllipsisVerticalIcon,
   ChatBubbleLeftRightIcon,
@@ -10,6 +10,8 @@ import {
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
+import { openWhatsApp, initiateCall } from '@/lib/utils/phoneUtils'
+import { AppointmentScheduler } from './AppointmentScheduler'
 
 interface Lead {
   id: string
@@ -34,6 +36,7 @@ interface LeadTableProps {
   onSelectAll: (selected: boolean) => void
   onLeadClick: (lead: Lead) => void
   onStatusUpdate: (leadId: string, status: string) => void
+  onAppointmentScheduled?: (leadId: string, appointmentId: string) => void
 }
 
 export function LeadTable({
@@ -43,7 +46,9 @@ export function LeadTable({
   onSelectAll,
   onLeadClick,
   onStatusUpdate,
+  onAppointmentScheduled,
 }: LeadTableProps) {
+  const [schedulingLead, setSchedulingLead] = useState<Lead | null>(null)
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'new':
@@ -198,17 +203,17 @@ export function LeadTable({
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      // Handle chat action
+                      openWhatsApp(lead.phoneNumber, lead.fullName)
                     }}
                     className="text-primary-600 hover:text-primary-900"
-                    title="Start conversation"
+                    title="Send WhatsApp message"
                   >
                     <ChatBubbleLeftRightIcon className="h-4 w-4" />
                   </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      // Handle call action
+                      initiateCall(lead.phoneNumber)
                     }}
                     className="text-green-600 hover:text-green-900"
                     title="Call lead"
@@ -218,7 +223,7 @@ export function LeadTable({
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      // Handle schedule action
+                      setSchedulingLead(lead)
                     }}
                     className="text-purple-600 hover:text-purple-900"
                     title="Schedule appointment"
@@ -327,6 +332,19 @@ export function LeadTable({
           </div>
         </div>
       )}
+
+      {/* Appointment Scheduler Modal */}
+      <AppointmentScheduler
+        lead={schedulingLead}
+        isOpen={!!schedulingLead}
+        onClose={() => setSchedulingLead(null)}
+        onAppointmentScheduled={(appointmentId) => {
+          if (schedulingLead && onAppointmentScheduled) {
+            onAppointmentScheduled(schedulingLead.id, appointmentId)
+          }
+          setSchedulingLead(null)
+        }}
+      />
     </div>
   )
 }

@@ -197,7 +197,7 @@ export default function LeadsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="h-full flex flex-col space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -288,8 +288,8 @@ export default function LeadsPage() {
       )}
 
       {/* Lead Table */}
-      <Card>
-        <CardContent className="p-0">
+      <Card className="flex-1 flex flex-col">
+        <CardContent className="p-0 flex-1 flex flex-col">
           {error && (
             <div className="p-4 text-center text-red-600">
               {error}
@@ -304,20 +304,26 @@ export default function LeadsPage() {
             </div>
           )}
           {loading ? (
-            <div className="flex items-center justify-center h-64">
+            <div className="flex items-center justify-center flex-1">
               <LoadingSpinner size="lg" />
             </div>
           ) : filteredLeads.length > 0 ? (
-            <LeadTable
-              leads={filteredLeads}
-              selectedLeads={selectedLeads}
-              onLeadSelect={handleLeadSelect}
-              onSelectAll={handleSelectAll}
-              onLeadClick={handleLeadClick}
-              onStatusUpdate={(leadId, status) => handleStatusUpdate([leadId], status)}
-            />
+            <div className="flex-1">
+              <LeadTable
+                leads={filteredLeads}
+                selectedLeads={selectedLeads}
+                onLeadSelect={handleLeadSelect}
+                onSelectAll={handleSelectAll}
+                onLeadClick={handleLeadClick}
+                onStatusUpdate={(leadId, status) => handleStatusUpdate([leadId], status)}
+                onAppointmentScheduled={(leadId, appointmentId) => {
+                  // Optionally refresh leads or update status
+                  console.log(`Appointment ${appointmentId} scheduled for lead ${leadId}`)
+                }}
+              />
+            </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+            <div className="flex flex-col items-center justify-center flex-1 text-muted-foreground">
               <Users className="h-8 w-8 mb-2" />
               <p className="text-sm">No leads found</p>
             </div>
@@ -365,6 +371,11 @@ export default function LeadsPage() {
           onStatusUpdate={(status) => {
             handleStatusUpdate([selectedLead.id], status)
             setSelectedLead(null)
+          }}
+          onLeadUpdate={(updates) => {
+            // Update the lead in the local state
+            setSelectedLead(prev => prev ? { ...prev, ...updates } : null)
+            // Optionally trigger a refresh of the leads list
           }}
         />
       )}

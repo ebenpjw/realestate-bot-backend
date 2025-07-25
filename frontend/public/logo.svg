@@ -1,0 +1,25 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:hsl(224, 82%, 56%);stop-opacity:1" />
+      <stop offset="100%" style="stop-color:hsl(224, 82%, 46%);stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.1)"/>
+    </filter>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="16" cy="16" r="14" fill="url(#gradient)" filter="url(#shadow)"/>
+  
+  <!-- Speed lines representing "Outpaced" -->
+  <g transform="translate(8, 10)">
+    <!-- Main arrow/speed indicator -->
+    <path d="M2 6 L12 6 L10 4 M12 6 L10 8" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    
+    <!-- Speed lines -->
+    <line x1="1" y1="3" x2="6" y2="3" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
+    <line x1="1" y1="9" x2="6" y2="9" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
+    <line x1="0" y1="6" x2="3" y2="6" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+  </g>
+</svg>

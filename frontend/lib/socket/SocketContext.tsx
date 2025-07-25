@@ -57,14 +57,14 @@ export function SocketProvider({ children }: SocketProviderProps) {
       }
 
       if (typeof window !== 'undefined') {
-        if (window.location.hostname === 'localhost') {
+        if (window.location.hostname === 'localhost' && !process.env.NEXT_PUBLIC_WS_URL) {
           return 'ws://localhost:8080'
         }
         // For production, use same domain with wss protocol
         return `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
       }
 
-      return 'ws://localhost:8080'
+      return 'wss://backend-api-production-d74a.up.railway.app'
     }
 
     const WS_URL = getWsUrl()

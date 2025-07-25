@@ -63,36 +63,61 @@ export default function MessagesPage() {
 
     // Listen for bulk message progress updates
     const handleBulkProgress = (data: any) => {
-      setBulkProgress({
-        campaignId: data.campaignId,
-        sent: data.sent,
-        failed: data.failed,
-        total: data.total,
-        currentLead: data.currentLead,
-        progress: data.progress
-      })
+      try {
+        if (data && data.campaignId) {
+          setBulkProgress({
+            campaignId: data.campaignId,
+            sent: data.sent || 0,
+            failed: data.failed || 0,
+            total: data.total || 1,
+            currentLead: data.currentLead,
+            progress: data.progress || 0
+          })
+        }
+      } catch (error) {
+        console.error('Error handling bulk progress update:', error)
+      }
     }
 
     // Listen for bulk message completion
     const handleBulkCompleted = (data: any) => {
-      setBulkProgress(prev => prev ? {
-        ...prev,
-        sent: data.sent,
-        failed: data.failed,
-        currentLead: undefined
-      } : null)
-      setSending(false)
-      showSuccessToast(`Bulk campaign completed! ${data.sent} sent, ${data.failed} failed`)
+      try {
+        setBulkProgress(prev => prev ? {
+          ...prev,
+          sent: data.sent || 0,
+          failed: data.failed || 0,
+          currentLead: undefined
+        } : null)
+        setSending(false)
+        const sent = data.sent || 0
+        const failed = data.failed || 0
+        showSuccessToast(`Bulk campaign completed! ${sent} sent, ${failed} failed`)
+        // Refresh campaigns in background
+        refreshCampaigns()
+      } catch (error) {
+        console.error('Error handling bulk completion:', error)
+        setSending(false)
+        showErrorToast('Error processing bulk campaign completion')
+      }
     }
 
     // Listen for bulk message failure
     const handleBulkFailed = (data: any) => {
-      setBulkProgress(prev => prev ? {
-        ...prev,
-        currentLead: undefined
-      } : null)
-      setSending(false)
-      showErrorToast(`Bulk campaign failed: ${data.error}`)
+      try {
+        setBulkProgress(prev => prev ? {
+          ...prev,
+          currentLead: undefined
+        } : null)
+        setSending(false)
+        const errorMessage = data?.error || 'Unknown error occurred'
+        showErrorToast(`Bulk campaign failed: ${errorMessage}`)
+        // Refresh campaigns to show failed status
+        refreshCampaigns()
+      } catch (error) {
+        console.error('Error handling bulk failure:', error)
+        setSending(false)
+        showErrorToast('Error processing bulk campaign failure')
+      }
     }
 
     socket.on('bulk_message_progress', handleBulkProgress)
@@ -116,15 +141,35 @@ export default function MessagesPage() {
         messagesApi.getCampaigns({ limit: 20 })
       ])
 
-      setTemplates(templatesData.templates || [])
-      setLeads(leadsData.leads || [])
-      setCampaigns(campaignsData.campaigns || [])
+      // Only update state if we actually received data
+      if (templatesData?.templates) {
+        setTemplates(templatesData.templates)
+      }
+      if (leadsData?.leads) {
+        setLeads(leadsData.leads)
+      }
+      if (campaignsData?.campaigns) {
+        setCampaigns(campaignsData.campaigns)
+      }
 
     } catch (error) {
       console.error('Error fetching initial data:', error)
       showErrorToast('Failed to load messaging data')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Refresh only campaigns data (used after bulk messaging completion)
+  const refreshCampaigns = async () => {
+    try {
+      const campaignsData = await messagesApi.getCampaigns({ limit: 20 })
+      if (campaignsData?.campaigns) {
+        setCampaigns(campaignsData.campaigns)
+      }
+    } catch (error) {
+      console.error('Error refreshing campaigns:', error)
+      // Don't show error toast for this background refresh
     }
   }
 
@@ -206,14 +251,18 @@ export default function MessagesPage() {
         campaignName: `Bulk Campaign - ${selectedTemplate.name} - ${new Date().toLocaleDateString()}`
       })
 
-      setBulkProgress({
-        campaignId: response.campaignId,
-        sent: 0,
-        failed: 0,
-        total: selectedLeads.length
-      })
+      if (response?.campaignId) {
+        setBulkProgress({
+          campaignId: response.campaignId,
+          sent: 0,
+          failed: 0,
+          total: selectedLeads.length
+        })
 
-      showSuccessToast(`Bulk campaign started! Sending to ${selectedLeads.length} leads.`)
+        showSuccessToast(`Bulk campaign started! Sending to ${selectedLeads.length} leads.`)
+      } else {
+        throw new Error('Invalid response from bulk messaging API')
+      }
 
     } catch (error: any) {
       console.error('Error starting bulk campaign:', error)
@@ -233,7 +282,7 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="h-full flex flex-col space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -257,14 +306,14 @@ export default function MessagesPage() {
           onComplete={() => {
             setBulkProgress(null)
             setSending(false)
-            // Refresh campaigns list
-            fetchInitialData()
+            // Refresh only campaigns list to avoid clearing templates
+            refreshCampaigns()
           }}
         />
       )}
 
       {/* Main Content */}
-      <Tabs defaultValue="send" className="space-y-6">
+      <Tabs defaultValue="send" className="flex-1 flex flex-col space-y-6">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="send" className="flex items-center space-x-2" data-testid="tab-send">
             <Send className="h-4 w-4" />
@@ -281,8 +330,8 @@ export default function MessagesPage() {
         </TabsList>
 
         {/* Send Messages Tab */}
-        <TabsContent value="send" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <TabsContent value="send" className="flex-1 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
             {/* Template Selection */}
             <TemplateSelector
               templates={templates}
@@ -316,7 +365,7 @@ export default function MessagesPage() {
         </TabsContent>
 
         {/* Create Template Tab */}
-        <TabsContent value="create">
+        <TabsContent value="create" className="flex-1">
           <TemplateCreator
             onTemplateCreated={(templateId) => {
               // Refresh templates list
@@ -327,7 +376,7 @@ export default function MessagesPage() {
         </TabsContent>
 
         {/* Campaign History Tab */}
-        <TabsContent value="history">
+        <TabsContent value="history" className="flex-1">
           <CampaignHistory
             campaigns={campaigns}
             loading={loading}
