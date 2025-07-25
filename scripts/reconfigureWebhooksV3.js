@@ -21,8 +21,24 @@ class WebhookReconfigurationService {
    * Get webhook URL for the environment
    */
   getWebhookUrl() {
-    const baseUrl = process.env.WEBHOOK_BASE_URL || 'https://backend-api-production-d74a.up.railway.app';
-    return `${baseUrl}/api/gupshup/webhook`;
+    // Always use production HTTPS URL for webhook configuration
+    // This ensures webhooks work even when configuring from local development
+    const productionUrl = 'https://backend-api-production-d74a.up.railway.app/api/gupshup/webhook';
+
+    // For production/Railway deployment
+    if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
+      return productionUrl;
+    }
+
+    // For local development - use ngrok or similar tunnel if available
+    if (process.env.WEBHOOK_BASE_URL && process.env.WEBHOOK_BASE_URL.startsWith('https://')) {
+      return `${process.env.WEBHOOK_BASE_URL}/api/gupshup/webhook`;
+    }
+
+    // Default to production URL for webhook configuration
+    // This allows local scripts to configure production webhooks
+    console.log('ℹ️ Using production webhook URL for configuration from local environment');
+    return productionUrl;
   }
 
   /**

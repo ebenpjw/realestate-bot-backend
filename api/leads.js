@@ -265,6 +265,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     if (updateData.status) updateFields.status = updateData.status;
     if (updateData.fullName) updateFields.full_name = updateData.fullName;
     if (updateData.phoneNumber) updateFields.phone_number = updateData.phoneNumber;
+    if (updateData.intent) updateFields.intent = updateData.intent;
     if (updateData.locationPreference) updateFields.location_preference = updateData.locationPreference;
     if (updateData.propertyType) updateFields.property_type = updateData.propertyType;
     if (updateData.budget) updateFields.budget = updateData.budget;
