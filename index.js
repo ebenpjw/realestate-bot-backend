@@ -263,6 +263,9 @@ app.use('/api/agents', require('./api/agents'));
 app.use('/api/messages', require('./api/messages'));
 app.use('/api/cost-tracking', require('./api/costTracking'));
 app.use('/api/cost-tracking-dashboard', require('./api/costTrackingDashboard'));
+// Multi-tenant WABA Health & Cost Monitoring APIs
+app.use('/api/agent', require('./api/agentHealthCostAPI'));
+app.use('/api/admin', require('./api/adminHealthCostAPI'));
 // Optional feature loading with better error handling and feature flags
 const enabledFeatures = {
   visualProperty: process.env.ENABLE_VISUAL_PROPERTY_API !== 'false',

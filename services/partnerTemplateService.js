@@ -1,10 +1,10 @@
 const axios = require('axios');
 const FormData = require('form-data');
+const crypto = require('crypto');
 const config = require('../config');
 const logger = require('../logger');
 const databaseService = require('./databaseService');
 const gupshupPartnerService = require('./gupshupPartnerService');
-const multiTenantConfigService = require('./multiTenantConfigService');
 
 /**
  * Partner Template Service
@@ -20,13 +20,81 @@ class PartnerTemplateService {
   constructor() {
     this.baseURL = 'https://partner.gupshup.io/partner';
     this.templateCheckInterval = null;
-    
+    this.encryptionKey = config.REFRESH_TOKEN_ENCRYPTION_KEY;
+
     // Start template status check if enabled
     if (config.TEMPLATE_STATUS_CHECK_ENABLED !== false) {
       this.startTemplateStatusCheck();
     }
-    
+
     logger.info('Partner Template Service initialized');
+  }
+
+  /**
+   * Decrypt encrypted data (same logic as multiTenantConfigService)
+   * @private
+   */
+  _decrypt(encryptedText) {
+    if (!encryptedText) return null;
+
+    // Handle test mode - if it's a simple test string, return as-is
+    if (process.env.TESTING_MODE === 'true' && encryptedText.startsWith('test_')) {
+      return encryptedText.replace('test_encrypted_key_', 'test_api_key_');
+    }
+
+    // Handle simple base64 encoding (new format)
+    if (encryptedText.startsWith('enc_')) {
+      const encoded = encryptedText.replace('enc_', '');
+      return Buffer.from(encoded, 'base64').toString('utf8');
+    }
+
+    // Handle plain text (for backward compatibility)
+    if (!encryptedText.includes(':')) {
+      return encryptedText;
+    }
+
+    // Handle old GCM encryption format - for now, just return as-is for compatibility
+    // TODO: Implement proper GCM decryption when needed
+    return encryptedText;
+  }
+
+  /**
+   * Get agent WABA configuration directly (to avoid circular dependency)
+   * @private
+   */
+  async _getAgentWABAConfig(agentId) {
+    try {
+      // Fetch agent data directly from database
+      const { data: agent, error } = await databaseService.supabase
+        .from('agents')
+        .select('waba_phone_number, gupshup_api_key_encrypted, gupshup_app_id, waba_display_name, full_name, bot_name')
+        .eq('id', agentId)
+        .eq('status', 'active')
+        .single();
+
+      if (error || !agent) {
+        throw new Error(`Agent not found or inactive: ${agentId}`);
+      }
+
+      if (!agent.waba_phone_number || !agent.gupshup_api_key_encrypted) {
+        throw new Error(`Agent ${agentId} does not have complete WABA configuration`);
+      }
+
+      // Decrypt API key
+      const apiKey = this._decrypt(agent.gupshup_api_key_encrypted);
+
+      return {
+        wabaNumber: agent.waba_phone_number,
+        apiKey: apiKey,
+        appId: agent.gupshup_app_id,
+        displayName: agent.waba_display_name || agent.full_name,
+        botName: agent.bot_name || 'Doro'
+      };
+
+    } catch (error) {
+      logger.error({ err: error, agentId }, 'Failed to get agent WABA configuration');
+      throw error;
+    }
   }
 
   /**
@@ -192,6 +260,7 @@ class PartnerTemplateService {
    * @param {string} params.templateCategory - Template category (MARKETING, UTILITY, AUTHENTICATION)
    * @param {string} params.templateContent - Template content
    * @param {Array} params.templateParams - Template parameters
+   * @param {Array} params.templateButtons - Template buttons (optional)
    * @param {string} params.languageCode - Language code (default: en)
    * @param {string} params.templateType - Template type (standard, welcome, followup, reminder)
    * @returns {Promise<Object>} Created template
@@ -210,13 +279,17 @@ class PartnerTemplateService {
       }
       
       // Prepare template data
+      const hasButtons = params.templateButtons && params.templateButtons.length > 0;
       const templateData = {
         template_name: params.templateName,
         template_category: params.templateCategory || 'UTILITY',
         template_content: params.templateContent,
         template_params: params.templateParams || [],
+        template_buttons: hasButtons ? JSON.stringify(params.templateButtons) : null,
         language_code: params.languageCode || 'en',
-        template_type: params.templateType || 'standard',
+        // According to Gupshup API docs, templateType is always 'TEXT' even for button templates
+        // The buttons are added via the 'buttons' parameter, not by changing the template type
+        template_type: 'TEXT',
         agent_id: params.agentId,
         status: 'pending',
         created_at: new Date().toISOString(),
@@ -236,21 +309,55 @@ class PartnerTemplateService {
       
       // Submit template to Gupshup Partner API using agent's WABA credentials
       // Get agent's decrypted API key
-      const agentConfig = await multiTenantConfigService.getAgentWABAConfig(templateData.agent_id);
+      const agentConfig = await this._getAgentWABAConfig(templateData.agent_id);
 
       if (!agentConfig.apiKey) {
         throw new Error('Agent does not have WABA API key configured');
       }
 
       // Create template using agent's API key and Partner API endpoint
+      // According to Gupshup Partner API docs, ALL templates (including button templates) use form data
       const formData = new URLSearchParams();
       formData.append('elementName', templateData.template_name);
       formData.append('languageCode', templateData.language_code);
       formData.append('category', templateData.template_category);
       formData.append('content', templateData.template_content);
       formData.append('vertical', 'Real Estate');
-      formData.append('templateType', 'TEXT');
+      formData.append('templateType', 'TEXT'); // Always TEXT, even for button templates
       formData.append('example', templateData.template_content);
+      formData.append('enableSample', 'true'); // Required parameter
+      formData.append('allowTemplateCategoryChange', 'false');
+
+      // Add buttons if present - this is the correct format according to API docs
+      if (hasButtons && params.templateButtons.length > 0) {
+        const buttonsArray = params.templateButtons.map(button => {
+          const buttonObj = {
+            type: button.type,
+            text: button.text
+          };
+
+          // Add type-specific properties
+          if (button.type === 'URL' && button.url) {
+            buttonObj.url = button.url;
+            // Add example if URL has variables
+            if (button.url.includes('{{')) {
+              buttonObj.example = [button.url.replace(/\{\{\d+\}\}/g, 'example')];
+            }
+          } else if (button.type === 'PHONE_NUMBER' && button.phoneNumber) {
+            buttonObj.phone_number = button.phoneNumber;
+          }
+
+          return buttonObj;
+        });
+
+        formData.append('buttons', JSON.stringify(buttonsArray));
+
+        logger.info({
+          templateName: templateData.template_name,
+          buttonCount: buttonsArray.length,
+          buttons: buttonsArray
+        }, 'Creating template with buttons using correct API format');
+      }
 
       const response = await axios.post(
         `${this.baseURL}/app/${agent.gupshup_app_id}/templates`,
@@ -263,39 +370,8 @@ class PartnerTemplateService {
           }
         }
       );
-      
-      if (!response.data || response.data.status !== 'success' || !response.data.template || !response.data.template.id) {
-        throw new Error(`Template creation failed: ${response.data?.message || 'Invalid response'}`);
-      }
 
-      // Update template with Gupshup template ID
-      const { error: updateError } = await databaseService.supabase
-        .from('waba_templates')
-        .update({
-          template_id: response.data.template.id,
-          status: 'submitted',
-          submitted_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', insertedTemplate.id);
-      
-      if (updateError) {
-        throw updateError;
-      }
-      
-      logger.info({
-        templateId: response.data.id,
-        dbTemplateId: insertedTemplate.id,
-        agentId: params.agentId,
-        templateName: params.templateName
-      }, 'Template created and submitted successfully');
-      
-      return {
-        ...insertedTemplate,
-        template_id: response.data.template.id,
-        status: 'submitted',
-        submitted_at: new Date().toISOString()
-      };
+      return await this._handleTemplateResponse(response, insertedTemplate, params);
       
     } catch (error) {
       logger.error({
@@ -306,6 +382,47 @@ class PartnerTemplateService {
       
       throw error;
     }
+  }
+
+
+
+  /**
+   * Handle template creation response from Gupshup
+   * @private
+   */
+  async _handleTemplateResponse(response, insertedTemplate, params) {
+    if (!response.data || response.data.status !== 'success' || !response.data.template || !response.data.template.id) {
+      throw new Error(`Template creation failed: ${response.data?.message || 'Invalid response'}`);
+    }
+
+    // Update template with Gupshup template ID
+    const { error: updateError } = await databaseService.supabase
+      .from('waba_templates')
+      .update({
+        template_id: response.data.template.id,
+        status: 'submitted',
+        submitted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', insertedTemplate.id);
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    logger.info({
+      templateId: response.data.template.id,
+      dbTemplateId: insertedTemplate.id,
+      agentId: params.agentId,
+      templateName: params.templateName
+    }, 'Template created and submitted successfully');
+
+    return {
+      ...insertedTemplate,
+      template_id: response.data.template.id,
+      status: 'submitted',
+      submitted_at: new Date().toISOString()
+    };
   }
 
   /**

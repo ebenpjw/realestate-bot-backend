@@ -379,10 +379,28 @@ router.get('/campaigns', authenticateToken, async (req, res) => {
       throw error;
     }
 
+    // Transform database fields to camelCase for frontend
+    const transformedCampaigns = campaigns.map(campaign => ({
+      id: campaign.id,
+      agentId: campaign.agent_id,
+      templateId: campaign.template_id,
+      templateName: campaign.template_name || 'Unknown Template',
+      campaignName: campaign.campaign_name,
+      totalRecipients: campaign.total_recipients || 0,
+      messagesSent: campaign.messages_sent || 0,
+      messagesDelivered: campaign.messages_delivered || 0,
+      messagesFailed: campaign.messages_failed || 0,
+      status: campaign.status || 'pending',
+      createdAt: campaign.created_at,
+      updatedAt: campaign.updated_at,
+      completedAt: campaign.completed_at,
+      errorDetails: campaign.error_details
+    }));
+
     res.json({
       success: true,
       data: {
-        campaigns,
+        campaigns: transformedCampaigns,
         total: count,
         hasMore: campaigns.length === parseInt(limit)
       }
@@ -420,9 +438,27 @@ router.get('/campaigns/:campaignId/status', authenticateToken, async (req, res) 
       });
     }
 
+    // Transform database fields to camelCase for frontend
+    const transformedCampaign = {
+      id: campaign.id,
+      agentId: campaign.agent_id,
+      templateId: campaign.template_id,
+      templateName: campaign.template_name || 'Unknown Template',
+      campaignName: campaign.campaign_name,
+      totalRecipients: campaign.total_recipients || 0,
+      messagesSent: campaign.messages_sent || 0,
+      messagesDelivered: campaign.messages_delivered || 0,
+      messagesFailed: campaign.messages_failed || 0,
+      status: campaign.status || 'pending',
+      createdAt: campaign.created_at,
+      updatedAt: campaign.updated_at,
+      completedAt: campaign.completed_at,
+      errorDetails: campaign.error_details
+    };
+
     res.json({
       success: true,
-      data: campaign
+      data: transformedCampaign
     });
 
   } catch (error) {
@@ -612,6 +648,7 @@ router.post('/templates', authenticateToken, async (req, res) => {
       templateCategory,
       templateContent,
       templateParams,
+      templateButtons,
       languageCode = 'en',
       templateType = 'TEXT'
     } = req.body;
@@ -636,6 +673,7 @@ router.post('/templates', authenticateToken, async (req, res) => {
       templateCategory,
       templateContent: templateContent.trim(),
       templateParams: templateParams || [],
+      templateButtons: templateButtons || [],
       languageCode,
       templateType
     });
